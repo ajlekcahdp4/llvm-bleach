@@ -12,5 +12,6 @@ llvm_map_components_to_libnames(llvm_libs ${LLVM_TARGETS_TO_BUILD} support core 
 add_executable(llvm-bleach llvm-bleach.cpp)
 enable_warnings(llvm-bleach)
 target_enable_linter(llvm-bleach)
-target_link_libraries(llvm-bleach ${llvm_libs})
+target_include_directories(llvm-bleach PUBLIC ${LLVM_BLEACH_INCLUDE_DIR})
+target_link_libraries(llvm-bleach  PUBLIC ${llvm_libs} bleach-lifter)
 target_compile_features(llvm-bleach PUBLIC cxx_std_23)

@@ -1,8 +1,12 @@
 find_package(LLVM REQUIRED CONFIG)
+find_package(yaml-cpp REQUIRED CONFIG)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 llvm_map_components_to_libnames(llvm_libs support core irreader)
 
 add_library(bleach-lifter instr-impl.cpp)
 enable_warnings(bleach-lifter)
 target_enable_linter(bleach-lifter)
+target_include_directories(bleach-lifter PUBLIC ${LLVM_BLEACH_INCLUDE_DIR})
+target_link_libraries(bleach-lifter PUBLIC yaml-cpp::yaml-cpp)
 target_compile_features(bleach-lifter PUBLIC cxx_std_23)
+target_compile_options(bleach-lifter PUBLIC "-O0")

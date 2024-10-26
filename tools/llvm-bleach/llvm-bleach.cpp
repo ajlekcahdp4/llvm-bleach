@@ -1,4 +1,4 @@
-// #include <llvm-bleach/bleach.h>
+#include "bleach/lifter/instr-impl.h"
 
 #include <llvm/CodeGen/CommandFlags.h>
 #include <llvm/CodeGen/MIRParser/MIRParser.h>
@@ -22,6 +22,7 @@
 #include <llvm/TargetParser/Host.h>
 #include <llvm/TargetParser/Triple.h>
 
+#include <fstream>
 #include <iostream>
 #include <utility>
 
@@ -34,12 +35,14 @@ static cl::opt<std::string> mir_file_name(cl::Positional,
                                           cl::cat(options), cl::init(""));
 
 namespace {
+Function *func_g = nullptr;
 
 class print_pass : public PassInfoMixin<print_pass> {
 public:
   PreservedAnalyses run(Module &m, ModuleAnalysisManager &mam) {
     auto &mmi = mam.getResult<MachineModuleAnalysis>(m).getMMI();
     for (auto &f : m) {
+      func_g = &f;
       auto &mf = mmi.getOrCreateMachineFunction(f);
       mf.dump();
     }
@@ -101,7 +104,17 @@ auto main(int argc, char **argv) -> int try {
   mam.registerPass([&] { return MachineModuleAnalysis(*machine_module_info); });
   mpm.addPass(print_pass());
   mpm.run(*m, mam);
-  // remove to get use after free
+  std::ifstream file("build/instrs.yaml");
+  std::string yaml(std::istreambuf_iterator<char>{file},
+                   std::istreambuf_iterator<char>{});
+  assert(file.good());
+  auto instrs = lifter::load_from_yaml(std::move(yaml), ctx);
+  for (auto &[name, ir_module] : instrs) {
+    auto *func = ir_module->getFunction(name);
+    assert(func);
+    func->dump();
+  }
+  lifter::save_to_yaml(instrs);
 } catch (const std::exception &e) {
   std::cerr << "ERROR: " << e.what() << std::endl;
   exit(EXIT_FAILURE);
