@@ -33,7 +33,10 @@ namespace bleach {
 static cl::opt<std::string> mir_file_name(cl::Positional,
                                           cl::desc("<mir file>"),
                                           cl::cat(options), cl::init(""));
-
+static cl::opt<std::string> instructions_file(
+    "instructions",
+    cl::desc("File with (YAML) descriptions of instructions in LLVM IR"),
+    cl::cat(options), cl::init(""));
 namespace {
 Function *func_g = nullptr;
 
@@ -104,7 +107,7 @@ auto main(int argc, char **argv) -> int try {
   mam.registerPass([&] { return MachineModuleAnalysis(*machine_module_info); });
   mpm.addPass(print_pass());
   mpm.run(*m, mam);
-  std::ifstream file("build/instrs.yaml");
+  std::ifstream file(instructions_file.getValue());
   std::string yaml(std::istreambuf_iterator<char>{file},
                    std::istreambuf_iterator<char>{});
   assert(file.good());
