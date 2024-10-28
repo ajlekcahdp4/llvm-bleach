@@ -37,6 +37,16 @@ static cl::opt<std::string> instructions_file(
     "instructions",
     cl::desc("File with (YAML) descriptions of instructions in LLVM IR"),
     cl::cat(options), cl::init(""));
+
+static cl::opt<bool> dump_input_mir("dump-input-mir",
+                                    cl::desc("Dump input MIR"),
+                                    cl::cat(options));
+
+static cl::opt<bool>
+    dump_input_instructions("dump-input-instructions",
+                            cl::desc("Dump input instructions"),
+                            cl::cat(options));
+
 namespace {
 Function *func_g = nullptr;
 
@@ -47,7 +57,7 @@ public:
     for (auto &f : m) {
       func_g = &f;
       auto &mf = mmi.getOrCreateMachineFunction(f);
-      mf.dump();
+      mf.print(outs());
     }
     return PreservedAnalyses::all();
   }
@@ -105,19 +115,22 @@ auto main(int argc, char **argv) -> int try {
   pass_builder.registerModuleAnalyses(mam);
   mam.registerPass([&] { return PassInstrumentationAnalysis(); });
   mam.registerPass([&] { return MachineModuleAnalysis(*machine_module_info); });
-  mpm.addPass(print_pass());
+  if (dump_input_mir)
+    mpm.addPass(print_pass());
   mpm.run(*m, mam);
+  if (!instructions_file.getNumOccurrences()) {
+    std::cerr << "Skipping instructions parsing since no file were provided\n";
+    return EXIT_SUCCESS;
+  };
   std::ifstream file(instructions_file.getValue());
   std::string yaml(std::istreambuf_iterator<char>{file},
                    std::istreambuf_iterator<char>{});
-  assert(file.good());
+  if (!file.good())
+    throw std::runtime_error("Failed to open file \"" +
+                             instructions_file.getValue() + "\"");
   auto instrs = lifter::load_from_yaml(std::move(yaml), ctx);
-  for (auto &[name, ir_module] : instrs) {
-    auto *func = ir_module->getFunction(name);
-    assert(func);
-    func->dump();
-  }
-  lifter::save_to_yaml(instrs);
+  if (dump_input_instructions)
+    lifter::save_to_yaml(instrs);
 } catch (const std::exception &e) {
   std::cerr << "ERROR: " << e.what() << std::endl;
   exit(EXIT_FAILURE);

@@ -10,7 +10,6 @@
       mdformat.enable = true;
       clang-format.enable = true;
       black.enable = true;
-      ruff.enable = true;
     };
   };
 }

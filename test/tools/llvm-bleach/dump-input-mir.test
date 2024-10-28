@@ -1,0 +1,4 @@
+# RUN: %bin/llvm-bleach %S/inputs/foo.mir --dump-input-mir | filecheck %s
+
+# CHECK: function foo
+# CHECK: ADDW

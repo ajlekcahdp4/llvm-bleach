@@ -61,6 +61,8 @@
               ++ (with pkgs; [
                 doxygen
                 clang-tools
+                lit
+                filecheck
                 act
                 lldb
                 gdb

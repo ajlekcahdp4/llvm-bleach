@@ -19,6 +19,7 @@ stdenv.mkDerivation {
       ./tools
       ./cmake
       ./include
+      ./test
     ];
   };
   nativeBuildInputs = with pkgs; [
@@ -27,4 +28,10 @@ stdenv.mkDerivation {
     yaml-cpp
   ];
   buildInputs = [ llvmLib ];
+  nativeCheckInputs = with pkgs; [
+    lit
+    filecheck
+    yq
+  ];
+  doCheck = true;
 }

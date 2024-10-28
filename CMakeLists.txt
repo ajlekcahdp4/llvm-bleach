@@ -37,8 +37,15 @@ endfunction()
 
 set(LLVM_BLEACH_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
+
 add_subdirectory(lib)
 add_subdirectory(tools)
+
+include(CTest)
+set(CMAKE_CTEST_ARGUMENTS "--verbose")
+enable_testing()
+add_subdirectory(test)
+
 option(LLVM_BLEACH_BUILD_DOCS OFF)
 if(LLVM_BLEACH_BUILD_DOCS)
   find_package(Doxygen REQUIRED OPTIONAL_COMPONENTS mscgen dia)

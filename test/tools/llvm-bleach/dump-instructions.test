@@ -1,0 +1,8 @@
+# RUN: %bin/llvm-bleach %S/inputs/foo.mir --dump-input-instructions \
+# RUN:   --instructions=%S/inputs/addsub.yaml > %t.yaml
+# RUN: cat %t.yaml | filecheck %s
+# RUN: yq . %t.yaml
+
+# CHECK: instructions
+# CHECK: add
+# CHECK: func
