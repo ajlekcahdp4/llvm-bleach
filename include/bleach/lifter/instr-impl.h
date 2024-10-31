@@ -25,10 +25,20 @@ public:
   using vector::operator[];
   using vector::emplace_back;
   using vector::push_back;
+
+  auto &get(std::string_view name) const & {
+    auto found = std::find_if(begin(), end(),
+                              [name](auto &pair) { return pair.name == name; });
+    if (found == end())
+      throw std::runtime_error("Unknown instruction \"" + std::string(name) +
+                               "\"");
+    assert(found->ir_module);
+    return *found->ir_module;
+  }
 };
 
 instr_impl load_from_yaml(std::string, LLVMContext &ctx);
 
-void save_to_yaml(const instr_impl &);
+std::string save_to_yaml(const instr_impl &);
 
 } // namespace bleach::lifter

@@ -24,12 +24,18 @@
         "x86_64-linux"
         "aarch64-linux"
       ];
-
+      flake.overlays.default = _final: prev: {
+        llvmPackages_19.libllvm = prev.llvmPackages_19.libllvm.overrideAttrs {
+          patches = prev.patches ++ [ ./overlays/llvm-install-target-headers.patch ];
+        };
+      };
       perSystem =
         { pkgs, ... }:
         let
           llvmPkgs = pkgs.llvmPackages_19;
-          llvmLib = llvmPkgs.llvm;
+          llvmLib = llvmPkgs.llvm.overrideAttrs (prev: {
+            patches = prev.patches ++ [ ./overlays/llvm-install-target-headers.patch ];
+          });
           llvmLibDebug = pkgs.enableDebugging (
             (llvmPkgs.llvm.override {
               debugVersion = true;

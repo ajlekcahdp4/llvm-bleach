@@ -1,3 +1,4 @@
+#include "bleach/lifter/block-ir-builder.hpp"
 #include "bleach/lifter/instr-impl.h"
 
 #include <llvm/CodeGen/CommandFlags.h>
@@ -15,6 +16,7 @@
 #include <llvm/Passes/StandardInstrumentations.h>
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/Error.h>
+#include <llvm/Support/FileOutputBuffer.h>
 #include <llvm/Support/SourceMgr.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Target/CGPassBuilderOption.h>
@@ -42,20 +44,18 @@ static cl::opt<bool> dump_input_mir("dump-input-mir",
                                     cl::desc("Dump input MIR"),
                                     cl::cat(options));
 
-static cl::opt<bool>
+static cl::opt<std::string>
     dump_input_instructions("dump-input-instructions",
                             cl::desc("Dump input instructions"),
-                            cl::cat(options));
+                            cl::value_desc("filename"), cl::cat(options));
 
 namespace {
-Function *func_g = nullptr;
 
 class print_pass : public PassInfoMixin<print_pass> {
 public:
   PreservedAnalyses run(Module &m, ModuleAnalysisManager &mam) {
     auto &mmi = mam.getResult<MachineModuleAnalysis>(m).getMMI();
     for (auto &f : m) {
-      func_g = &f;
       auto &mf = mmi.getOrCreateMachineFunction(f);
       mf.print(outs());
     }
@@ -75,7 +75,7 @@ auto main(int argc, char **argv) -> int try {
   InitializeAllTargets();
   InitializeAllTargetMCs();
   InitializeAllAsmPrinters();
-  InitializeAllDisassemblers();
+  // InitializeAllDisassemblers();
   LLVMContext ctx;
   SMDiagnostic err_mir_parser;
   auto file_copy = mir_file_name.getValue();
@@ -107,17 +107,6 @@ auto main(int argc, char **argv) -> int try {
   assert(m);
   if (mir_parser->parseMachineFunctions(*m, *machine_module_info))
     throw std::runtime_error("Failed to parse machine functions");
-  ModuleAnalysisManager mam;
-
-  ModulePassManager mpm;
-  PassBuilder pass_builder;
-  // remove to get nullptr dereference
-  pass_builder.registerModuleAnalyses(mam);
-  mam.registerPass([&] { return PassInstrumentationAnalysis(); });
-  mam.registerPass([&] { return MachineModuleAnalysis(*machine_module_info); });
-  if (dump_input_mir)
-    mpm.addPass(print_pass());
-  mpm.run(*m, mam);
   if (!instructions_file.getNumOccurrences()) {
     std::cerr << "Skipping instructions parsing since no file were provided\n";
     return EXIT_SUCCESS;
@@ -129,8 +118,30 @@ auto main(int argc, char **argv) -> int try {
     throw std::runtime_error("Failed to open file \"" +
                              instructions_file.getValue() + "\"");
   auto instrs = lifter::load_from_yaml(std::move(yaml), ctx);
-  if (dump_input_instructions)
-    lifter::save_to_yaml(instrs);
+  if (dump_input_instructions.getNumOccurrences()) {
+    auto yaml_str = lifter::save_to_yaml(instrs);
+    auto out_buffer =
+        FileOutputBuffer::create(dump_input_instructions, yaml_str.size());
+    if (auto err = out_buffer.takeError())
+      throw std::runtime_error(toString(std::move(err)));
+    auto out = std::move(*out_buffer);
+    std::copy(yaml_str.begin(), yaml_str.end(), out->getBufferStart());
+    if (auto err = out->commit())
+      throw std::runtime_error(toString(std::move(err)));
+  }
+  ModuleAnalysisManager mam;
+
+  ModulePassManager mpm;
+  PassBuilder pass_builder;
+  // remove to get nullptr dereference
+  pass_builder.registerModuleAnalyses(mam);
+  mam.registerPass([&] { return PassInstrumentationAnalysis(); });
+  mam.registerPass([&] { return MachineModuleAnalysis(*machine_module_info); });
+  if (dump_input_mir)
+    mpm.addPass(print_pass());
+  mpm.addPass(bleach::lifter::block_ir_builder_pass(instrs));
+  mpm.run(*m, mam);
+  m->print(outs(), nullptr);
 } catch (const std::exception &e) {
   std::cerr << "ERROR: " << e.what() << std::endl;
   exit(EXIT_FAILURE);

@@ -1,0 +1,45 @@
+diff --git a/llvm/CMakeLists.txt b/llvm/CMakeLists.txt
+index f567680..c97fd32 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1328,7 +1328,39 @@ if (NOT LLVM_INSTALL_TOOLCHAIN_ONLY)
+     PATTERN "*.inc"
+     PATTERN "LICENSE.TXT"
+     )
+-
++ # Install table-genned files into include install dir.
++ install(DIRECTORY ${CMAKE_BINARY_DIR}/lib/
++   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/llvm"
++   COMPONENT llvm-headers
++   FILES_MATCHING
++   PATTERN "*.inc"
++   PATTERN "*.h"
++   PATTERN "*.def"
++   PATTERN "CMakeFiles" EXCLUDE
++   )
++
++ # Installing a generated config is not ideal, but
++ # lots of generated headers depend on it. It's assumed
++ # that exported static libraries will be consumed with the
++ # same toolchain LLVM was built with.
++ install(DIRECTORY ${CMAKE_BINARY_DIR}/include/
++   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
++   COMPONENT llvm-headers
++   FILES_MATCHING
++   PATTERN "*config.h"
++   )
++
++ # Such installs lead to lots of empty directories because
++ # of a cmake issue:
++ # https://gitlab.kitware.com/cmake/cmake/-/issues/17122
++ foreach(target ${LLVM_TARGETS_TO_BUILD})
++   install(DIRECTORY lib/Target/${target}/
++     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/llvm/Target/${target}"
++     COMPONENT llvm-headers
++     FILES_MATCHING
++     PATTERN "*.h"
++     )
++ endforeach()
+   install(DIRECTORY ${LLVM_INCLUDE_DIR}/llvm ${LLVM_INCLUDE_DIR}/llvm-c
+     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+     COMPONENT llvm-headers

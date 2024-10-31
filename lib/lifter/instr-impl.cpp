@@ -70,8 +70,7 @@ instruction denormalize_instruction(const normalized_instruction &norm,
   instr.name = norm.name;
   llvm::SmallVector<char> ir_buf(norm.function_str.begin(),
                                  norm.function_str.end());
-  auto mem_buf = llvm::SmallVectorMemoryBuffer(std::move(ir_buf),
-                                               "ir_buffer_for_" + norm.name);
+  auto mem_buf = llvm::SmallVectorMemoryBuffer(std::move(ir_buf), "");
   llvm::SMDiagnostic err;
   instr.ir_module = llvm::parseIR(mem_buf, err, ctx);
   if (!instr.ir_module)
@@ -90,7 +89,7 @@ YAML::Emitter &operator<<(YAML::Emitter &out, const instr_impl &instrs) {
   return out;
 }
 
-void save_to_yaml(const instr_impl &instrs) {
+std::string save_to_yaml(const instr_impl &instrs) {
   YAML::Emitter out;
   out << YAML::BeginMap;
   out << YAML::Key << "instructions";
@@ -98,7 +97,7 @@ void save_to_yaml(const instr_impl &instrs) {
   for (auto &i : instrs)
     out << i;
   out << YAML::EndSeq << YAML::EndMap;
-  std::cout << out.c_str() << "\n";
+  return out.c_str();
 }
 
 instr_impl load_from_yaml(std::string yaml, llvm::LLVMContext &ctx) {

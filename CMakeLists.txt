@@ -37,6 +37,73 @@ endfunction()
 
 set(LLVM_BLEACH_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
+function(bleach_add_library target_name)
+  add_library(${target_name} ${ARGN})
+  set_target_properties(
+    ${target_name}
+    PROPERTIES ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+               LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+               RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+endfunction()
+
+set(BLEACH_LLVM_TARGETS
+    "RISCV"
+    CACHE STRING "List of LLVM targets to use")
+
+function(bleach_add_executable target_name)
+  set(multi_value_args SOURCES)
+  cmake_parse_arguments(ARGUMENTS "" "" "${multi_value_args}" ${ARGN})
+  add_executable(${target_name} ${ARGUMENTS_SOURCES})
+  set_target_properties(
+    ${target_name}
+    PROPERTIES ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+               LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+               RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+endfunction()
+
+find_package(LLVM REQUIRED CONFIG)
+message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
+
+function(bleach_add_llvm_based_tool target_name)
+  set(options_args SHARED)
+  set(multi_value_args LLVM_COMPONENTS SOURCES)
+  cmake_parse_arguments(ARGUMENTS "${options_args}" "" "${multi_value_args}"
+                        ${ARGN})
+  bleach_add_executable(${target_name} SOURCES ${ARGUMENTS_SOURCES})
+  enable_warnings(${target_name})
+  llvm_config(${target_name} ${ARGUMENTS_LLVM_COMPONENTS}
+              ${BLEACH_LLVM_TARGETS})
+  target_compile_features(${target_name} PUBLIC cxx_std_23)
+endfunction()
+
+function(bleach_add_llvm_based_lib target_name)
+  set(options_args SHARED)
+  set(multi_value_args LLVM_COMPONENTS SOURCES)
+  cmake_parse_arguments(ARGUMENTS "${options_args}" "" "${multi_value_args}"
+                        ${ARGN})
+  if(${ARGUMENTS_SHARED})
+    bleach_add_library(${target_name} SHARED ${ARGUMENTS_SOURCES})
+  else()
+    bleach_add_library(${target_name} STATIC ${ARGUMENTS_SOURCES})
+  endif()
+  enable_warnings(${target_name})
+  llvm_config(${target_name} ${ARGUMENTS_LLVM_COMPONENTS}
+              ${BLEACH_LLVM_TARGETS})
+  # warnings for this project's targets.
+  target_include_directories(${target_name} SYSTEM PUBLIC ${LLVM_INCLUDE_DIRS})
+  target_compile_features(${target_name} PUBLIC cxx_std_23)
+endfunction()
+
+foreach(target ${BLEACH_LLVM_TARGETS})
+  set(TEMP_INCLUDE_DIRS_TARGET ${LLVM_INCLUDE_DIRS})
+  list(TRANSFORM TEMP_INCLUDE_DIRS_TARGET APPEND "/llvm/Target/${target}")
+  include_directories(SYSTEM ${TEMP_INCLUDE_DIRS_TARGET})
+  message(
+    STATUS
+      "Additional include directory for target ${target}: ${TEMP_INCLUDE_DIRS_TARGET}"
+  )
+endforeach()
+
 add_subdirectory(lib)
 add_subdirectory(tools)
 
