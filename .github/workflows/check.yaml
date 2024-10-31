@@ -10,4 +10,3 @@ jobs:
         with:
           platforms: aarch64
       - run: nix run nixpkgs#just check
-      - run: nix build .
