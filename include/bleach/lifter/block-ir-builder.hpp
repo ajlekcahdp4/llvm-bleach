@@ -26,6 +26,7 @@ public:
   using unordered_map::begin;
   using unordered_map::end;
   using unordered_map::try_emplace;
+  using unordered_map::operator[];
 };
 
 void fill_ir_for_bb(MachineBasicBlock &mbb, Function &func, reg2vals &rmap,

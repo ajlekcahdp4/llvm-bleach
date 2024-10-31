@@ -10,10 +10,6 @@
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 
-// TODO: move to target-specific part
-#define GET_INSTRINFO_ENUM
-#include <llvm/Target/RISCV/RISCVGenInstrInfo.inc>
-#undef GET_INSTRINFO_ENUM
 namespace bleach::lifter {
 using namespace llvm;
 void fill_module_with_instrs(Module &m, const instr_impl &instrs) {
@@ -87,7 +83,7 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
     if (!def.isReg())
       throw std::runtime_error("Only register operands are supported");
     auto reg = def.getReg();
-    rmap.try_emplace(reg.id(), call);
+    rmap[reg.id()] = call;
   }
 }
 

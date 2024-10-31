@@ -1,0 +1,79 @@
+instructions:
+  - SLT:
+      func: |
+        ; ModuleID = 'SLT'
+        ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtabl
+        define dso_local noundef i64 @SLT(i64 noundef %0, i64 noundef %1) local_unnamed_addr #0 {
+          %3 = icmp slt i64 %0, %1
+          %4 = zext i1 %3 to i64
+          ret i64 %4
+        }
+  - SLTU:
+      func: |
+        ; ModuleID = 'SLTU'
+        ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
+        define dso_local noundef i64 @SLTU(i64 noundef %0, i64 noundef %1) local_unnamed_addr #0 {
+          %3 = icmp ult i64 %0, %1
+          %4 = zext i1 %3 to i64
+          ret i64 %4
+        }
+  - AND:
+      func: |
+        ; ModuleID = 'AND'
+        ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtabl
+        define dso_local noundef i64 @AND(i64 noundef %0, i64 noundef %1) local_unnamed_addr #0 {
+          %3 = and i64 %1, %0
+          ret i64 %3
+        }
+  - OR:
+      func: |
+        ; ModuleID = 'OR'
+        ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtabl
+        define dso_local noundef i64 @OR(i64 noundef %0, i64 noundef %1) local_unnamed_addr #0 {
+          %3 = or i64 %1, %0
+          ret i64 %3
+        }
+  - XOR:
+      func: |
+        ; ModuleID = 'XOR'
+        ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
+        define dso_local noundef i64 @XOR(i64 noundef %0, i64 noundef %1) local_unnamed_addr #0 {
+          %3 = xor i64 %1, %0
+          ret i64 %3
+        }
+  - SLL:
+      func: |
+        ; ModuleID = 'SLL'
+        ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
+        define dso_local i64 @SLL(i64 noundef %0, i64 noundef %1) local_unnamed_addr #0 {
+          %3 = and i64 %1, 63
+          %4 = shl i64 %0, %3
+          ret i64 %4
+        }
+  - SRL:
+      func: |
+        ; ModuleID = 'AND'
+        ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
+        define dso_local i64 @SRL(i64 noundef %0, i64 noundef %1) local_unnamed_addr #0 {
+          %3 = and i64 %1, 63
+          %4 = ashr i64 %0, %3
+          ret i64 %4
+        }
+  - ADD:
+      func: |
+        ; ModuleID = 'addsub'
+        source_filename = "addsub"
+        ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
+        define dso_local signext i64 @ADD(i64 noundef signext %0, i64 noundef signext %1) local_unnamed_addr #0 {
+          %3 = add nsw i64 %1, %0
+          ret i64 %3
+        }
+  - SUB:
+      func: |
+        ; ModuleID = 'addsub'
+        source_filename = "addsub"
+        ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
+        define dso_local signext i64 @SUB(i64 noundef signext %0, i64 noundef signext %1) local_unnamed_addr #0 {
+          %3 = sub nsw i64 %0, %1
+          ret i64 %3
+        }

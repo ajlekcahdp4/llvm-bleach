@@ -4,7 +4,7 @@
 
 # CHECK: define dso_local signext void @foo(i64 noundef signext %0, i64 noundef signext %1) local_unnamed_addr {
 # CHECK-NEXT:   %3 = call i64 @ADDW(i64 %1, i64 %0)
-# CHECK-NEXT:   %4 = call i64 @ADDW(i64 %0, i64 %0)
-# CHECK-NEXT:   %5 = call i64 @SUBW(i64 %1, i64 %0)
+# CHECK-NEXT:   %4 = call i64 @ADDW(i64 %3, i64 %3)
+# CHECK-NEXT:   %5 = call i64 @SUBW(i64 %4, i64 %3)
 # CHECK-NEXT: }
 
