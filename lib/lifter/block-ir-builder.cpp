@@ -58,14 +58,32 @@ PreservedAnalyses block_ir_builder_pass::run(Module &m,
   return PreservedAnalyses::none();
 }
 
+auto generate_jump(const MachineInstr &minst, BasicBlock &bb, reg2vals &rmap,
+                   const instr_impl &instrs, LLVMContext &ctx,
+                   const LLVMTargetMachine &target) {
+  assert(minst.isBranch());
+  auto mbb_op =
+      llvm::find_if(minst.operands(), [](auto &op) { return op.isMBB(); });
+  assert(mbb_op != minst.operands_end());
+  auto *mbb = mbb_op->getMBB();
+  assert(mbb);
+  auto *target_bb = const_cast<BasicBlock *>(mbb->getBasicBlock());
+  assert(target_bb);
+  IRBuilder builder(ctx);
+  builder.SetInsertPoint(&bb);
+  return builder.CreateBr(target_bb);
+}
+
 auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
                           reg2vals &rmap, const instr_impl &instrs,
                           LLVMContext &ctx,
-                          const LLVMTargetMachine &target_machine) {
+                          const LLVMTargetMachine &target_machine) -> Value * {
   auto *iinfo = target_machine.getMCInstrInfo();
   auto name = get_instruction_name(minst, *iinfo);
   IRBuilder builder(ctx);
   builder.SetInsertPoint(&bb);
+  if (minst.isBranch() && minst.isUnconditionalBranch())
+    return generate_jump(minst, bb, rmap, instrs, ctx, target_machine);
   auto &instr_module = instrs.get(name);
   auto *func = instr_module.getFunction(name);
   if (!func)
@@ -85,6 +103,7 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
     auto reg = def.getReg();
     rmap[reg.id()] = call;
   }
+  return call;
 }
 
 void fill_ir_for_bb(MachineBasicBlock &mbb, Function &func, reg2vals &rmap,

@@ -1,0 +1,14 @@
+# RUN: %bin/llvm-bleach %S/inputs/logical-branches.mir \
+# RUN:   --instructions=%S/inputs/logical.yaml | filecheck %s
+
+# CHECK: define dso_local i64 @foo(i64 noundef %0, i64 noundef %1, i64 noundef %2) local_unnamed_addr {
+# CHECK-NEXT:  %4 = call i64 @XOR(i64 %2, i64 %0)
+# CHECK-NEXT:  %5 = call i64 @SLL(i64 %4, i64 %0)
+# CHECK-NEXT:  %6 = call i64 @SRL(i64 %0, i64 %5)
+# CHECK-NEXT:  %7 = call i64 @ADD(i64 %6, i64 %1)
+# CHECK-NEXT:  %8 = call i64 @OR(i64 %7, i64 %0)
+# CHECK-NEXT:  %9 = call i64 @SUB(i64 %5, i64 %8)
+# CHECK-NEXT:  br label %10
+# CHECK:     10:
+# CHECK-NEXT: %11 = call i64 @SRL(i64 %7, i64 %5)
+# CHECK-NEXT: }
