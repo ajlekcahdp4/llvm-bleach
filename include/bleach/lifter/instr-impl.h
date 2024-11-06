@@ -22,6 +22,8 @@ public:
   using vector::at;
   using vector::begin;
   using vector::end;
+  using vector::size;
+  using vector::empty;
   using vector::operator[];
   using vector::emplace_back;
   using vector::push_back;

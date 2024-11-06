@@ -13,11 +13,14 @@
 namespace bleach::lifter {
 using namespace llvm;
 void fill_module_with_instrs(Module &m, const instr_impl &instrs) {
-  for (auto &&i : instrs) {
+  assert(!instrs.empty());
+  auto first = CloneModule(*instrs.begin()->ir_module);
+  for (auto &&i : drop_begin(instrs)) {
     assert(i.ir_module);
     auto module_clone = CloneModule(*i.ir_module);
-    Linker::linkModules(m, std::move(module_clone));
+    Linker::linkModules(*first, std::move(module_clone));
   }
+  Linker::linkModules(m, std::move(first));
 }
 
 auto *generate_function_object(Module &m, MachineFunction &mf, reg2vals &rmap) {
