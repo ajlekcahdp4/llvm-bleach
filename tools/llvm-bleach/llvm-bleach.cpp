@@ -1,5 +1,7 @@
 #include "bleach/lifter/block-ir-builder.hpp"
 #include "bleach/lifter/instr-impl.h"
+#include "bleach/target/target-selector.hpp"
+#include "bleach/target/target.hpp"
 
 #include <llvm/CodeGen/CommandFlags.h>
 #include <llvm/CodeGen/MIRParser/MIRParser.h>
@@ -129,6 +131,7 @@ auto main(int argc, char **argv) -> int try {
     if (auto err = out->commit())
       throw std::runtime_error(toString(std::move(err)));
   }
+  auto target = select_target(target_machine->getTargetTriple());
   ModuleAnalysisManager mam;
 
   ModulePassManager mpm;
@@ -139,7 +142,7 @@ auto main(int argc, char **argv) -> int try {
   mam.registerPass([&] { return MachineModuleAnalysis(*machine_module_info); });
   if (dump_input_mir)
     mpm.addPass(print_pass());
-  mpm.addPass(bleach::lifter::block_ir_builder_pass(instrs));
+  mpm.addPass(bleach::lifter::block_ir_builder_pass(instrs, *target));
   mpm.run(*m, mam);
   m->print(outs(), nullptr);
 } catch (const std::exception &e) {

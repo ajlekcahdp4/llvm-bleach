@@ -35,11 +35,12 @@ auto *generate_function_object(Module &m, MachineFunction &mf, reg2vals &rmap) {
 }
 
 auto generate_function(Module &m, MachineFunction &mf, const instr_impl &instrs,
-                       const LLVMTargetMachine &target_machine) {
+                       const LLVMTargetMachine &target_machine,
+                       const target &tgt) {
   reg2vals rmap;
   auto *func = generate_function_object(m, mf, rmap);
   for (auto &mbb : mf)
-    fill_ir_for_bb(mbb, *func, rmap, instrs, target_machine);
+    fill_ir_for_bb(mbb, *func, rmap, instrs, target_machine, tgt);
 }
 
 std::string get_instruction_name(const MachineInstr &minst,
@@ -53,7 +54,7 @@ PreservedAnalyses block_ir_builder_pass::run(Module &m,
   auto &mmi = mam.getResult<MachineModuleAnalysis>(m).getMMI();
   for (auto &f : m) {
     auto &mf = mmi.getOrCreateMachineFunction(f);
-    generate_function(m, mf, instrs, mmi.getTarget());
+    generate_function(m, mf, instrs, mmi.getTarget(), tgt);
   }
   return PreservedAnalyses::none();
 }
@@ -74,16 +75,48 @@ auto generate_jump(const MachineInstr &minst, BasicBlock &bb, reg2vals &rmap,
   return builder.CreateBr(target_bb);
 }
 
+auto get_if_true_block(const MachineInstr &minst) -> BasicBlock * {
+  assert(minst.isConditionalBranch());
+  auto &op = minst.getOperand(2);
+  assert(op.isMBB());
+  return const_cast<BasicBlock *>(op.getMBB()->getBasicBlock());
+}
+
+auto get_if_false_block(const MachineInstr &minst) -> BasicBlock * {
+  assert(minst.isConditionalBranch());
+  auto &op = minst.getOperand(2);
+  assert(op.isMBB());
+  return const_cast<BasicBlock *>(op.getMBB()->getBasicBlock());
+}
+
+auto generate_branch(const MachineInstr &minst, BasicBlock &bb, reg2vals &rmap,
+                     const instr_impl &instrs, LLVMContext &ctx,
+                     const LLVMTargetMachine &target_machine,
+                     const target &tgt) -> Instruction * {
+  auto *cond =
+      tgt.create_branch_condition(minst, bb, {rmap.begin(), rmap.end()}, ctx);
+  IRBuilder builder(ctx);
+  builder.SetInsertPoint(&bb);
+  auto *if_true = get_if_true_block(minst);
+  auto *if_false = get_if_false_block(minst);
+  return builder.CreateCondBr(cond, if_true, if_false);
+}
+
 auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
                           reg2vals &rmap, const instr_impl &instrs,
                           LLVMContext &ctx,
-                          const LLVMTargetMachine &target_machine) -> Value * {
+                          const LLVMTargetMachine &target_machine,
+                          const target &tgt) -> Value * {
   auto *iinfo = target_machine.getMCInstrInfo();
   auto name = get_instruction_name(minst, *iinfo);
   IRBuilder builder(ctx);
   builder.SetInsertPoint(&bb);
-  if (minst.isBranch() && minst.isUnconditionalBranch())
-    return generate_jump(minst, bb, rmap, instrs, ctx, target_machine);
+  if (minst.isBranch()) {
+    if (minst.isUnconditionalBranch())
+      return generate_jump(minst, bb, rmap, instrs, ctx, target_machine);
+    assert(minst.isConditionalBranch());
+    return generate_branch(minst, bb, rmap, instrs, ctx, target_machine, tgt);
+  }
   auto &instr_module = instrs.get(name);
   auto *func = instr_module.getFunction(name);
   if (!func)
@@ -108,13 +141,14 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
 
 void fill_ir_for_bb(MachineBasicBlock &mbb, Function &func, reg2vals &rmap,
                     const instr_impl &instrs,
-                    const LLVMTargetMachine &target_machine) {
+                    const LLVMTargetMachine &target_machine,
+                    const target &tgt) {
   auto *bb = const_cast<BasicBlock *>(mbb.getBasicBlock());
   assert(bb);
   bb->erase(bb->begin(), bb->end());
   for (auto &minst : mbb) {
     generate_instruction(minst, *bb, rmap, instrs, bb->getContext(),
-                         target_machine);
+                         target_machine, tgt);
   }
 }
 

@@ -1,0 +1,18 @@
+    case RISCV::BLTU:
+      return builder.CreateICmpULT(rs1, rs2);
+# RUN: %bin/llvm-bleach %S/inputs/logical-cond-branches.mir \
+# RUN:   --instructions=%S/inputs/logical.yaml | filecheck %s
+
+# CHECK: define dso_local signext i32 @foo(i32 noundef signext %0) local_unnamed_addr {
+# CHECK-NEXT:  %2 = call i64 @ADD(i64 %0, i64 %0)
+# CHECK-NEXT:
+# CHECK-NEXT: 3:                                                ; preds = %3, %3
+# CHECK-NEXT:   %4 = call i64 @MULW(i64 %0, i64 %0)
+# CHECK-NEXT:   %5 = call i64 @SLL(i64 %0, i64 %0)
+# CHECK-NEXT:   %6 = icmp ult i64 %4, %2
+# CHECK-NEXT:   br i1 %6, label %3, label %3
+# CHECK-NEXT:   br label %7
+# CHECK-NEXT: 
+# CHECK-NEXT: 7:                                                ; preds = %3
+# CHECK-NEXT:   %8 = call i64 @ADD(i64 %5, i64 %4)
+# CHECK-NEXT: }

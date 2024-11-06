@@ -1,0 +1,93 @@
+--- |
+  ; ModuleID = 'branches.ll'
+  source_filename = "branches.c"
+  target triple = "riscv64-unknown-linux-gnu"
+
+  ; Function Attrs: nofree norecurse nosync nounwind memory(none) uwtable
+  define dso_local signext i32 @foo(i32 noundef signext %0) local_unnamed_addr #0 {
+    br label %2
+
+  2:                                                ; preds = %2, %1
+    %3 = phi i32 [ %0, %1 ], [ %6, %2 ]
+    %4 = mul nsw i32 %3, %3
+    %5 = icmp ult i32 %4, 10
+    %6 = shl i32 %3, 2
+    br i1 %5, label %2, label %7
+
+  7:                                                ; preds = %2
+    ret i32 %4
+  }
+...
+---
+name:            foo
+alignment:       2
+exposesReturnsTwice: false
+legalized:       false
+regBankSelected: false
+selected:        false
+failedISel:      false
+tracksRegLiveness: true
+hasWinCFI:       false
+callsEHReturn:   false
+callsUnwindInit: false
+hasEHCatchret:   false
+hasEHScopes:     false
+hasEHFunclets:   false
+isOutlined:      false
+debugInstrRef:   false
+failsVerification: false
+tracksDebugUserValues: true
+registers:       []
+liveins:
+  - { reg: '$x10', virtual-reg: '' }
+frameInfo:
+  isFrameAddressTaken: false
+  isReturnAddressTaken: false
+  hasStackMap:     false
+  hasPatchPoint:   false
+  stackSize:       0
+  offsetAdjustment: 0
+  maxAlignment:    1
+  adjustsStack:    false
+  hasCalls:        false
+  stackProtector:  ''
+  functionContext: ''
+  maxCallFrameSize: 4294967295
+  cvBytesOfCalleeSavedRegisters: 0
+  hasOpaqueSPAdjustment: false
+  hasVAStart:      false
+  hasMustTailInVarArgFunc: false
+  hasTailCall:     false
+  localFrameSize:  0
+  savePoint:       ''
+  restorePoint:    ''
+fixedStack:      []
+stack:           []
+entry_values:    []
+callSites:       []
+debugValueSubstitutions: []
+constants:       []
+machineFunctionInfo:
+  varArgsFrameIndex: 0
+  varArgsSaveSize: 0
+body:             |
+  bb.0 (%ir-block.1):
+    successors: %bb.1(0x80000000)
+    liveins: $x10
+
+    renamable $x12 = ADD renamable $x10, renamable $x10
+
+  bb.1 (%ir-block.2):
+    successors: %bb.1(0x7c000000), %bb.2(0x04000000)
+    liveins: $x10, $x12
+
+    renamable $x11 = MULW renamable $x10, renamable $x10
+    renamable $x10 = SLL killed renamable $x10, killed renamable $x10
+    BLTU renamable $x11, renamable $x12, %bb.1
+    PseudoBR %bb.2
+
+  bb.2 (%ir-block.7):
+    liveins: $x10, $x11
+
+    $x10 = ADD $x10, killed renamable $x11
+...
