@@ -11,9 +11,11 @@
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 
+#include <ranges>
 #include <set>
 
 namespace bleach::lifter {
+namespace ranges = std::ranges;
 using namespace llvm;
 
 struct basic_block {
@@ -26,9 +28,9 @@ void copy_instructions(const MachineBasicBlock &src, MachineBasicBlock &dst) {
   assert(mf);
   auto *instr_info = mf->getSubtarget().getInstrInfo();
   assert(instr_info);
-  auto not_bundled = make_filter_range(
-      src.instrs(), [](auto &instr) { return !instr.isBundledWithPred(); });
-  for (auto &instr : not_bundled) {
+  for (auto &instr : src.instrs() | ranges::views::filter([](auto &instr) {
+                       return !instr.isBundledWithPred();
+                     })) {
     auto &instr_copy = instr_info->duplicate(dst, dst.end(), instr);
     if (instr_copy.isBranch())
       for (auto &op : instr_copy.operands())
@@ -83,7 +85,7 @@ void create_basic_blocks_for_mfunc(MachineFunction &mfunc, mbb2bb &m2b) {
     for (auto &mbb : mfunc) {
       if (&mbb == old_block)
         continue;
-      if (find(mbb.successors(), old_block) == mbb.successors().end())
+      if (!is_contained(mbb.successors(), old_block))
         continue;
       mbb.ReplaceUsesOfBlockWith(old_block, new_block);
     }
@@ -97,7 +99,7 @@ void create_basic_blocks_for_mfunc(MachineFunction &mfunc, mbb2bb &m2b) {
   for (auto &bb : func)
     for (auto &instr : make_early_inc_range(bb))
       if (auto *branch = dyn_cast<BranchInst>(&instr))
-        if (find(branch->successors(), dummy_bb) == branch->successors().end())
+        if (is_contained(branch->successors(), dummy_bb))
           instr.eraseFromParent();
 }
 
@@ -135,7 +137,7 @@ auto generate_function(Module &m, MachineFunction &mf, const instr_impl &instrs,
   for (auto &bb : make_early_inc_range(f)) {
     auto known_blocks = make_second_range(m2b);
     bb.erase(bb.begin(), bb.end());
-    if (find(known_blocks, &bb) == known_blocks.end())
+    if (!is_contained(known_blocks, &bb))
       bb.eraseFromParent();
   }
   for (auto &mbb : mf)
@@ -149,10 +151,9 @@ std::string get_instruction_name(const MachineInstr &minst,
 
 void create_basic_blocks(Module &m, MachineModuleInfo &mmi, mbb2bb &m2b,
                          const std::set<std::string> &target_functions) {
-  auto targets = make_filter_range(m, [&target_functions](auto &f) {
-    return target_functions.contains(f.getName().str());
-  });
-  for (auto &f : targets) {
+  for (auto &f : m | ranges::views::filter([&target_functions](auto &f) {
+                   return target_functions.contains(f.getName().str());
+                 })) {
     auto &mf = mmi.getOrCreateMachineFunction(f);
     create_basic_blocks_for_mfunc(mf, m2b);
   }
@@ -167,10 +168,9 @@ PreservedAnalyses block_ir_builder_pass::run(Module &m,
   auto m2b = mbb2bb{};
   auto &mmi = mam.getResult<MachineModuleAnalysis>(m).getMMI();
   create_basic_blocks(m, mmi, m2b, target_functions);
-  auto functions = make_filter_range(m, [&target_functions](auto &f) {
-    return target_functions.contains(f.getName().str());
-  });
-  for (auto &f : functions) {
+  for (auto &f : m | ranges::views::filter([&target_functions](auto &f) {
+                   return target_functions.contains(f.getName().str());
+                 })) {
     auto &mf = mmi.getOrCreateMachineFunction(f);
     generate_function(m, mf, instrs, mmi.getTarget(), tgt, m2b);
   }
