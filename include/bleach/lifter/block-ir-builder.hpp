@@ -5,6 +5,8 @@
 
 #include <llvm/IR/PassManager.h>
 
+#include <set>
+
 namespace llvm {
 class MachineBasicBlock;
 }
@@ -27,15 +29,35 @@ class reg2vals final : private std::unordered_map<unsigned, Value *> {
 public:
   using unordered_map::at;
   using unordered_map::begin;
+  using unordered_map::contains;
   using unordered_map::end;
   using unordered_map::try_emplace;
   using unordered_map::operator[];
+  void dump() const {
+    for (auto &[reg, val] : *this) {
+      errs() << "REG: " << reg << " val: " << *val << "\n";
+    }
+  }
+};
+
+class mbb2bb final : private DenseMap<const MachineBasicBlock *, BasicBlock *> {
+public:
+  using DenseMap::begin;
+  using DenseMap::empty;
+  using DenseMap::end;
+  using DenseMap::erase;
+  using DenseMap::insert;
+  using DenseMap::size;
+  auto operator[](const MachineBasicBlock *mbb) const {
+    auto found = find(mbb);
+    if (found == end())
+      throw std::invalid_argument("Attempt to get Basic Block for unknown MBB");
+    return found->second;
+  }
 };
 
 void fill_ir_for_bb(MachineBasicBlock &mbb, Function &func, reg2vals &rmap,
                     const instr_impl &instrs, const LLVMTargetMachine &tm,
-                    const target &tgt);
-
-void fill_module_with_instrs(Module &m, const instr_impl &instrs);
+                    const target &tgt, const mbb2bb &m2b);
 
 } // namespace bleach::lifter

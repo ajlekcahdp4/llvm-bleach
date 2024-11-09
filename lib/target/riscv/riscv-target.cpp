@@ -18,6 +18,8 @@ auto riscv_target::create_branch_condition(
   auto &&op_2 = minst.getOperand(1);
   assert(op_1.isReg());
   assert(op_2.isReg());
+  assert(rmap.contains(op_1.getReg()));
+  assert(rmap.contains(op_2.getReg()));
   auto *rs1 = rmap.at(op_1.getReg());
   auto *rs2 = rmap.at(op_2.getReg());
   switch (minst.getOpcode()) {

@@ -1,6 +1,4 @@
-    case RISCV::BLTU:
-      return builder.CreateICmpULT(rs1, rs2);
-# RUN: %bin/llvm-bleach %S/inputs/logical-cond-branches.mir \
+# RUN: %bin/llvm-bleach %S/inputs/logical-cond-branches-no-blocks.mir \
 # RUN:   --instructions=%S/inputs/logical.yaml | filecheck %s
 
 # CHECK: define dso_local signext i32 @foo(i32 noundef signext %0) local_unnamed_addr {

@@ -21,9 +21,9 @@ public:
   instr_impl() = default;
   using vector::at;
   using vector::begin;
+  using vector::empty;
   using vector::end;
   using vector::size;
-  using vector::empty;
   using vector::operator[];
   using vector::emplace_back;
   using vector::push_back;

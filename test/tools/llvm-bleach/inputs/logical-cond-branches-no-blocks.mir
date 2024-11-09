@@ -1,0 +1,83 @@
+--- |
+  ; ModuleID = 'branches.ll'
+  source_filename = "branches.c"
+  target triple = "riscv64-unknown-linux-gnu"
+
+  ; Function Attrs: nofree norecurse nosync nounwind memory(none) uwtable
+  define dso_local signext i32 @foo(i32 noundef signext %0) local_unnamed_addr #0 {
+    ret i32 %0
+  }
+...
+---
+name:            foo
+alignment:       2
+exposesReturnsTwice: false
+legalized:       false
+regBankSelected: false
+selected:        false
+failedISel:      false
+tracksRegLiveness: true
+hasWinCFI:       false
+callsEHReturn:   false
+callsUnwindInit: false
+hasEHCatchret:   false
+hasEHScopes:     false
+hasEHFunclets:   false
+isOutlined:      false
+debugInstrRef:   false
+failsVerification: false
+tracksDebugUserValues: true
+registers:       []
+liveins:
+  - { reg: '$x10', virtual-reg: '' }
+frameInfo:
+  isFrameAddressTaken: false
+  isReturnAddressTaken: false
+  hasStackMap:     false
+  hasPatchPoint:   false
+  stackSize:       0
+  offsetAdjustment: 0
+  maxAlignment:    1
+  adjustsStack:    false
+  hasCalls:        false
+  stackProtector:  ''
+  functionContext: ''
+  maxCallFrameSize: 4294967295
+  cvBytesOfCalleeSavedRegisters: 0
+  hasOpaqueSPAdjustment: false
+  hasVAStart:      false
+  hasMustTailInVarArgFunc: false
+  hasTailCall:     false
+  localFrameSize:  0
+  savePoint:       ''
+  restorePoint:    ''
+fixedStack:      []
+stack:           []
+entry_values:    []
+callSites:       []
+debugValueSubstitutions: []
+constants:       []
+machineFunctionInfo:
+  varArgsFrameIndex: 0
+  varArgsSaveSize: 0
+body:             |
+  bb.0:
+    successors: %bb.1(0x80000000)
+    liveins: $x10
+
+    renamable $x12 = ADD renamable $x10, renamable $x10
+
+  bb.1:
+    successors: %bb.1(0x7c000000), %bb.2(0x04000000)
+    liveins: $x10, $x12
+
+    renamable $x11 = MULW renamable $x10, renamable $x10
+    renamable $x10 = SLL killed renamable $x10, killed renamable $x10
+    BLTU renamable $x11, renamable $x12, %bb.1
+    PseudoBR %bb.2
+
+  bb.2:
+    liveins: $x10, $x11
+
+    $x10 = ADD killed renamable $x10, renamable $x11
+...
