@@ -33,5 +33,6 @@ stdenv.mkDerivation {
     filecheck
     yq
   ];
+  checkInputs = with pkgs; [ gtest ];
   doCheck = true;
 }

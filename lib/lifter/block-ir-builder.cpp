@@ -18,11 +18,6 @@ namespace bleach::lifter {
 namespace ranges = std::ranges;
 using namespace llvm;
 
-struct basic_block {
-  MachineBasicBlock *mbb;
-  BasicBlock *bb;
-};
-
 void copy_instructions(const MachineBasicBlock &src, MachineBasicBlock &dst) {
   auto *mf = dst.getParent();
   assert(mf);

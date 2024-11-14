@@ -9,7 +9,8 @@
 
 namespace llvm {
 class MachineBasicBlock;
-}
+class BasicBlock;
+} // namespace llvm
 
 namespace bleach::lifter {
 using namespace llvm;
@@ -59,5 +60,13 @@ public:
 void fill_ir_for_bb(MachineBasicBlock &mbb, Function &func, reg2vals &rmap,
                     const instr_impl &instrs, const LLVMTargetMachine &tm,
                     const target &tgt, const mbb2bb &m2b);
+struct basic_block {
+  MachineBasicBlock *mbb;
+  BasicBlock *bb;
+};
+
+void copy_instructions(const MachineBasicBlock &src, MachineBasicBlock &dst);
+
+basic_block clone_basic_block(MachineBasicBlock &src, BasicBlock &dummy);
 
 } // namespace bleach::lifter
