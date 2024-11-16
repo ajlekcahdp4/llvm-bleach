@@ -34,16 +34,20 @@ void copy_instructions(const MachineBasicBlock &src, MachineBasicBlock &dst) {
   }
 }
 
-basic_block clone_basic_block(MachineBasicBlock &src, BasicBlock &dummy) {
+basic_block clone_basic_block(MachineBasicBlock &src) {
   auto *mf = src.getParent();
   assert(mf);
   auto &func = mf->getFunction();
   auto *new_block = BasicBlock::Create(func.getContext(), "", &func);
   assert(new_block);
-  // FIXME: remove this
+  // Dummy basic block is necessary due to bug in
+  // MachineFunction::CreateMachineBasicBlock which dereferences nullptr if BB
+  // does not contain terminator.
+  // FIXME: remove after fix in upstream
+  auto *dummy_bb = BasicBlock::Create(func.getContext(), "dummy", &func);
   IRBuilder builder(func.getContext());
   builder.SetInsertPoint(new_block);
-  builder.CreateBr(&dummy);
+  builder.CreateBr(dummy_bb);
 
   auto *new_mblock = mf->CreateMachineBasicBlock(new_block);
   assert(new_mblock);
@@ -52,7 +56,8 @@ basic_block clone_basic_block(MachineBasicBlock &src, BasicBlock &dummy) {
 
   for (auto it = src.succ_begin(); it != src.succ_end(); ++it)
     new_mblock->copySuccessor(&src, it);
-
+  assert(!new_block->empty());
+  new_block->begin()->eraseFromParent();
   return {new_mblock, new_block};
 }
 
@@ -64,15 +69,11 @@ void create_basic_blocks_for_mfunc(MachineFunction &mfunc, mbb2bb &m2b) {
   auto &func = mfunc.getFunction();
   transform(func, std::back_inserter(blocks_to_erase),
             [](auto &bb) { return &bb; });
-  // Dummy basic block is necessary due to bug in
-  // MachineFunction::CreateMachineBasicBlock which dereferences nullptr if BB
-  // does not contain terminator.
-  // FIXME: remove after fix in upstream
-  auto *dummy_bb = BasicBlock::Create(func.getContext(), "dummy", &func);
+
   std::unordered_map<MachineBasicBlock *, MachineBasicBlock *> block_map;
   // One cannot simply loop over mfunc as we insert new blocks into it
   for (auto *mbb : mblocks_to_erase) {
-    auto [new_mblock, new_block] = clone_basic_block(*mbb, *dummy_bb);
+    auto [new_mblock, new_block] = clone_basic_block(*mbb);
     m2b.insert({new_mblock, new_block});
     block_map.insert({mbb, new_mblock});
   }
@@ -91,11 +92,6 @@ void create_basic_blocks_for_mfunc(MachineFunction &mfunc, mbb2bb &m2b) {
   }
   for (auto *bb : blocks_to_erase)
     bb->eraseFromParent();
-  for (auto &bb : func)
-    for (auto &instr : make_early_inc_range(bb))
-      if (auto *branch = dyn_cast<BranchInst>(&instr))
-        if (is_contained(branch->successors(), dummy_bb))
-          instr.eraseFromParent();
 }
 
 void fill_module_with_instrs(Module &m, const instr_impl &instrs) {

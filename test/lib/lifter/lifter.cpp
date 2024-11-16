@@ -125,9 +125,7 @@ TEST(lifter_basic, clone_basic_block) {
   for (auto &f : *m) {
     auto &mf = machine_module_info->getOrCreateMachineFunction(f);
     for (auto &mbb : make_early_inc_range(mf)) {
-      auto *dummy_bb = BasicBlock::Create(ctx, "dummy", &f);
-      auto [copy_mbb, copy_bb] =
-          bleach::lifter::clone_basic_block(mbb, *dummy_bb);
+      auto [copy_mbb, copy_bb] = bleach::lifter::clone_basic_block(mbb);
       for (auto &&[inst, copy_inst] : zip(mbb, *copy_mbb)) {
         std::string str1;
         raw_string_ostream os1(str1);

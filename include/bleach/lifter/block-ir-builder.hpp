@@ -67,6 +67,6 @@ struct basic_block {
 
 void copy_instructions(const MachineBasicBlock &src, MachineBasicBlock &dst);
 
-basic_block clone_basic_block(MachineBasicBlock &src, BasicBlock &dummy);
+basic_block clone_basic_block(MachineBasicBlock &src);
 
 } // namespace bleach::lifter
