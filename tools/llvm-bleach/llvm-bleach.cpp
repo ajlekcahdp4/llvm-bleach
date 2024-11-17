@@ -1,5 +1,7 @@
 #include "bleach/lifter/block-ir-builder.hpp"
 #include "bleach/lifter/instr-impl.h"
+#include "bleach/lifter/redundant-branch-eraser.hpp"
+         "
 #include "bleach/target/target-selector.hpp"
 #include "bleach/target/target.hpp"
 
@@ -135,6 +137,7 @@ auto main(int argc, char **argv) -> int try {
   }
   auto target = select_target(target_machine->getTargetTriple());
   ModuleAnalysisManager mam;
+  FunctionAnalysisManager fam;
 
   ModulePassManager mpm;
   PassBuilder pass_builder;
@@ -145,6 +148,7 @@ auto main(int argc, char **argv) -> int try {
   if (dump_input_mir)
     mpm.addPass(print_pass());
   mpm.addPass(bleach::lifter::block_ir_builder_pass(instrs, *target));
+  mpm.addPass(bleach::lifter::redundant_branch_eraser());
   mpm.run(*m, mam);
   m->print(outs(), nullptr);
 } catch (const std::exception &e) {

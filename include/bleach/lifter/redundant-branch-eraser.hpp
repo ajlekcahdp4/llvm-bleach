@@ -1,0 +1,14 @@
+#pragma once
+
+#include <llvm/IR/Analysis.h>
+#include <llvm/IR/PassManager.h>
+
+namespace bleach::lifter {
+using namespace llvm;
+
+class redundant_branch_eraser : public PassInfoMixin<redundant_branch_eraser> {
+public:
+  redundant_branch_eraser() = default;
+  PreservedAnalyses run(Module &m, ModuleAnalysisManager &mam);
+};
+} // namespace bleach::lifter
