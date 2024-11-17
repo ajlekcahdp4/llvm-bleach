@@ -57,7 +57,7 @@ public:
   }
 };
 
-void fill_ir_for_bb(MachineBasicBlock &mbb, Function &func, reg2vals &rmap,
+void fill_ir_for_bb(MachineBasicBlock &mbb, reg2vals &rmap,
                     const instr_impl &instrs, const LLVMTargetMachine &tm,
                     const target &tgt, const mbb2bb &m2b);
 struct basic_block {
@@ -67,6 +67,8 @@ struct basic_block {
 
 void copy_instructions(const MachineBasicBlock &src, MachineBasicBlock &dst);
 
-basic_block clone_basic_block(MachineBasicBlock &src);
+basic_block clone_basic_block(MachineBasicBlock &src, MachineFunction &dst);
+
+StructType &create_state_type(LLVMContext &ctx);
 
 } // namespace bleach::lifter

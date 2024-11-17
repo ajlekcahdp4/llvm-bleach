@@ -5,6 +5,7 @@
 
 #define GET_INSTRINFO_ENUM
 #include "RISCVGenInstrInfo.inc"
+#include "RISCVGenRegisterInfo.inc"
 #undef GET_INSTRINFO_ENUM
 
 namespace bleach {

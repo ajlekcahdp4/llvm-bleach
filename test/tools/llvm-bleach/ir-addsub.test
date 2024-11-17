@@ -2,9 +2,81 @@
 # RUN:   --instructions=%S/inputs/addsub.yaml | filecheck %s
 
 
-# CHECK: define dso_local signext void @foo(i64 noundef signext %0, i64 noundef signext %1) local_unnamed_addr {
-# CHECK-NEXT:   %3 = call i64 @ADDW(i64 %1, i64 %0)
-# CHECK-NEXT:   %4 = call i64 @ADDW(i64 %3, i64 %3)
-# CHECK-NEXT:   %5 = call i64 @SUBW(i64 %4, i64 %3)
+; ModuleID = '/home/alexander/projects/llvm-bleach/test/tools/llvm-bleach/inputs/foo.mir'
+source_filename = "foo.c"
+target datalayout = "e-m:e-p:64:64-i64:64-i128:128-n32:64-S128"
+target triple = "riscv64-unknown-linux-gnu"
+
+# CHECK: %register_state = type { [32 x i64] }
+
+# CHECK: define i64 @foo.1(ptr %0) {
+# CHECK-NEXT:   %GPRS = getelementptr %register_state, ptr %0, i64 0, i64 0
+# CHECK-NEXT:   %2 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 0
+# CHECK-NEXT:   %X0 = load i64, ptr %2, align 8
+# CHECK-NEXT:   %3 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 1
+# CHECK-NEXT:   %X1 = load i64, ptr %3, align 8
+# CHECK-NEXT:   %4 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 2
+# CHECK-NEXT:   %X2 = load i64, ptr %4, align 8
+# CHECK-NEXT:   %5 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 3
+# CHECK-NEXT:   %X3 = load i64, ptr %5, align 8
+# CHECK-NEXT:   %6 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 4
+# CHECK-NEXT:   %X4 = load i64, ptr %6, align 8
+# CHECK-NEXT:   %7 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 5
+# CHECK-NEXT:   %X5 = load i64, ptr %7, align 8
+# CHECK-NEXT:   %8 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 6
+# CHECK-NEXT:   %X6 = load i64, ptr %8, align 8
+# CHECK-NEXT:   %9 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 7
+# CHECK-NEXT:   %X7 = load i64, ptr %9, align 8
+# CHECK-NEXT:   %10 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 8
+# CHECK-NEXT:   %X8 = load i64, ptr %10, align 8
+# CHECK-NEXT:   %11 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 9
+# CHECK-NEXT:   %X9 = load i64, ptr %11, align 8
+# CHECK-NEXT:   %12 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 10
+# CHECK-NEXT:   %X10 = load i64, ptr %12, align 8
+# CHECK-NEXT:   %13 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 11
+# CHECK-NEXT:   %X11 = load i64, ptr %13, align 8
+# CHECK-NEXT:   %14 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 12
+# CHECK-NEXT:   %X12 = load i64, ptr %14, align 8
+# CHECK-NEXT:   %15 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 13
+# CHECK-NEXT:   %X13 = load i64, ptr %15, align 8
+# CHECK-NEXT:   %16 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 14
+# CHECK-NEXT:   %X14 = load i64, ptr %16, align 8
+# CHECK-NEXT:   %17 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 15
+# CHECK-NEXT:   %X15 = load i64, ptr %17, align 8
+# CHECK-NEXT:   %18 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 16
+# CHECK-NEXT:   %X16 = load i64, ptr %18, align 8
+# CHECK-NEXT:   %19 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 17
+# CHECK-NEXT:   %X17 = load i64, ptr %19, align 8
+# CHECK-NEXT:   %20 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 18
+# CHECK-NEXT:   %X18 = load i64, ptr %20, align 8
+# CHECK-NEXT:   %21 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 19
+# CHECK-NEXT:   %X19 = load i64, ptr %21, align 8
+# CHECK-NEXT:   %22 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 20
+# CHECK-NEXT:   %X20 = load i64, ptr %22, align 8
+# CHECK-NEXT:   %23 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 21
+# CHECK-NEXT:   %X21 = load i64, ptr %23, align 8
+# CHECK-NEXT:   %24 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 22
+# CHECK-NEXT:   %X22 = load i64, ptr %24, align 8
+# CHECK-NEXT:   %25 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 23
+# CHECK-NEXT:   %X23 = load i64, ptr %25, align 8
+# CHECK-NEXT:   %26 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 24
+# CHECK-NEXT:   %X24 = load i64, ptr %26, align 8
+# CHECK-NEXT:   %27 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 25
+# CHECK-NEXT:   %X25 = load i64, ptr %27, align 8
+# CHECK-NEXT:   %28 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 26
+# CHECK-NEXT:   %X26 = load i64, ptr %28, align 8
+# CHECK-NEXT:   %29 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 27
+# CHECK-NEXT:   %X27 = load i64, ptr %29, align 8
+# CHECK-NEXT:   %30 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 28
+# CHECK-NEXT:   %X28 = load i64, ptr %30, align 8
+# CHECK-NEXT:   %31 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 29
+# CHECK-NEXT:   %X29 = load i64, ptr %31, align 8
+# CHECK-NEXT:   %32 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 30
+# CHECK-NEXT:   %X30 = load i64, ptr %32, align 8
+# CHECK-NEXT:   %33 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 31
+# CHECK-NEXT:   %X31 = load i64, ptr %33, align 8
+# CHECK-NEXT:   %34 = call i64 @ADDW(i64 %X11, i64 %X10)
+# CHECK-NEXT:   %35 = call i64 @ADDW(i64 %34, i64 %34)
+# CHECK-NEXT:   %36 = call i64 @SUBW(i64 %35, i64 %34)
 # CHECK-NEXT: }
 

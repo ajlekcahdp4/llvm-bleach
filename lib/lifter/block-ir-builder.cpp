@@ -34,10 +34,8 @@ void copy_instructions(const MachineBasicBlock &src, MachineBasicBlock &dst) {
   }
 }
 
-basic_block clone_basic_block(MachineBasicBlock &src) {
-  auto *mf = src.getParent();
-  assert(mf);
-  auto &func = mf->getFunction();
+basic_block clone_basic_block(MachineBasicBlock &src, MachineFunction &dst) {
+  auto &func = dst.getFunction();
   auto *new_block = BasicBlock::Create(func.getContext(), "", &func);
   assert(new_block);
   // Dummy basic block is necessary due to bug in
@@ -49,36 +47,31 @@ basic_block clone_basic_block(MachineBasicBlock &src) {
   builder.SetInsertPoint(new_block);
   builder.CreateBr(dummy_bb);
 
-  auto *new_mblock = mf->CreateMachineBasicBlock(new_block);
+  auto *new_mblock = dst.CreateMachineBasicBlock(new_block);
   assert(new_mblock);
-  mf->push_back(new_mblock);
+  dst.push_back(new_mblock);
   copy_instructions(src, *new_mblock);
 
   for (auto it = src.succ_begin(); it != src.succ_end(); ++it)
     new_mblock->copySuccessor(&src, it);
+  // remove dummy instruction
   assert(!new_block->empty());
   new_block->begin()->eraseFromParent();
+  dummy_bb->eraseFromParent();
   return {new_mblock, new_block};
 }
 
-void create_basic_blocks_for_mfunc(MachineFunction &mfunc, mbb2bb &m2b) {
-  std::vector<MachineBasicBlock *> mblocks_to_erase;
-  std::vector<BasicBlock *> blocks_to_erase;
-  transform(mfunc, std::back_inserter(mblocks_to_erase),
-            [](auto &mbb) { return &mbb; });
-  auto &func = mfunc.getFunction();
-  transform(func, std::back_inserter(blocks_to_erase),
-            [](auto &bb) { return &bb; });
-
+void create_basic_blocks_for_mfunc(MachineFunction &src, MachineFunction &dst,
+                                   mbb2bb &m2b) {
   std::unordered_map<MachineBasicBlock *, MachineBasicBlock *> block_map;
   // One cannot simply loop over mfunc as we insert new blocks into it
-  for (auto *mbb : mblocks_to_erase) {
-    auto [new_mblock, new_block] = clone_basic_block(*mbb);
+  for (auto &mbb : src) {
+    auto [new_mblock, new_block] = clone_basic_block(mbb, dst);
     m2b.insert({new_mblock, new_block});
-    block_map.insert({mbb, new_mblock});
+    block_map.insert({&mbb, new_mblock});
   }
   for (auto [old_block, new_block] : block_map) {
-    for (auto &mbb : mfunc) {
+    for (auto &mbb : dst) {
       if (&mbb == old_block)
         continue;
       if (!is_contained(mbb.successors(), old_block))
@@ -86,12 +79,8 @@ void create_basic_blocks_for_mfunc(MachineFunction &mfunc, mbb2bb &m2b) {
       mbb.ReplaceUsesOfBlockWith(old_block, new_block);
     }
   }
-  for (auto *mbb : mblocks_to_erase) {
-    m2b.erase(mbb);
-    mbb->eraseFromParent();
-  }
-  for (auto *bb : blocks_to_erase)
-    bb->eraseFromParent();
+  for (auto &mbb : src)
+    m2b.erase(&mbb);
 }
 
 void fill_module_with_instrs(Module &m, const instr_impl &instrs) {
@@ -105,34 +94,64 @@ void fill_module_with_instrs(Module &m, const instr_impl &instrs) {
   Linker::linkModules(m, std::move(first));
 }
 
-auto *generate_function_object(Module &m, MachineFunction &mf, reg2vals &rmap) {
+void materialize_registers(MachineFunction &mf, Function &func, reg2vals &rmap,
+                           const LLVMTargetMachine &target_machine,
+                           StructType &state) {
+  if (mf.empty())
+    return;
+  auto &ctx = func.getContext();
+  constexpr auto gpr_array_idx = 0u;
+  Value *state_arg = func.getArg(gpr_array_idx);
+  auto *array_type = *state.element_begin();
+  assert(!func.empty());
+  auto &first_block = func.front();
+  auto builder = IRBuilder(ctx);
+  builder.SetInsertPoint(&first_block);
+  // pointer to a single state
+  // GPR array is the first field
+  auto *const_zero = ConstantInt::get(ctx, APInt(64, 0));
+  auto *array_ptr = builder.CreateGEP(
+      &state, state_arg, ArrayRef<Value *>{const_zero, const_zero}, "GPRS");
+  auto *reg_info = target_machine.getMCRegisterInfo();
+  assert(reg_info);
+  // TODO: get GPR reg class index propperly
+  constexpr auto gpr_class_idx = 3u;
+  auto &gpr_class = reg_info->getRegClass(gpr_class_idx);
+  auto sorted_regs = std::set<unsigned>();
+  ranges::copy(gpr_class, std::inserter(sorted_regs, sorted_regs.end()));
+  for (auto [idx, reg] : ranges::views::enumerate(sorted_regs)) {
+    auto *array_idx = ConstantInt::get(ctx, APInt(64, idx));
+    auto *reg_addr = builder.CreateInBoundsGEP(
+        array_type, array_ptr, ArrayRef<Value *>{const_zero, array_idx});
+    auto *reg_value = builder.CreateLoad(Type::getIntNTy(ctx, 64), reg_addr,
+                                         reg_info->getName(reg));
+    rmap.try_emplace(reg, reg_value);
+  }
+}
+
+auto *generate_function_object(Module &m, MachineFunction &mf, reg2vals &rmap,
+                               MachineModuleInfo &mmi, StructType &state) {
   auto *ret_type = Type::getIntNTy(m.getContext(), 64);
   auto &reg_info = mf.getRegInfo();
-  std::vector<Type *> args;
-  for ([[maybe_unused]] auto &&_ : reg_info.liveins())
-    args.push_back(Type::getIntNTy(m.getContext(), 64));
-  auto *func_type = FunctionType::get(ret_type, args, /* is var arg */ false);
+  auto *func_type = FunctionType::get(
+      ret_type, ArrayRef<Type *>{PointerType::getUnqual(m.getContext())},
+      /* is var arg */ false);
   auto *func =
       Function::Create(func_type, Function::ExternalLinkage, mf.getName(), m);
-  for (auto &&[livein, arg] : zip(reg_info.liveins(), func->args()))
-    rmap.try_emplace(livein.first, &arg);
   return func;
 }
 
 auto generate_function(Module &m, MachineFunction &mf, const instr_impl &instrs,
-                       const LLVMTargetMachine &target_machine,
-                       const target &tgt, const mbb2bb &m2b) {
+                       MachineModuleInfo &mmi, const target &tgt,
+                       StructType &state) {
   reg2vals rmap;
-  auto *func = generate_function_object(m, mf, rmap);
-  auto &f = mf.getFunction();
-  for (auto &bb : make_early_inc_range(f)) {
-    auto known_blocks = make_second_range(m2b);
-    bb.erase(bb.begin(), bb.end());
-    if (!is_contained(known_blocks, &bb))
-      bb.eraseFromParent();
-  }
-  for (auto &mbb : mf)
-    fill_ir_for_bb(mbb, *func, rmap, instrs, target_machine, tgt, m2b);
+  mbb2bb m2b;
+  auto *func = generate_function_object(m, mf, rmap, mmi, state);
+  auto &dst = mmi.getOrCreateMachineFunction(*func);
+  create_basic_blocks_for_mfunc(mf, dst, m2b);
+  materialize_registers(mf, *func, rmap, mmi.getTarget(), state);
+  for (auto &mbb : dst)
+    fill_ir_for_bb(mbb, rmap, instrs, mmi.getTarget(), tgt, m2b);
 }
 
 std::string get_instruction_name(const MachineInstr &minst,
@@ -140,31 +159,33 @@ std::string get_instruction_name(const MachineInstr &minst,
   return instr_info.getName(minst.getOpcode()).str();
 }
 
-void create_basic_blocks(Module &m, MachineModuleInfo &mmi, mbb2bb &m2b,
-                         const std::set<std::string> &target_functions) {
-  for (auto &f : m | ranges::views::filter([&target_functions](auto &f) {
-                   return target_functions.contains(f.getName().str());
-                 })) {
-    auto &mf = mmi.getOrCreateMachineFunction(f);
-    create_basic_blocks_for_mfunc(mf, m2b);
-  }
+StructType &create_state_type(LLVMContext &ctx) {
+  // FIXME: register number and width should not be hardcoded. They can be
+  // determined from input MIR.
+  // GPR registers
+  auto *array_type =
+      ArrayType::get(Type::getIntNTy(ctx, 64), /*register number*/ 32);
+  auto *struct_type =
+      StructType::create(ctx, ArrayRef<Type *>{array_type}, "register_state");
+  assert(struct_type);
+  return *struct_type;
 }
 
 PreservedAnalyses block_ir_builder_pass::run(Module &m,
                                              ModuleAnalysisManager &mam) {
-  std::set<std::string> target_functions;
+  std::set<Function *> target_functions;
   transform(m, std::inserter(target_functions, target_functions.end()),
-            [](auto &f) { return f.getName().str(); });
+            [](auto &f) { return &f; });
   fill_module_with_instrs(m, instrs);
   auto m2b = mbb2bb{};
   auto &mmi = mam.getResult<MachineModuleAnalysis>(m).getMMI();
-  create_basic_blocks(m, mmi, m2b, target_functions);
-  for (auto &f : m | ranges::views::filter([&target_functions](auto &f) {
-                   return target_functions.contains(f.getName().str());
-                 })) {
-    auto &mf = mmi.getOrCreateMachineFunction(f);
-    generate_function(m, mf, instrs, mmi.getTarget(), tgt, m2b);
+  auto &state = create_state_type(m.getContext());
+  for (auto *f : target_functions) {
+    auto &mf = mmi.getOrCreateMachineFunction(*f);
+    generate_function(m, mf, instrs, mmi, tgt, state);
   }
+  for (auto *f : target_functions)
+    f->eraseFromParent();
   return PreservedAnalyses::none();
 }
 
@@ -256,7 +277,7 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
   return call;
 }
 
-void fill_ir_for_bb(MachineBasicBlock &mbb, Function &func, reg2vals &rmap,
+void fill_ir_for_bb(MachineBasicBlock &mbb, reg2vals &rmap,
                     const instr_impl &instrs,
                     const LLVMTargetMachine &target_machine, const target &tgt,
                     const mbb2bb &m2b) {

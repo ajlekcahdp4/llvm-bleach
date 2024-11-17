@@ -1,60 +1,124 @@
 # RUN: %bin/llvm-bleach %S/inputs/many-branches.mir \
 # RUN:   --instructions=%S/inputs/logical.yaml | filecheck %s
 
-# CHECK: define void @SnippyFunction() {
-# CHECK-NEXT:   %1 = call i64 @XOR(i64 %6, i64 %10)
-# CHECK-NEXT:   %2 = call i64 @XOR(i64 %11, i64 %28)
-# CHECK-NEXT:   %3 = call i64 @ADD(i64 %0, i64 %0)
-# CHECK-NEXT:   %4 = call i64 @ADD(i64 %0, i64 %0)
-# CHECK-NEXT:   br label %5
+# CHECK: define i64 @SnippyFunction.1(ptr %0) {
+# CHECK-NEXT:   %GPRS = getelementptr %register_state, ptr %0, i64 0, i64 0
+# CHECK-NEXT:   %2 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 0
+# CHECK-NEXT:   %X0 = load i64, ptr %2, align 8
+# CHECK-NEXT:   %3 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 1
+# CHECK-NEXT:   %X1 = load i64, ptr %3, align 8
+# CHECK-NEXT:   %4 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 2
+# CHECK-NEXT:   %X2 = load i64, ptr %4, align 8
+# CHECK-NEXT:   %5 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 3
+# CHECK-NEXT:   %X3 = load i64, ptr %5, align 8
+# CHECK-NEXT:   %6 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 4
+# CHECK-NEXT:   %X4 = load i64, ptr %6, align 8
+# CHECK-NEXT:   %7 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 5
+# CHECK-NEXT:   %X5 = load i64, ptr %7, align 8
+# CHECK-NEXT:   %8 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 6
+# CHECK-NEXT:   %X6 = load i64, ptr %8, align 8
+# CHECK-NEXT:   %9 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 7
+# CHECK-NEXT:   %X7 = load i64, ptr %9, align 8
+# CHECK-NEXT:   %10 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 8
+# CHECK-NEXT:   %X8 = load i64, ptr %10, align 8
+# CHECK-NEXT:   %11 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 9
+# CHECK-NEXT:   %X9 = load i64, ptr %11, align 8
+# CHECK-NEXT:   %12 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 10
+# CHECK-NEXT:   %X10 = load i64, ptr %12, align 8
+# CHECK-NEXT:   %13 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 11
+# CHECK-NEXT:   %X11 = load i64, ptr %13, align 8
+# CHECK-NEXT:   %14 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 12
+# CHECK-NEXT:   %X12 = load i64, ptr %14, align 8
+# CHECK-NEXT:   %15 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 13
+# CHECK-NEXT:   %X13 = load i64, ptr %15, align 8
+# CHECK-NEXT:   %16 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 14
+# CHECK-NEXT:   %X14 = load i64, ptr %16, align 8
+# CHECK-NEXT:   %17 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 15
+# CHECK-NEXT:   %X15 = load i64, ptr %17, align 8
+# CHECK-NEXT:   %18 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 16
+# CHECK-NEXT:   %X16 = load i64, ptr %18, align 8
+# CHECK-NEXT:   %19 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 17
+# CHECK-NEXT:   %X17 = load i64, ptr %19, align 8
+# CHECK-NEXT:   %20 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 18
+# CHECK-NEXT:   %X18 = load i64, ptr %20, align 8
+# CHECK-NEXT:   %21 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 19
+# CHECK-NEXT:   %X19 = load i64, ptr %21, align 8
+# CHECK-NEXT:   %22 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 20
+# CHECK-NEXT:   %X20 = load i64, ptr %22, align 8
+# CHECK-NEXT:   %23 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 21
+# CHECK-NEXT:   %X21 = load i64, ptr %23, align 8
+# CHECK-NEXT:   %24 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 22
+# CHECK-NEXT:   %X22 = load i64, ptr %24, align 8
+# CHECK-NEXT:   %25 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 23
+# CHECK-NEXT:   %X23 = load i64, ptr %25, align 8
+# CHECK-NEXT:   %26 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 24
+# CHECK-NEXT:   %X24 = load i64, ptr %26, align 8
+# CHECK-NEXT:   %27 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 25
+# CHECK-NEXT:   %X25 = load i64, ptr %27, align 8
+# CHECK-NEXT:   %28 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 26
+# CHECK-NEXT:   %X26 = load i64, ptr %28, align 8
+# CHECK-NEXT:   %29 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 27
+# CHECK-NEXT:   %X27 = load i64, ptr %29, align 8
+# CHECK-NEXT:   %30 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 28
+# CHECK-NEXT:   %X28 = load i64, ptr %30, align 8
+# CHECK-NEXT:   %31 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 29
+# CHECK-NEXT:   %X29 = load i64, ptr %31, align 8
+# CHECK-NEXT:   %32 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 30
+# CHECK-NEXT:   %X30 = load i64, ptr %32, align 8
+# CHECK-NEXT:   %33 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 31
+# CHECK-NEXT:   %X31 = load i64, ptr %33, align 8
+# CHECK-NEXT:   %34 = call i64 @XOR(i64 %X6, i64 %X11)
+# CHECK-NEXT:   %35 = call i64 @XOR(i64 %X12, i64 %X29)
+# CHECK-NEXT:   %36 = call i64 @ADD(i64 %X0, i64 %X0)
+# CHECK-NEXT:   %37 = call i64 @ADD(i64 %X0, i64 %X0)
+# CHECK-NEXT:   br label %38
 # CHECK-NEXT:
-# CHECK-NEXT: 5:                                                ; preds = %5, %0
-# CHECK-NEXT:   %6 = call i64 @ADD(i64 %27, i64 %23)
-# CHECK-NEXT:   %7 = call i64 @MULW(i64 %1, i64 %4)
-# CHECK-NEXT:   %8 = call i64 @ADD(i64 %3, i64 %0)
-# CHECK-NEXT:   %9 = call i64 @SRL(i64 %8, i64 %2)
-# CHECK-NEXT:   %10 = icmp eq i64 %9, %0
-# CHECK-NEXT:   br i1 %10, label %5, label %11
-# CHECK-NEXT:   br label %11
+# CHECK-NEXT: 38:                                               ; preds = %38, %1
+# CHECK-NEXT:   %39 = call i64 @ADD(i64 %X28, i64 %X24)
+# CHECK-NEXT:   %40 = call i64 @MULW(i64 %34, i64 %37)
+# CHECK-NEXT:   %41 = call i64 @ADD(i64 %36, i64 %X0)
+# CHECK-NEXT:   %42 = call i64 @SRL(i64 %41, i64 %35)
+# CHECK-NEXT:   %43 = icmp eq i64 %42, %X0
+# CHECK-NEXT:   br i1 %43, label %38, label %44
+# CHECK-NEXT:   br label %44
 # CHECK-NEXT:
-# CHECK-NEXT: 11:                                               ; preds = %5, %5
-# CHECK-NEXT:   %12 = call i64 @AND(i64 %9, i64 %27)
-# CHECK-NEXT:   %13 = call i64 @XOR(i64 %28, i64 %2)
-# CHECK-NEXT:   %14 = call i64 @ADD(i64 %0, i64 %0)
-# CHECK-NEXT:   %15 = call i64 @ADD(i64 %0, i64 %0)
-# CHECK-NEXT:   br label %16
+# CHECK-NEXT: 44:                                               ; preds = %38, %38
+# CHECK-NEXT:   %45 = call i64 @AND(i64 %X9, i64 %X28)
+# CHECK-NEXT:   %46 = call i64 @XOR(i64 %X29, i64 %35)
+# CHECK-NEXT:   %47 = call i64 @ADD(i64 %X0, i64 %X0)
+# CHECK-NEXT:   %48 = call i64 @ADD(i64 %X0, i64 %X0)
+# CHECK-NEXT:   br label %49
 # CHECK-NEXT:
-# CHECK-NEXT: 16:                                               ; preds = %16, %11
-# CHECK-NEXT:   %17 = call i64 @SLT(i64 %9, i64 %26)
-# CHECK-NEXT:   %18 = call i64 @SLT(i64 %7, i64 %8)
-# CHECK-NEXT:   %19 = call i64 @ADD(i64 %14, i64 %0)
-# CHECK-NEXT:   %20 = call i64 @SRL(i64 %19, i64 %2)
-# CHECK-NEXT:   %21 = icmp eq i64 %20, %0
-# CHECK-NEXT:   br i1 %21, label %16, label %22
-# CHECK-NEXT:   br label %22
+# CHECK-NEXT: 49:                                               ; preds = %49, %44
+# CHECK-NEXT:   %50 = call i64 @SLT(i64 %42, i64 %X27)
+# CHECK-NEXT:   %51 = call i64 @SLT(i64 %X7, i64 %X8)
+# CHECK-NEXT:   %52 = call i64 @ADD(i64 %47, i64 %X0)
+# CHECK-NEXT:   %53 = call i64 @SRL(i64 %52, i64 %35)
+# CHECK-NEXT:   %54 = icmp eq i64 %53, %X0
+# CHECK-NEXT:   br i1 %54, label %49, label %55
+# CHECK-NEXT:   br label %55
 # CHECK-NEXT:
-# CHECK-NEXT: 22:                                               ; preds = %16, %16
-# CHECK-NEXT:   %23 = call i64 @ADD(i64 %0, i64 %7)
-# CHECK-NEXT:   %24 = call i64 @AND(i64 %8, i64 %21)
-# CHECK-NEXT:   %25 = icmp eq i64 %15, %13
-# CHECK-NEXT:   br i1 %25, label %33, label %26
-# CHECK-NEXT:   br label %26
+# CHECK-NEXT: 55:                                               ; preds = %49, %49
+# CHECK-NEXT:   %56 = call i64 @ADD(i64 %X0, i64 %X7)
+# CHECK-NEXT:   %57 = call i64 @AND(i64 %X8, i64 %X22)
+# CHECK-NEXT:   %58 = icmp eq i64 %X16, %46
+# CHECK-NEXT:   br i1 %58, label %66, label %59
+# CHECK-NEXT:   br label %59
 # CHECK-NEXT:
-# CHECK-NEXT: 26:                                               ; preds = %22, %22
-# CHECK-NEXT:   %27 = call i64 @SLT(i64 %19, i64 %8)
-# CHECK-NEXT:   %28 = icmp slt i64 %9, %26
-# CHECK-NEXT:   br i1 %28, label %29, label %29
-# CHECK-NEXT:   br label %29
+# CHECK-NEXT: 59:                                               ; preds = %55, %55
+# CHECK-NEXT:   %60 = call i64 @SLT(i64 %52, i64 %41)
+# CHECK-NEXT:   %61 = icmp slt i64 %42, %X27
+# CHECK-NEXT:   br i1 %61, label %62, label %62
+# CHECK-NEXT:   br label %62
 # CHECK-NEXT:
-# CHECK-NEXT: 29:                                               ; preds = %26, %26, %26
-# CHECK-NEXT:   %30 = call i64 @MULW(i64 %20, i64 %22)
-# CHECK-NEXT:   %31 = call i64 @XOR(i64 %17, i64 %2)
-# CHECK-NEXT:   %32 = icmp eq i64 %19, %7
-# CHECK-NEXT:   br i1 %32, label %33, label %33
-# CHECK-NEXT:   br label %33
+# CHECK-NEXT: 62:                                               ; preds = %59, %59, %59
+# CHECK-NEXT:   %63 = call i64 @MULW(i64 %53, i64 %X23)
+# CHECK-NEXT:   %64 = call i64 @XOR(i64 %50, i64 %35)
+# CHECK-NEXT:   %65 = icmp eq i64 %52, %40
+# CHECK-NEXT:   br i1 %65, label %66, label %66
+# CHECK-NEXT:   br label %66
 # CHECK-NEXT:
-# CHECK-NEXT: 33:                                               ; preds = %29, %29, %29, %22
-# CHECK-NEXT:   %34 = call i64 @ADD(i64 %1, i64 %8)
-# CHECK-NEXT:   %35 = call i64 @ADD(i64 %24, i64 %30)
+# CHECK-NEXT: 66:                                               ; preds = %62, %62, %62, %55
+# CHECK-NEXT:   %67 = call i64 @ADD(i64 %34, i64 %X8)
+# CHECK-NEXT:   %68 = call i64 @ADD(i64 %57, i64 %X31)
 # CHECK-NEXT: }
-

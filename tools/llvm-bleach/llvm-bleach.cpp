@@ -19,6 +19,7 @@
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/Error.h>
 #include <llvm/Support/FileOutputBuffer.h>
+#include <llvm/Support/InitLLVM.h>
 #include <llvm/Support/SourceMgr.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Target/CGPassBuilderOption.h>
@@ -73,6 +74,7 @@ codegen::RegisterCodeGenFlags cfg;
 using namespace bleach;
 auto main(int argc, char **argv) -> int try {
   cl::ParseCommandLineOptions(argc, argv, "llvm-bleach");
+  InitLLVM llvm_stacktrace(argc, argv);
   InitializeAllTargetInfos();
   InitializeAllTargets();
   InitializeAllTargetMCs();
