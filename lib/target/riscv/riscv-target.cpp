@@ -15,8 +15,8 @@ auto riscv_target::create_branch_condition(
     LLVMContext &ctx) const -> Value * {
   IRBuilder builder(ctx);
   builder.SetInsertPoint(&bb);
-  auto &&op_1 = minst.getOperand(0);
-  auto &&op_2 = minst.getOperand(1);
+  auto &&op_1 = minst.getOperand(1);
+  auto &&op_2 = minst.getOperand(0);
   assert(op_1.isReg());
   assert(op_2.isReg());
   assert(rmap.contains(op_1.getReg()));

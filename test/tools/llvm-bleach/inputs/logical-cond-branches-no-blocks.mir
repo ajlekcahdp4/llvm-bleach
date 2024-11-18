@@ -66,6 +66,7 @@ body:             |
     liveins: $x10
 
     renamable $x12 = ADD renamable $x10, renamable $x10
+    PseudoBR %bb.1
 
   bb.1:
     successors: %bb.1(0x7c000000), %bb.2(0x04000000)
@@ -80,4 +81,5 @@ body:             |
     liveins: $x10, $x11
 
     $x10 = ADD killed renamable $x10, renamable $x11
+    PseudoRET
 ...

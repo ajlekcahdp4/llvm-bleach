@@ -1,5 +1,5 @@
 # RUN: %bin/llvm-bleach %S/inputs/foo.mir --dump-input-mir \
-# RUN:   --instructions=%S/inputs/addsub.yaml | filecheck %s
+# RUN:   --instructions=%S/inputs/addsub.yaml -noinline-instr | filecheck %s
 
 # CHECK: function foo
 # CHECK: ADDW

@@ -81,5 +81,6 @@ body:             |
     liveins: $x11, $x12
 
     renamable $x11 = SRL killed renamable $x11, renamable $x12
+    PseudoRET
 
 ...

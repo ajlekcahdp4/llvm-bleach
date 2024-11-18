@@ -154,4 +154,5 @@ body:             |
   bb.5:
     $x26 = ADD $x15, $x8
     $x28 = ADD $x12, $x31
+    PseudoRET
 ...

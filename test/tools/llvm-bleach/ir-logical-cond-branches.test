@@ -1,7 +1,5 @@
-    case RISCV::BLTU:
-      return builder.CreateICmpULT(rs1, rs2);
 # RUN: %bin/llvm-bleach %S/inputs/logical-cond-branches.mir \
-# RUN:   --instructions=%S/inputs/logical.yaml | filecheck %s
+# RUN:   --instructions=%S/inputs/logical.yaml -noinline-instr | filecheck %s
 
 # CHECK: define i64 @foo.1(ptr %0) {
 # CHECK-NEXT:   %GPRS = getelementptr %register_state, ptr %0, i64 0, i64 0
@@ -70,13 +68,15 @@
 # CHECK-NEXT:   %33 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 31
 # CHECK-NEXT:   %X31 = load i64, ptr %33, align 8
 # CHECK-NEXT:   %34 = call i64 @ADD(i64 %X10, i64 %X10)
+# CHECK-NEXT:   br label %35
 # CHECK-NEXT:
 # CHECK-NEXT: 35:                                               ; preds = %35
 # CHECK-NEXT:   %36 = call i64 @MULW(i64 %X10, i64 %X10)
 # CHECK-NEXT:   %37 = call i64 @SLL(i64 %X10, i64 %X10)
-# CHECK-NEXT:   %38 = icmp ult i64 %36, %34
+# CHECK-NEXT:   %38 = icmp ult i64 %34, %36
 # CHECK-NEXT:   br i1 %38, label %35, label %39
 # CHECK-NEXT:
 # CHECK-NEXT: 39:                                               ; preds = %35
 # CHECK-NEXT:   %40 = call i64 @ADD(i64 %37, i64 %36)
+# CHECK-NEXT:   ret void
 # CHECK-NEXT: }

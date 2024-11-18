@@ -12,17 +12,15 @@
 namespace bleach::lifter {
 using namespace llvm;
 namespace ranges = std::ranges;
-PreservedAnalyses redundant_branch_eraser::run(Module &m,
-                                               ModuleAnalysisManager &) {
-  for (auto &f : m) {
-    for (auto &bb : f) {
-      auto branch = ranges::find_if(bb, [](auto &inst) {
-        auto *branch = dyn_cast<BranchInst>(&inst);
-        return branch && branch->isConditional();
-      });
-      if (branch != bb.end())
-        bb.erase(std::next(branch), bb.end());
-    }
+PreservedAnalyses redundant_branch_eraser::run(Function &f,
+                                               FunctionAnalysisManager &) {
+  for (auto &bb : f) {
+    auto branch = ranges::find_if(bb, [](auto &inst) {
+      auto *br = dyn_cast<BranchInst>(&inst);
+      return br && br->isConditional();
+    });
+    if (branch != bb.end())
+      bb.erase(std::next(branch), bb.end());
   }
   return PreservedAnalyses::none();
 }

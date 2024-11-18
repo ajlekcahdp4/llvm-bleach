@@ -9,6 +9,6 @@ using namespace llvm;
 class redundant_branch_eraser : public PassInfoMixin<redundant_branch_eraser> {
 public:
   redundant_branch_eraser() = default;
-  PreservedAnalyses run(Module &m, ModuleAnalysisManager &mam);
+  PreservedAnalyses run(Function &m, FunctionAnalysisManager &fam);
 };
 } // namespace bleach::lifter

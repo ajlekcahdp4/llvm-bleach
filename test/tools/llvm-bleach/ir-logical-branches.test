@@ -1,5 +1,5 @@
 # RUN: %bin/llvm-bleach %S/inputs/logical-branches.mir \
-# RUN:   --instructions=%S/inputs/logical.yaml | filecheck %s
+# RUN:   --instructions=%S/inputs/logical.yaml -noinline-instr | filecheck %s
 
 # CHECK: define i64 @foo.1(ptr %0) {
 # CHECK-NEXT:   %GPRS = getelementptr %register_state, ptr %0, i64 0, i64 0
@@ -77,4 +77,5 @@
 # CHECK-NEXT:
 # CHECK-NEXT: 40:                                               ; preds = %1
 # CHECK-NEXT:   %41 = call i64 @SRL(i64 %37, i64 %35)
+# CHECK-NEXT:   ret void
 # CHECK-NEXT: }

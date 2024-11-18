@@ -1,7 +1,6 @@
 #include "bleach/lifter/block-ir-builder.hpp"
 #include "bleach/lifter/instr-impl.h"
 #include "bleach/lifter/redundant-branch-eraser.hpp"
-         "
 #include "bleach/target/target-selector.hpp"
 #include "bleach/target/target.hpp"
 
@@ -53,6 +52,11 @@ static cl::opt<std::string>
     dump_input_instructions("dump-input-instructions",
                             cl::desc("Dump input instructions"),
                             cl::value_desc("filename"), cl::cat(options));
+
+static cl::opt<bool>
+    no_inline_opt("noinline-instr",
+                  cl::desc("Do not inline call to instruction implementations"),
+                  cl::cat(options));
 
 namespace {
 
@@ -138,19 +142,33 @@ auto main(int argc, char **argv) -> int try {
   auto target = select_target(target_machine->getTargetTriple());
   ModuleAnalysisManager mam;
   FunctionAnalysisManager fam;
+  LoopAnalysisManager lam;
+  CGSCCAnalysisManager cgam;
 
   ModulePassManager mpm;
   PassBuilder pass_builder;
   // remove to get nullptr dereference
   pass_builder.registerModuleAnalyses(mam);
+  pass_builder.registerFunctionAnalyses(fam);
+  pass_builder.registerLoopAnalyses(lam);
+  pass_builder.registerCGSCCAnalyses(cgam);
+  pass_builder.crossRegisterProxies(lam, fam, cgam, mam);
   mam.registerPass([&] { return PassInstrumentationAnalysis(); });
   mam.registerPass([&] { return MachineModuleAnalysis(*machine_module_info); });
   if (dump_input_mir)
     mpm.addPass(print_pass());
   mpm.addPass(bleach::lifter::block_ir_builder_pass(instrs, *target));
-  mpm.addPass(bleach::lifter::redundant_branch_eraser());
+  mpm.addPass(createModuleToFunctionPassAdaptor(
+      bleach::lifter::redundant_branch_eraser()));
+  if (!no_inline_opt)
+    mpm.addPass(createModuleToPostOrderCGSCCPassAdaptor(InlinerPass()));
+
   mpm.run(*m, mam);
   m->print(outs(), nullptr);
+  mam.clear();
+  fam.clear();
+  cgam.clear();
+  lam.clear();
 } catch (const std::exception &e) {
   std::cerr << "ERROR: " << e.what() << std::endl;
   exit(EXIT_FAILURE);

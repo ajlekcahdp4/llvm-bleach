@@ -254,6 +254,16 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
     return generate_branch(minst, bb, rmap, instrs, ctx, target_machine, tgt,
                            m2b);
   }
+  if (minst.isReturn()) {
+    assert(minst.getNumOperands() <= 1);
+    // non-void case
+    if (minst.getNumOperands() == 1) {
+      auto ret = minst.getOperand(0);
+      assert(ret.isReg());
+      return builder.CreateRet(rmap[ret.getReg()]);
+    }
+    return builder.CreateRetVoid();
+  }
   auto &instr_module = instrs.get(name);
   auto *func = instr_module.getFunction(name);
   if (!func)

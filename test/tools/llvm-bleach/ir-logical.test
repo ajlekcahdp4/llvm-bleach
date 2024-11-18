@@ -1,5 +1,5 @@
 # RUN: %bin/llvm-bleach %S/inputs/logical.mir \
-# RUN:   --instructions=%S/inputs/logical.yaml | filecheck %s
+# RUN:   --instructions=%S/inputs/logical.yaml -noinline-instr | filecheck %s
 
 # CHECK: define i64 @foo.1(ptr %0) {
 # CHECK-NEXT:   %GPRS = getelementptr %register_state, ptr %0, i64 0, i64 0
@@ -73,4 +73,5 @@
 # CHECK-NEXT:   %37 = call i64 @ADD(i64 %36, i64 %X11)
 # CHECK-NEXT:   %38 = call i64 @OR(i64 %37, i64 %X10)
 # CHECK-NEXT:   %39 = call i64 @SUB(i64 %35, i64 %38)
+# CHECK-NEXT:   ret void
 # CHECK-NEXT: }
