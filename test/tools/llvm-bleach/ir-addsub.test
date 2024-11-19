@@ -3,7 +3,7 @@
 
 # CHECK: %register_state = type { [32 x i64] }
 
-# CHECK: define i64 @foo.1(ptr %0) {
+# CHECK: define i64 @foo(ptr %0) {
 # CHECK-NEXT:   %GPRS = getelementptr %register_state, ptr %0, i64 0, i64 0
 # CHECK-NEXT:   %2 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 0
 # CHECK-NEXT:   %X0 = load i64, ptr %2, align 8

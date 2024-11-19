@@ -132,12 +132,13 @@ void materialize_registers(MachineFunction &mf, Function &func, reg2vals &rmap,
 auto *generate_function_object(Module &m, MachineFunction &mf, reg2vals &rmap,
                                MachineModuleInfo &mmi, StructType &state) {
   auto *ret_type = Type::getIntNTy(m.getContext(), 64);
-  auto &reg_info = mf.getRegInfo();
   auto *func_type = FunctionType::get(
       ret_type, ArrayRef<Type *>{PointerType::getUnqual(m.getContext())},
       /* is var arg */ false);
+  auto name_str = mf.getName().str();
+  mf.getFunction().setName(mf.getName().str() + ".old");
   auto *func =
-      Function::Create(func_type, Function::ExternalLinkage, mf.getName(), m);
+      Function::Create(func_type, Function::ExternalLinkage, name_str, m);
   return func;
 }
 
