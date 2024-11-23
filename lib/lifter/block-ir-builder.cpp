@@ -122,10 +122,9 @@ void materialize_registers(MachineFunction &mf, Function &func, reg2vals &rmap,
   for (auto [idx, reg] : ranges::views::enumerate(sorted_regs)) {
     auto *array_idx = ConstantInt::get(ctx, APInt(64, idx));
     auto *reg_addr = builder.CreateInBoundsGEP(
-        array_type, array_ptr, ArrayRef<Value *>{const_zero, array_idx});
-    auto *reg_value = builder.CreateLoad(Type::getIntNTy(ctx, 64), reg_addr,
-                                         reg_info->getName(reg));
-    rmap.try_emplace(reg, reg_value);
+        array_type, array_ptr, ArrayRef<Value *>{const_zero, array_idx},
+        reg_info->getName(reg));
+    rmap.try_emplace(reg, reg_addr);
   }
 }
 
@@ -153,6 +152,7 @@ auto generate_function(Module &m, MachineFunction &mf, const instr_impl &instrs,
   materialize_registers(mf, *func, rmap, mmi.getTarget(), state);
   for (auto &mbb : dst)
     fill_ir_for_bb(mbb, rmap, instrs, mmi.getTarget(), tgt, m2b);
+  // save_registers_before_return(rmap, m2b);
 }
 
 std::string get_instruction_name(const MachineInstr &minst,
@@ -261,7 +261,9 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
     if (minst.getNumOperands() == 1) {
       auto ret = minst.getOperand(0);
       assert(ret.isReg());
-      return builder.CreateRet(rmap[ret.getReg()]);
+      auto *reg_addr = rmap[ret.getReg()];
+      auto *reg_val = builder.CreateLoad(Type::getIntNTy(ctx, 64), reg_addr);
+      return builder.CreateRet(reg_val);
     }
     return builder.CreateRetVoid();
   }
@@ -270,20 +272,21 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
   if (!func)
     throw std::runtime_error("Could not find \"" + name + "\" in module");
   std::vector<Value *> args;
-  for (auto &&use : minst.uses()) {
+  for (auto &&use : minst.uses() | ranges::views::reverse) {
     assert(use.isUse());
     if (!use.isReg())
       throw std::runtime_error("Only register operands are supported");
-    assert(rmap.contains(use.getReg().id()));
-    args.push_back(rmap.at(use.getReg().id()));
+    auto *reg_addr = rmap[use.getReg()];
+    auto *reg_val = builder.CreateLoad(Type::getIntNTy(ctx, 64), reg_addr);
+    args.push_back(reg_val);
   }
   auto *call = builder.CreateCall(func->getFunctionType(), func, args);
   for (auto &def : minst.defs()) {
     assert(def.isDef());
     if (!def.isReg())
       throw std::runtime_error("Only register operands are supported");
-    auto reg = def.getReg();
-    rmap[reg.id()] = call;
+    auto *reg_addr = rmap[def.getReg()];
+    builder.CreateStore(call, reg_addr);
   }
   return call;
 }
