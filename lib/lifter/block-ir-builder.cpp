@@ -5,6 +5,7 @@
 #include <llvm/CodeGen/MachineRegisterInfo.h>
 #include <llvm/CodeGen/TargetInstrInfo.h>
 #include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/Instructions.h>
 #include <llvm/IR/Module.h>
 #include <llvm/Linker/Linker.h>
 #include <llvm/MC/MCInstrInfo.h>
@@ -110,8 +111,8 @@ void materialize_registers(MachineFunction &mf, Function &func, reg2vals &rmap,
   // pointer to a single state
   // GPR array is the first field
   auto *const_zero = ConstantInt::get(ctx, APInt(64, 0));
-  auto *array_ptr = builder.CreateGEP(
-      &state, state_arg, ArrayRef<Value *>{const_zero, const_zero}, "GPRS");
+  auto *array_ptr = builder.CreateGEP(&state, state_arg,
+                                      ArrayRef<Value *>{const_zero}, "GPRS");
   auto *reg_info = target_machine.getMCRegisterInfo();
   assert(reg_info);
   // TODO: get GPR reg class index propperly
@@ -134,7 +135,7 @@ void materialize_registers(MachineFunction &mf, Function &func, reg2vals &rmap,
 
 auto *generate_function_object(Module &m, MachineFunction &mf, reg2vals &rmap,
                                MachineModuleInfo &mmi, StructType &state) {
-  auto *ret_type = Type::getIntNTy(m.getContext(), 64);
+  auto *ret_type = Type::getVoidTy(m.getContext());
   auto *func_type = FunctionType::get(
       ret_type, ArrayRef<Type *>{PointerType::getUnqual(m.getContext())},
       /* is var arg */ false);
@@ -145,18 +146,52 @@ auto *generate_function_object(Module &m, MachineFunction &mf, reg2vals &rmap,
   return func;
 }
 
+void save_registers(BasicBlock &block, BasicBlock::iterator pos, reg2vals &rmap,
+                    StructType &state) {
+  auto &ctx = block.getContext();
+  IRBuilder builder(block.getContext());
+  builder.SetInsertPoint(pos);
+  constexpr auto gpr_array_idx = 0u;
+  Value *state_arg = block.getParent()->getArg(gpr_array_idx);
+  auto *array_type = *state.element_begin();
+  // GPR array is the first field
+  auto *const_zero = ConstantInt::get(ctx, APInt(64, 0));
+  auto *array_ptr = builder.CreateGEP(&state, state_arg,
+                                      ArrayRef<Value *>{const_zero}, "GPRS");
+  for (auto &&[idx, val] : rmap | ranges::views::enumerate) {
+    auto *array_idx = ConstantInt::get(ctx, APInt(64, idx));
+    auto &&[reg, addr] = val;
+    auto *reg_val = builder.CreateLoad(Type::getIntNTy(ctx, 64), addr);
+    auto *reg_dst_addr = builder.CreateInBoundsGEP(
+        array_type, array_ptr, ArrayRef<Value *>{const_zero, array_idx});
+    builder.CreateStore(reg_val, reg_dst_addr);
+  }
+}
+
+void save_registers_before_return(Function &func, reg2vals &rmap, mbb2bb &m2b,
+                                  StructType &state) {
+  for (auto &block : func) {
+    auto ret = ranges::find_if(
+        block, [](auto &inst) { return isa<ReturnInst>(inst); });
+    if (ret == block.end())
+      continue;
+    save_registers(block, ret, rmap, state);
+  }
+}
+
 auto generate_function(Module &m, MachineFunction &mf, const instr_impl &instrs,
                        MachineModuleInfo &mmi, const target &tgt,
                        StructType &state) {
   reg2vals rmap;
   mbb2bb m2b;
   auto *func = generate_function_object(m, mf, rmap, mmi, state);
+  assert(func);
   auto &dst = mmi.getOrCreateMachineFunction(*func);
   create_basic_blocks_for_mfunc(mf, dst, m2b);
   materialize_registers(mf, *func, rmap, mmi.getTarget(), state);
   for (auto &mbb : dst)
     fill_ir_for_bb(mbb, rmap, instrs, mmi.getTarget(), tgt, m2b);
-  // save_registers_before_return(rmap, m2b);
+  save_registers_before_return(*func, rmap, m2b, state);
 }
 
 std::string get_instruction_name(const MachineInstr &minst,

@@ -1,122 +1,244 @@
 # RUN: %bin/llvm-bleach %S/inputs/many-branches.mir \
 # RUN:   --instructions=%S/inputs/logical.yaml | filecheck %s
 
-# CHECK: define i64 @SnippyFunction(ptr %0) {
-# CHECK-NEXT:   %GPRS = getelementptr %register_state, ptr %0, i64 0, i64 0
+# CHECK: define void @SnippyFunction(ptr %0) {
+# CHECK-NEXT:   %GPRS = getelementptr %register_state, ptr %0, i64 0
+# CHECK-NEXT:   %X0 = alloca i64, align 8
 # CHECK-NEXT:   %2 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 0
-# CHECK-NEXT:   %X0 = load i64, ptr %2, align 8
-# CHECK-NEXT:   %3 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 1
-# CHECK-NEXT:   %X1 = load i64, ptr %3, align 8
-# CHECK-NEXT:   %4 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 2
-# CHECK-NEXT:   %X2 = load i64, ptr %4, align 8
-# CHECK-NEXT:   %5 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 3
-# CHECK-NEXT:   %X3 = load i64, ptr %5, align 8
-# CHECK-NEXT:   %6 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 4
-# CHECK-NEXT:   %X4 = load i64, ptr %6, align 8
-# CHECK-NEXT:   %7 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 5
-# CHECK-NEXT:   %X5 = load i64, ptr %7, align 8
-# CHECK-NEXT:   %8 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 6
-# CHECK-NEXT:   %X6 = load i64, ptr %8, align 8
-# CHECK-NEXT:   %9 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 7
-# CHECK-NEXT:   %X7 = load i64, ptr %9, align 8
-# CHECK-NEXT:   %10 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 8
-# CHECK-NEXT:   %X8 = load i64, ptr %10, align 8
-# CHECK-NEXT:   %11 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 9
-# CHECK-NEXT:   %X9 = load i64, ptr %11, align 8
-# CHECK-NEXT:   %12 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 10
-# CHECK-NEXT:   %X10 = load i64, ptr %12, align 8
-# CHECK-NEXT:   %13 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 11
-# CHECK-NEXT:   %X11 = load i64, ptr %13, align 8
-# CHECK-NEXT:   %14 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 12
-# CHECK-NEXT:   %X12 = load i64, ptr %14, align 8
-# CHECK-NEXT:   %15 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 13
-# CHECK-NEXT:   %X13 = load i64, ptr %15, align 8
-# CHECK-NEXT:   %16 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 14
-# CHECK-NEXT:   %X14 = load i64, ptr %16, align 8
-# CHECK-NEXT:   %17 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 15
-# CHECK-NEXT:   %X15 = load i64, ptr %17, align 8
-# CHECK-NEXT:   %18 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 16
-# CHECK-NEXT:   %X16 = load i64, ptr %18, align 8
-# CHECK-NEXT:   %19 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 17
-# CHECK-NEXT:   %X17 = load i64, ptr %19, align 8
-# CHECK-NEXT:   %20 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 18
-# CHECK-NEXT:   %X18 = load i64, ptr %20, align 8
-# CHECK-NEXT:   %21 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 19
-# CHECK-NEXT:   %X19 = load i64, ptr %21, align 8
-# CHECK-NEXT:   %22 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 20
-# CHECK-NEXT:   %X20 = load i64, ptr %22, align 8
-# CHECK-NEXT:   %23 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 21
-# CHECK-NEXT:   %X21 = load i64, ptr %23, align 8
-# CHECK-NEXT:   %24 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 22
-# CHECK-NEXT:   %X22 = load i64, ptr %24, align 8
-# CHECK-NEXT:   %25 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 23
-# CHECK-NEXT:   %X23 = load i64, ptr %25, align 8
-# CHECK-NEXT:   %26 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 24
-# CHECK-NEXT:   %X24 = load i64, ptr %26, align 8
-# CHECK-NEXT:   %27 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 25
-# CHECK-NEXT:   %X25 = load i64, ptr %27, align 8
-# CHECK-NEXT:   %28 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 26
-# CHECK-NEXT:   %X26 = load i64, ptr %28, align 8
-# CHECK-NEXT:   %29 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 27
-# CHECK-NEXT:   %X27 = load i64, ptr %29, align 8
-# CHECK-NEXT:   %30 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 28
-# CHECK-NEXT:   %X28 = load i64, ptr %30, align 8
-# CHECK-NEXT:   %31 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 29
-# CHECK-NEXT:   %X29 = load i64, ptr %31, align 8
-# CHECK-NEXT:   %32 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 30
-# CHECK-NEXT:   %X30 = load i64, ptr %32, align 8
-# CHECK-NEXT:   %33 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 31
-# CHECK-NEXT:   %X31 = load i64, ptr %33, align 8
-# CHECK-NEXT:   %34 = xor i64 %X11, %X6
-# CHECK-NEXT:   %35 = xor i64 %X29, %X12
-# CHECK-NEXT:   %36 = add nsw i64 %X0, %X0
-# CHECK-NEXT:   %37 = add nsw i64 %X0, %X0
-# CHECK-NEXT:   br label %38
-# CHECK-NEXT:
-# CHECK-NEXT: 38:                                               ; preds = %38, %1
-# CHECK-NEXT:   %39 = add nsw i64 %X24, %X28
-# CHECK-NEXT:   %40 = mul nsw i64 %34, %37
-# CHECK-NEXT:   %41 = add nsw i64 %X0, %36
-# CHECK-NEXT:   %42 = and i64 %35, 63
-# CHECK-NEXT:   %43 = ashr i64 %41, %42
-# CHECK-NEXT:   %44 = icmp eq i64 %X0, %43
-# CHECK-NEXT:   br i1 %44, label %38, label %45
-# CHECK-NEXT:
-# CHECK-NEXT: 45:                                               ; preds = %38
-# CHECK-NEXT:   %46 = and i64 %X28, %X9
-# CHECK-NEXT:   %47 = add nsw i64 %X0, %X0
-# CHECK-NEXT:   %48 = add nsw i64 %X0, %X0
-# CHECK-NEXT:   br label %49
-# CHECK-NEXT:
-# CHECK-NEXT: 49:                                               ; preds = %49, %45
-# CHECK-NEXT:   %50 = icmp slt i64 %43, %X27
-# CHECK-NEXT:   %51 = zext i1 %50 to i64
-# CHECK-NEXT:   %52 = icmp slt i64 %X7, %X8
-# CHECK-NEXT:   %53 = zext i1 %52 to i64
-# CHECK-NEXT:   %54 = add nsw i64 %X0, %47
-# CHECK-NEXT:   %55 = and i64 %35, 63
-# CHECK-NEXT:   %56 = ashr i64 %54, %55
-# CHECK-NEXT:   %57 = icmp eq i64 %X0, %56
-# CHECK-NEXT:   br i1 %57, label %49, label %58
-# CHECK-NEXT:
-# CHECK-NEXT: 58:                                               ; preds = %49
-# CHECK-NEXT:   %59 = add nsw i64 %X7, %X0
-# CHECK-NEXT:   %60 = and i64 %X22, %X8
-# CHECK-NEXT:   %61 = icmp eq i64 %X12, %X16
-# CHECK-NEXT:   br i1 %61, label %68, label %62
-# CHECK-NEXT:
-# CHECK-NEXT: 62:                                               ; preds = %58
-# CHECK-NEXT:   %63 = icmp slt i64 %X27, %43
-# CHECK-NEXT:   br i1 %63, label %64, label %64
-# CHECK-NEXT:
-# CHECK-NEXT: 64:                                               ; preds = %62, %62
-# CHECK-NEXT:   %65 = mul nsw i64 %56, %X23
-# CHECK-NEXT:   %66 = xor i64 %35, %51
-# CHECK-NEXT:   %67 = icmp eq i64 %40, %54
-# CHECK-NEXT:   br i1 %67, label %68, label %68
-# CHECK-NEXT:
-# CHECK-NEXT: 68:                                               ; preds = %64, %64, %58
-# CHECK-NEXT:   %69 = add nsw i64 %X8, %34
-# CHECK-NEXT:   %70 = add nsw i64 %X31, %60
+# CHECK-NEXT:   %3 = load i64, ptr %2, align 8
+# CHECK-NEXT:   store i64 %3, ptr %X0, align 8
+# CHECK-NEXT:   %4 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 1
+# CHECK-NEXT:   %5 = load i64, ptr %4, align 8
+# CHECK-NEXT:   %6 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 2
+# CHECK-NEXT:   %7 = load i64, ptr %6, align 8
+# CHECK-NEXT:   %X3 = alloca i64, align 8
+# CHECK-NEXT:   %8 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 3
+# CHECK-NEXT:   %9 = load i64, ptr %8, align 8
+# CHECK-NEXT:   store i64 %9, ptr %X3, align 8
+# CHECK-NEXT:   %10 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 4
+# CHECK-NEXT:   %11 = load i64, ptr %10, align 8
+# CHECK-NEXT:   %12 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 5
+# CHECK-NEXT:   %13 = load i64, ptr %12, align 8
+# CHECK-NEXT:   %14 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 6
+# CHECK-NEXT:   %15 = load i64, ptr %14, align 8
+# CHECK-NEXT:   %16 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 7
+# CHECK-NEXT:   %17 = load i64, ptr %16, align 8
+# CHECK-NEXT:   %18 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 8
+# CHECK-NEXT:   %19 = load i64, ptr %18, align 8
+# CHECK-NEXT:   %X9 = alloca i64, align 8
+# CHECK-NEXT:   %20 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 9
+# CHECK-NEXT:   %21 = load i64, ptr %20, align 8
+# CHECK-NEXT:   store i64 %21, ptr %X9, align 8
+# CHECK-NEXT:   %X10 = alloca i64, align 8
+# CHECK-NEXT:   %22 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 10
+# CHECK-NEXT:   %23 = load i64, ptr %22, align 8
+# CHECK-NEXT:   store i64 %23, ptr %X10, align 8
+# CHECK-NEXT:   %24 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 11
+# CHECK-NEXT:   %25 = load i64, ptr %24, align 8
+# CHECK-NEXT:   %26 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 12
+# CHECK-NEXT:   %27 = load i64, ptr %26, align 8
+# CHECK-NEXT:   %X13 = alloca i64, align 8
+# CHECK-NEXT:   %28 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 13
+# CHECK-NEXT:   %29 = load i64, ptr %28, align 8
+# CHECK-NEXT:   store i64 %29, ptr %X13, align 8
+# CHECK-NEXT:   %30 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 14
+# CHECK-NEXT:   %31 = load i64, ptr %30, align 8
+# CHECK-NEXT:   %32 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 15
+# CHECK-NEXT:   %33 = load i64, ptr %32, align 8
+# CHECK-NEXT:   %X16 = alloca i64, align 8
+# CHECK-NEXT:   %34 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 16
+# CHECK-NEXT:   %35 = load i64, ptr %34, align 8
+# CHECK-NEXT:   store i64 %35, ptr %X16, align 8
+# CHECK-NEXT:   %36 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 17
+# CHECK-NEXT:   %37 = load i64, ptr %36, align 8
+# CHECK-NEXT:   %38 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 18
+# CHECK-NEXT:   %39 = load i64, ptr %38, align 8
+# CHECK-NEXT:   %X19 = alloca i64, align 8
+# CHECK-NEXT:   %40 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 19
+# CHECK-NEXT:   %41 = load i64, ptr %40, align 8
+# CHECK-NEXT:   store i64 %41, ptr %X19, align 8
+# CHECK-NEXT:   %42 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 20
+# CHECK-NEXT:   %43 = load i64, ptr %42, align 8
+# CHECK-NEXT:   %44 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 21
+# CHECK-NEXT:   %45 = load i64, ptr %44, align 8
+# CHECK-NEXT:   %46 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 22
+# CHECK-NEXT:   %47 = load i64, ptr %46, align 8
+# CHECK-NEXT:   %48 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 23
+# CHECK-NEXT:   %49 = load i64, ptr %48, align 8
+# CHECK-NEXT:   %50 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 24
+# CHECK-NEXT:   %51 = load i64, ptr %50, align 8
+# CHECK-NEXT:   %52 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 25
+# CHECK-NEXT:   %53 = load i64, ptr %52, align 8
+# CHECK-NEXT:   %54 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 26
+# CHECK-NEXT:   %55 = load i64, ptr %54, align 8
+# CHECK-NEXT:   %X27 = alloca i64, align 8
+# CHECK-NEXT:   %56 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 27
+# CHECK-NEXT:   %57 = load i64, ptr %56, align 8
+# CHECK-NEXT:   store i64 %57, ptr %X27, align 8
+# CHECK-NEXT:   %58 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 28
+# CHECK-NEXT:   %59 = load i64, ptr %58, align 8
+# CHECK-NEXT:   %60 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 29
+# CHECK-NEXT:   %61 = load i64, ptr %60, align 8
+# CHECK-NEXT:   %62 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 30
+# CHECK-NEXT:   %63 = load i64, ptr %62, align 8
+# CHECK-NEXT:   %64 = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 31
+# CHECK-NEXT:   %65 = load i64, ptr %64, align 8
+# CHECK-NEXT:   %66 = xor i64 %15, %25
+# CHECK-NEXT:   %67 = xor i64 %27, %61
+# CHECK-NEXT:   %68 = load i64, ptr %X0, align 8
+# CHECK-NEXT:   %69 = load i64, ptr %X0, align 8
+# CHECK-NEXT:   %70 = add nsw i64 %69, %68
+# CHECK-NEXT:   %71 = load i64, ptr %X0, align 8
+# CHECK-NEXT:   %72 = load i64, ptr %X0, align 8
+# CHECK-NEXT:   %73 = add nsw i64 %72, %71
+# CHECK-NEXT:   store i64 %73, ptr %X19, align 8
+# CHECK-NEXT:   br label %74
+# CHECK-NEXT: 
+# CHECK-NEXT: 74:                                               ; preds = %74, %1
+# CHECK-NEXT:   %X26.0 = phi i64 [ %70, %1 ], [ %79, %74 ]
+# CHECK-NEXT:   %75 = add nsw i64 %59, %51
+# CHECK-NEXT:   %76 = load i64, ptr %X19, align 8
+# CHECK-NEXT:   %77 = mul nsw i64 %76, %66
+# CHECK-NEXT:   store i64 %77, ptr %X10, align 8
+# CHECK-NEXT:   %78 = load i64, ptr %X0, align 8
+# CHECK-NEXT:   %79 = add nsw i64 %X26.0, %78
+# CHECK-NEXT:   %80 = and i64 %79, 63
+# CHECK-NEXT:   %81 = ashr i64 %67, %80
+# CHECK-NEXT:   store i64 %81, ptr %X19, align 8
+# CHECK-NEXT:   %82 = icmp eq ptr %X0, %X19
+# CHECK-NEXT:   br i1 %82, label %74, label %83
+# CHECK-NEXT: 
+# CHECK-NEXT: 83:                                               ; preds = %74
+# CHECK-NEXT:   %84 = load i64, ptr %X9, align 8
+# CHECK-NEXT:   %85 = and i64 %84, %59
+# CHECK-NEXT:   %86 = xor i64 %61, %67
+# CHECK-NEXT:   store i64 %86, ptr %X3, align 8
+# CHECK-NEXT:   %87 = load i64, ptr %X0, align 8
+# CHECK-NEXT:   %88 = load i64, ptr %X0, align 8
+# CHECK-NEXT:   %89 = add nsw i64 %88, %87
+# CHECK-NEXT:   store i64 %89, ptr %X9, align 8
+# CHECK-NEXT:   %90 = load i64, ptr %X0, align 8
+# CHECK-NEXT:   %91 = load i64, ptr %X0, align 8
+# CHECK-NEXT:   %92 = add nsw i64 %91, %90
+# CHECK-NEXT:   store i64 %92, ptr %X13, align 8
+# CHECK-NEXT:   br label %93
+# CHECK-NEXT: 
+# CHECK-NEXT: 93:                                               ; preds = %93, %83
+# CHECK-NEXT:   %94 = load i64, ptr %X27, align 8
+# CHECK-NEXT:   %95 = load i64, ptr %X19, align 8
+# CHECK-NEXT:   %96 = icmp slt i64 %94, %95
+# CHECK-NEXT:   %97 = zext i1 %96 to i64
+# CHECK-NEXT:   %98 = icmp slt i64 %19, %17
+# CHECK-NEXT:   %99 = zext i1 %98 to i64
+# CHECK-NEXT:   %100 = load i64, ptr %X0, align 8
+# CHECK-NEXT:   %101 = load i64, ptr %X9, align 8
+# CHECK-NEXT:   %102 = add nsw i64 %101, %100
+# CHECK-NEXT:   store i64 %102, ptr %X9, align 8
+# CHECK-NEXT:   %103 = load i64, ptr %X9, align 8
+# CHECK-NEXT:   %104 = and i64 %103, 63
+# CHECK-NEXT:   %105 = ashr i64 %67, %104
+# CHECK-NEXT:   store i64 %105, ptr %X13, align 8
+# CHECK-NEXT:   %106 = icmp eq ptr %X0, %X13
+# CHECK-NEXT:   br i1 %106, label %93, label %107
+# CHECK-NEXT: 
+# CHECK-NEXT: 107:                                              ; preds = %93
+# CHECK-NEXT:   %108 = load i64, ptr %X0, align 8
+# CHECK-NEXT:   %109 = add nsw i64 %108, %17
+# CHECK-NEXT:   %110 = and i64 %19, %47
+# CHECK-NEXT:   %111 = icmp eq ptr %X3, %X16
+# CHECK-NEXT:   br i1 %111, label %122, label %112
+# CHECK-NEXT: 
+# CHECK-NEXT: 112:                                              ; preds = %107
+# CHECK-NEXT:   %113 = load i64, ptr %X9, align 8
+# CHECK-NEXT:   %114 = icmp slt i64 %79, %113
+# CHECK-NEXT:   %115 = zext i1 %114 to i64
+# CHECK-NEXT:   store i64 %115, ptr %X3, align 8
+# CHECK-NEXT:   %116 = icmp slt ptr %X27, %X19
+# CHECK-NEXT:   br i1 %116, label %117, label %117
+# CHECK-NEXT: 
+# CHECK-NEXT: 117:                                              ; preds = %112, %112
+# CHECK-NEXT:   %118 = load i64, ptr %X13, align 8
+# CHECK-NEXT:   %119 = mul nsw i64 %49, %118
+# CHECK-NEXT:   %120 = xor i64 %97, %67
+# CHECK-NEXT:   %121 = icmp eq ptr %X10, %X9
+# CHECK-NEXT:   br i1 %121, label %122, label %122
+# CHECK-NEXT: 
+# CHECK-NEXT: 122:                                              ; preds = %117, %117, %107
+# CHECK-NEXT:   %X30.0 = phi i64 [ %63, %107 ], [ %120, %117 ], [ %120, %117 ]
+# CHECK-NEXT:   %123 = add nsw i64 %66, %19
+# CHECK-NEXT:   %124 = add nsw i64 %110, %65
+# CHECK-NEXT:   %GPRS1 = getelementptr %register_state, ptr %0, i64 0
+# CHECK-NEXT:   %125 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 0
+# CHECK-NEXT:   store i64 %65, ptr %125, align 8
+# CHECK-NEXT:   %126 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 1
+# CHECK-NEXT:   store i64 %X30.0, ptr %126, align 8
+# CHECK-NEXT:   %127 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 2
+# CHECK-NEXT:   store i64 %61, ptr %127, align 8
+# CHECK-NEXT:   %128 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 3
+# CHECK-NEXT:   store i64 %110, ptr %128, align 8
+# CHECK-NEXT:   %129 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 4
+# CHECK-NEXT:   store i64 %25, ptr %129, align 8
+# CHECK-NEXT:   %130 = load i64, ptr %X10, align 8
+# CHECK-NEXT:   %131 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 5
+# CHECK-NEXT:   store i64 %130, ptr %131, align 8
+# CHECK-NEXT:   %132 = load i64, ptr %X9, align 8
+# CHECK-NEXT:   %133 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 6
+# CHECK-NEXT:   store i64 %132, ptr %133, align 8
+# CHECK-NEXT:   %134 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 7
+# CHECK-NEXT:   store i64 %19, ptr %134, align 8
+# CHECK-NEXT:   %135 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 8
+# CHECK-NEXT:   store i64 %17, ptr %135, align 8
+# CHECK-NEXT:   %136 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 9
+# CHECK-NEXT:   store i64 %15, ptr %136, align 8
+# CHECK-NEXT:   %137 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 10
+# CHECK-NEXT:   store i64 %13, ptr %137, align 8
+# CHECK-NEXT:   %138 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 11
+# CHECK-NEXT:   store i64 %85, ptr %138, align 8
+# CHECK-NEXT:   %139 = load i64, ptr %X3, align 8
+# CHECK-NEXT:   %140 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 12
+# CHECK-NEXT:   store i64 %139, ptr %140, align 8
+# CHECK-NEXT:   %141 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 13
+# CHECK-NEXT:   store i64 %67, ptr %141, align 8
+# CHECK-NEXT:   %142 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 14
+# CHECK-NEXT:   store i64 %99, ptr %142, align 8
+# CHECK-NEXT:   %143 = load i64, ptr %X0, align 8
+# CHECK-NEXT:   %144 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 15
+# CHECK-NEXT:   store i64 %143, ptr %144, align 8
+# CHECK-NEXT:   %145 = load i64, ptr %X13, align 8
+# CHECK-NEXT:   %146 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 16
+# CHECK-NEXT:   store i64 %145, ptr %146, align 8
+# CHECK-NEXT:   %147 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 17
+# CHECK-NEXT:   store i64 %31, ptr %147, align 8
+# CHECK-NEXT:   %148 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 18
+# CHECK-NEXT:   store i64 %66, ptr %148, align 8
+# CHECK-NEXT:   %149 = load i64, ptr %X16, align 8
+# CHECK-NEXT:   %150 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 19
+# CHECK-NEXT:   store i64 %149, ptr %150, align 8
+# CHECK-NEXT:   %151 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 20
+# CHECK-NEXT:   store i64 %75, ptr %151, align 8
+# CHECK-NEXT:   %152 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 21
+# CHECK-NEXT:   store i64 %39, ptr %152, align 8
+# CHECK-NEXT:   %153 = load i64, ptr %X19, align 8
+# CHECK-NEXT:   %154 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 22
+# CHECK-NEXT:   store i64 %153, ptr %154, align 8
+# CHECK-NEXT:   %155 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 23
+# CHECK-NEXT:   store i64 %43, ptr %155, align 8
+# CHECK-NEXT:   %156 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 24
+# CHECK-NEXT:   store i64 %45, ptr %156, align 8
+# CHECK-NEXT:   %157 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 25
+# CHECK-NEXT:   store i64 %47, ptr %157, align 8
+# CHECK-NEXT:   %158 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 26
+# CHECK-NEXT:   store i64 %49, ptr %158, align 8
+# CHECK-NEXT:   %159 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 27
+# CHECK-NEXT:   store i64 %51, ptr %159, align 8
+# CHECK-NEXT:   %160 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 28
+# CHECK-NEXT:   store i64 %97, ptr %160, align 8
+# CHECK-NEXT:   %161 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 29
+# CHECK-NEXT:   store i64 %123, ptr %161, align 8
+# CHECK-NEXT:   %162 = load i64, ptr %X27, align 8
+# CHECK-NEXT:   %163 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 30
+# CHECK-NEXT:   store i64 %162, ptr %163, align 8
+# CHECK-NEXT:   %164 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 31
+# CHECK-NEXT:   store i64 %124, ptr %164, align 8
 # CHECK-NEXT:   ret void
 # CHECK-NEXT: }
