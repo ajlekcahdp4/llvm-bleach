@@ -121,10 +121,14 @@ void materialize_registers(MachineFunction &mf, Function &func, reg2vals &rmap,
   ranges::copy(gpr_class, std::inserter(sorted_regs, sorted_regs.end()));
   for (auto [idx, reg] : ranges::views::enumerate(sorted_regs)) {
     auto *array_idx = ConstantInt::get(ctx, APInt(64, idx));
+    auto *reg_dst_addr =
+        builder.CreateAlloca(Type::getIntNTy(ctx, 64), /*array size*/ nullptr,
+                             reg_info->getName(reg));
     auto *reg_addr = builder.CreateInBoundsGEP(
-        array_type, array_ptr, ArrayRef<Value *>{const_zero, array_idx},
-        reg_info->getName(reg));
-    rmap.try_emplace(reg, reg_addr);
+        array_type, array_ptr, ArrayRef<Value *>{const_zero, array_idx});
+    auto *reg_val = builder.CreateLoad(Type::getIntNTy(ctx, 64), reg_addr);
+    builder.CreateStore(reg_val, reg_dst_addr);
+    rmap.try_emplace(reg, reg_dst_addr);
   }
 }
 

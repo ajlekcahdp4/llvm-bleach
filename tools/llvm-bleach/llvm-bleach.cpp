@@ -27,6 +27,7 @@
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/TargetParser/Host.h>
 #include <llvm/TargetParser/Triple.h>
+#include <llvm/Transforms/Scalar/SROA.h>
 
 #include <fstream>
 #include <iostream>
@@ -162,6 +163,8 @@ auto main(int argc, char **argv) -> int try {
       bleach::lifter::redundant_branch_eraser()));
   if (!no_inline_opt)
     mpm.addPass(createModuleToPostOrderCGSCCPassAdaptor(InlinerPass()));
+  mpm.addPass(
+      createModuleToFunctionPassAdaptor(SROAPass(SROAOptions::PreserveCFG)));
 
   mpm.run(*m, mam);
   m->print(outs(), nullptr);
