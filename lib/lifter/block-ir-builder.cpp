@@ -95,14 +95,18 @@ void fill_module_with_instrs(Module &m, const instr_impl &instrs) {
   Linker::linkModules(m, std::move(first));
 }
 
+auto get_current_state(Function &func) -> Value * {
+  constexpr auto gpr_array_idx = 0u;
+  return func.getArg(gpr_array_idx);
+}
+
 void materialize_registers(MachineFunction &mf, Function &func, reg2vals &rmap,
                            const LLVMTargetMachine &target_machine,
                            StructType &state) {
   if (mf.empty())
     return;
   auto &ctx = func.getContext();
-  constexpr auto gpr_array_idx = 0u;
-  Value *state_arg = func.getArg(gpr_array_idx);
+  auto *state_arg = get_current_state(func);
   auto *array_type = *state.element_begin();
   assert(!func.empty());
   auto &first_block = func.front();
@@ -147,12 +151,12 @@ auto *generate_function_object(Module &m, MachineFunction &mf, reg2vals &rmap,
 }
 
 void save_registers(BasicBlock &block, BasicBlock::iterator pos, reg2vals &rmap,
+
                     StructType &state) {
   auto &ctx = block.getContext();
   IRBuilder builder(block.getContext());
   builder.SetInsertPoint(pos);
-  constexpr auto gpr_array_idx = 0u;
-  Value *state_arg = block.getParent()->getArg(gpr_array_idx);
+  auto *state_arg = get_current_state(*block.getParent());
   auto *array_type = *state.element_begin();
   // GPR array is the first field
   auto *const_zero = ConstantInt::get(ctx, APInt(64, 0));
@@ -190,7 +194,7 @@ auto generate_function(Module &m, MachineFunction &mf, const instr_impl &instrs,
   create_basic_blocks_for_mfunc(mf, dst, m2b);
   materialize_registers(mf, *func, rmap, mmi.getTarget(), state);
   for (auto &mbb : dst)
-    fill_ir_for_bb(mbb, rmap, instrs, mmi.getTarget(), tgt, m2b);
+    fill_ir_for_bb(mbb, rmap, instrs, mmi.getTarget(), tgt, m2b, state);
   save_registers_before_return(*func, rmap, m2b, state);
 }
 
@@ -278,11 +282,28 @@ auto generate_branch(const MachineInstr &minst, BasicBlock &bb, reg2vals &rmap,
   return builder.CreateCondBr(cond, if_true, if_false);
 }
 
+auto operand_to_value(const MachineOperand &mop, BasicBlock &block, reg2vals &rmap) -> Value * {
+  IRBuilder builder (block.getContext());
+  builder.SetInsertPoint(&block);
+  if (mop.isReg()) {
+    assert(mop.isUse());
+    auto *reg_addr = rmap[mop.getReg()];
+    auto *reg_val = builder.CreateLoad(Type::getIntNTy(block.getContext(), 64), reg_addr);
+    return reg_val;
+  }
+  if (mop.isImm()) {
+    auto val = mop.getImm();
+    auto *imm = ConstantInt::get(block.getContext(), APInt(64, val));
+    return imm;
+  }
+  throw std::runtime_error("Unsupported operand type");
+}
+
 auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
                           reg2vals &rmap, const instr_impl &instrs,
                           LLVMContext &ctx,
                           const LLVMTargetMachine &target_machine,
-                          const target &tgt, const mbb2bb &m2b) -> Value * {
+                          const target &tgt, const mbb2bb &m2b, StructType &state) -> Value * {
   auto *iinfo = target_machine.getMCInstrInfo();
   auto name = get_instruction_name(minst, *iinfo);
   IRBuilder builder(ctx);
@@ -306,19 +327,23 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
     }
     return builder.CreateRetVoid();
   }
+  if (minst.isCall()) {
+    assert(minst.getNumOperands() >= 1);
+    auto op = minst.getOperand(0);
+    assert(op.isGlobal());
+    auto *callee = const_cast<Function *>(dyn_cast<Function>(op.getGlobal()));
+    assert(callee);
+    auto *call = builder.CreateCall(callee->getFunctionType(), callee, ArrayRef<Value*>{get_current_state(*bb.getParent())});
+    save_registers(bb, call->getIterator(), rmap, state);
+    return call;
+  }
   auto &instr_module = instrs.get(name);
   auto *func = instr_module.getFunction(name);
   if (!func)
     throw std::runtime_error("Could not find \"" + name + "\" in module");
-  std::vector<Value *> args;
-  for (auto &&use : minst.uses() | ranges::views::reverse) {
-    assert(use.isUse());
-    if (!use.isReg())
-      throw std::runtime_error("Only register operands are supported");
-    auto *reg_addr = rmap[use.getReg()];
-    auto *reg_val = builder.CreateLoad(Type::getIntNTy(ctx, 64), reg_addr);
-    args.push_back(reg_val);
-  }
+  auto op_to_val = [&](auto&mop){ return operand_to_value(mop, bb, rmap);};
+  auto values = minst.uses() | ranges::views::reverse | ranges::views::transform(op_to_val);
+  std::vector<Value *> args(values.begin(), values.end());
   auto *call = builder.CreateCall(func->getFunctionType(), func, args);
   for (auto &def : minst.defs()) {
     assert(def.isDef());
@@ -333,12 +358,12 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
 void fill_ir_for_bb(MachineBasicBlock &mbb, reg2vals &rmap,
                     const instr_impl &instrs,
                     const LLVMTargetMachine &target_machine, const target &tgt,
-                    const mbb2bb &m2b) {
+                    const mbb2bb &m2b, StructType& state) {
   auto *bb = m2b[&mbb];
   assert(bb);
   for (auto &minst : mbb) {
     generate_instruction(minst, *bb, rmap, instrs, bb->getContext(),
-                         target_machine, tgt, m2b);
+                         target_machine, tgt, m2b, state);
   }
 }
 

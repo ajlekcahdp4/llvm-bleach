@@ -57,7 +57,7 @@ public:
 
 void fill_ir_for_bb(MachineBasicBlock &mbb, reg2vals &rmap,
                     const instr_impl &instrs, const LLVMTargetMachine &tm,
-                    const target &tgt, const mbb2bb &m2b);
+                    const target &tgt, const mbb2bb &m2b, StructType &state);
 struct basic_block {
   MachineBasicBlock *mbb;
   BasicBlock *bb;
