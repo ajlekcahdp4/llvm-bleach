@@ -89,10 +89,10 @@
 # CHECK-NEXT:   %65 = load i64, ptr %64, align 8
 # CHECK-NEXT:   %66 = add nsw i64 %3, %3
 # CHECK-NEXT:   %67 = load i64, ptr %X2, align 8
-# CHECK-NEXT:   %68 = add nsw i64 %66, %67
+# CHECK-NEXT:   %68 = add nsw i64 %67, %66
 # CHECK-NEXT:   %69 = load i64, ptr %X2, align 8
-# CHECK-NEXT:   %70 = add nsw i64 0, %69
-# CHECK-NEXT:   %71 = add nsw i64 %39, %61
+# CHECK-NEXT:   %70 = add nsw i64 %69, 0
+# CHECK-NEXT:   %71 = add nsw i64 %61, %39
 # CHECK-NEXT:   store i64 %71, ptr %X30, align 8
 # CHECK-NEXT:   %GPRS1 = getelementptr %register_state, ptr %0, i64 0
 # CHECK-NEXT:   %72 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 0
@@ -170,79 +170,79 @@
 # CHECK-NEXT:   %113 = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 31
 # CHECK-NEXT:   store i64 %65, ptr %113, align 8
 # CHECK-NEXT:   call void @fun2(ptr %0)
-# CHECK-NEXT:   %114 = add nsw i64 %3, %11
+# CHECK-NEXT:   %114 = add nsw i64 %11, %3
 # CHECK-NEXT:   store i64 %114, ptr %X8, align 8
 # CHECK-NEXT:   %115 = add nsw i64 %3, %3
 # CHECK-NEXT:   store i64 %115, ptr %X12, align 8
 # CHECK-NEXT:   br label %116
-# CHECK-NEXT:                                                                                                                                           
+# CHECK-NEXT: 
 # CHECK-NEXT: 116:                                              ; preds = %116, %1
 # CHECK-NEXT:   %117 = load i64, ptr %X8, align 8
-# CHECK-NEXT:   %118 = add nsw i64 %117, %3
+# CHECK-NEXT:   %118 = add nsw i64 %3, %117
 # CHECK-NEXT:   store i64 %118, ptr %X8, align 8
 # CHECK-NEXT:   %119 = icmp ne ptr %X12, %X8
 # CHECK-NEXT:   br i1 %119, label %116, label %120
-# CHECK-NEXT:                                                                                                                                           
+# CHECK-NEXT: 
 # CHECK-NEXT: 120:                                              ; preds = %116
-# CHECK-NEXT:   %121 = load i64, ptr %X8, align 8
-# CHECK-NEXT:   %122 = load i64, ptr %X19, align 8
+# CHECK-NEXT:   %121 = load i64, ptr %X19, align 8
+# CHECK-NEXT:   %122 = load i64, ptr %X8, align 8
 # CHECK-NEXT:   %123 = add nsw i64 %122, %121
-# CHECK-NEXT:   %124 = add nsw i64 %3, %11
+# CHECK-NEXT:   %124 = add nsw i64 %11, %3
 # CHECK-NEXT:   store i64 %124, ptr %X13, align 8
 # CHECK-NEXT:   %125 = add nsw i64 %3, %3
 # CHECK-NEXT:   store i64 %125, ptr %X3, align 8
 # CHECK-NEXT:   br label %126
-# CHECK-NEXT:                                                                                                                                           
+# CHECK-NEXT: 
 # CHECK-NEXT: 126:                                              ; preds = %126, %120
-# CHECK-NEXT:   %127 = mul nsw i64 %61, %17
+# CHECK-NEXT:   %127 = mul nsw i64 %17, %61
 # CHECK-NEXT:   store i64 %127, ptr %X19, align 8
-# CHECK-NEXT:   %128 = load i64, ptr %X12, align 8
-# CHECK-NEXT:   %129 = load i64, ptr %X21, align 8
+# CHECK-NEXT:   %128 = load i64, ptr %X21, align 8
+# CHECK-NEXT:   %129 = load i64, ptr %X12, align 8
 # CHECK-NEXT:   %130 = add nsw i64 %129, %128
 # CHECK-NEXT:   %131 = load i64, ptr %X13, align 8
-# CHECK-NEXT:   %132 = add nsw i64 %131, %5
+# CHECK-NEXT:   %132 = add nsw i64 %5, %131
 # CHECK-NEXT:   store i64 %132, ptr %X13, align 8
 # CHECK-NEXT:   %133 = icmp ne ptr %X3, %X13
 # CHECK-NEXT:   br i1 %133, label %126, label %134
-# CHECK-NEXT:                                                                                                                                           
+# CHECK-NEXT: 
 # CHECK-NEXT: 134:                                              ; preds = %126
 # CHECK-NEXT:   %135 = load i64, ptr %X2, align 8
-# CHECK-NEXT:   %136 = mul nsw i64 %135, %123
-# CHECK-NEXT:   %137 = mul nsw i64 %37, %55
-# CHECK-NEXT:   %138 = add nsw i64 %3, %11
+# CHECK-NEXT:   %136 = mul nsw i64 %123, %135
+# CHECK-NEXT:   %137 = mul nsw i64 %55, %37
+# CHECK-NEXT:   %138 = add nsw i64 %11, %3
 # CHECK-NEXT:   store i64 %138, ptr %X30, align 8
 # CHECK-NEXT:   %139 = add nsw i64 %3, %3
 # CHECK-NEXT:   store i64 %139, ptr %X2, align 8
 # CHECK-NEXT:   br label %140
-# CHECK-NEXT:                                                                                                                                           
+# CHECK-NEXT: 
 # CHECK-NEXT: 140:                                              ; preds = %140, %134
 # CHECK-NEXT:   %141 = load i64, ptr %X12, align 8
-# CHECK-NEXT:   %142 = mul nsw i64 %141, %61
-# CHECK-NEXT:   %143 = mul nsw i64 %23, %130
+# CHECK-NEXT:   %142 = mul nsw i64 %61, %141
+# CHECK-NEXT:   %143 = mul nsw i64 %130, %23
 # CHECK-NEXT:   %144 = load i64, ptr %X30, align 8
-# CHECK-NEXT:   %145 = add nsw i64 %144, %5
+# CHECK-NEXT:   %145 = add nsw i64 %5, %144
 # CHECK-NEXT:   store i64 %145, ptr %X30, align 8
 # CHECK-NEXT:   %146 = icmp ne ptr %X2, %X30
 # CHECK-NEXT:   br i1 %146, label %140, label %147
-# CHECK-NEXT:                                                                                                                                           
+# CHECK-NEXT: 
 # CHECK-NEXT: 147:                                              ; preds = %140
-# CHECK-NEXT:   %148 = add nsw i64 %11, %53
-# CHECK-NEXT:   %149 = load i64, ptr %X21, align 8
-# CHECK-NEXT:   %150 = load i64, ptr %X2, align 8
+# CHECK-NEXT:   %148 = add nsw i64 %53, %11
+# CHECK-NEXT:   %149 = load i64, ptr %X2, align 8
+# CHECK-NEXT:   %150 = load i64, ptr %X21, align 8
 # CHECK-NEXT:   %151 = mul nsw i64 %149, %150
-# CHECK-NEXT:   %152 = add nsw i64 %3, %11
+# CHECK-NEXT:   %152 = add nsw i64 %11, %3
 # CHECK-NEXT:   store i64 %152, ptr %X24, align 8
 # CHECK-NEXT:   %153 = add nsw i64 %3, %3
 # CHECK-NEXT:   store i64 %153, ptr %X19, align 8
 # CHECK-NEXT:   br label %154
-# CHECK-NEXT:                                                                                                                                           
+# CHECK-NEXT: 
 # CHECK-NEXT: 154:                                              ; preds = %154, %147
 # CHECK-NEXT:   %155 = load i64, ptr %X24, align 8
-# CHECK-NEXT:   %156 = add nsw i64 %155, %5
+# CHECK-NEXT:   %156 = add nsw i64 %5, %155
 # CHECK-NEXT:   store i64 %156, ptr %X24, align 8
 # CHECK-NEXT:   %157 = icmp ne ptr %X19, %X24
 # CHECK-NEXT:   br i1 %157, label %154, label %158
-# CHECK-NEXT:                                                                                                                                           
+# CHECK-NEXT: 
 # CHECK-NEXT: 158:                                              ; preds = %154
 # CHECK-NEXT:   %GPRS2 = getelementptr %register_state, ptr %0, i64 0
 # CHECK-NEXT:   %159 = getelementptr inbounds [32 x i64], ptr %GPRS2, i64 0, i64 0
@@ -398,9 +398,9 @@
 # CHECK-NEXT:   call void @fun2(ptr %0)
 # CHECK-NEXT:   %243 = icmp ne ptr %X11, %X21
 # CHECK-NEXT:   br i1 %243, label %244, label %244
-# CHECK-NEXT:                                                                                                                                           
+# CHECK-NEXT: 
 # CHECK-NEXT: 244:                                              ; preds = %158, %158
-# CHECK-NEXT:   %245 = mul nsw i64 %70, %136
+# CHECK-NEXT:   %245 = mul nsw i64 %136, %70
 # CHECK-NEXT:   %GPRS4 = getelementptr %register_state, ptr %0, i64 0
 # CHECK-NEXT:   %246 = getelementptr inbounds [32 x i64], ptr %GPRS4, i64 0, i64 0
 # CHECK-NEXT:   store i64 %3, ptr %246, align 8
@@ -477,8 +477,8 @@
 # CHECK-NEXT:   %287 = getelementptr inbounds [32 x i64], ptr %GPRS4, i64 0, i64 31
 # CHECK-NEXT:   store i64 %136, ptr %287, align 8
 # CHECK-NEXT:   call void @fun2(ptr %0)
-# CHECK-NEXT:   %288 = add nsw i64 %5, %43
-# CHECK-NEXT:   %289 = add nsw i64 %288, %68
+# CHECK-NEXT:   %288 = add nsw i64 %43, %5
+# CHECK-NEXT:   %289 = add nsw i64 %68, %288
 # CHECK-NEXT:   %GPRS5 = getelementptr %register_state, ptr %0, i64 0
 # CHECK-NEXT:   %290 = getelementptr inbounds [32 x i64], ptr %GPRS5, i64 0, i64 0
 # CHECK-NEXT:   store i64 %3, ptr %290, align 8

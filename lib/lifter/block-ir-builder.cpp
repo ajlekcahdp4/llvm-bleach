@@ -386,8 +386,7 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
   if (!func)
     throw std::runtime_error("Could not find \"" + name + "\" in module");
   auto op_to_val = [&](auto &mop) { return operand_to_value(mop, bb, rmap); };
-  auto values = minst.uses() | ranges::views::reverse |
-                ranges::views::transform(op_to_val);
+  auto values = minst.uses() | ranges::views::transform(op_to_val);
   std::vector<Value *> args(values.begin(), values.end());
   auto *call = builder.CreateCall(func->getFunctionType(), func, args);
   for (auto &def : minst.defs()) {
