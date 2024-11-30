@@ -82,6 +82,15 @@ void create_basic_blocks_for_mfunc(MachineFunction &src, MachineFunction &dst,
   }
   for (auto &mbb : src)
     m2b.erase(&mbb);
+  for (auto &block : dst.getFunction()) {
+    for (auto &inst : block)
+      if (auto *call = dyn_cast<CallInst>(&inst)) {
+        if (auto *callee = call->getCalledFunction();
+            callee && callee->getName() == dst.getName()) {
+          call->setCalledFunction(&dst.getFunction());
+        }
+      }
+  }
 }
 
 void fill_module_with_instrs(Module &m, const instr_impl &instrs) {
@@ -95,14 +104,18 @@ void fill_module_with_instrs(Module &m, const instr_impl &instrs) {
   Linker::linkModules(m, std::move(first));
 }
 
+auto get_current_state(Function &func) -> Value * {
+  constexpr auto gpr_array_idx = 0u;
+  return func.getArg(gpr_array_idx);
+}
+
 void materialize_registers(MachineFunction &mf, Function &func, reg2vals &rmap,
                            const LLVMTargetMachine &target_machine,
                            StructType &state) {
   if (mf.empty())
     return;
   auto &ctx = func.getContext();
-  constexpr auto gpr_array_idx = 0u;
-  Value *state_arg = func.getArg(gpr_array_idx);
+  auto *state_arg = get_current_state(func);
   auto *array_type = *state.element_begin();
   assert(!func.empty());
   auto &first_block = func.front();
@@ -133,8 +146,7 @@ void materialize_registers(MachineFunction &mf, Function &func, reg2vals &rmap,
   }
 }
 
-auto *generate_function_object(Module &m, MachineFunction &mf, reg2vals &rmap,
-                               MachineModuleInfo &mmi, StructType &state) {
+auto *generate_function_object(Module &m, MachineFunction &mf) {
   auto *ret_type = Type::getVoidTy(m.getContext());
   auto *func_type = FunctionType::get(
       ret_type, ArrayRef<Type *>{PointerType::getUnqual(m.getContext())},
@@ -147,12 +159,12 @@ auto *generate_function_object(Module &m, MachineFunction &mf, reg2vals &rmap,
 }
 
 void save_registers(BasicBlock &block, BasicBlock::iterator pos, reg2vals &rmap,
+
                     StructType &state) {
   auto &ctx = block.getContext();
   IRBuilder builder(block.getContext());
   builder.SetInsertPoint(pos);
-  constexpr auto gpr_array_idx = 0u;
-  Value *state_arg = block.getParent()->getArg(gpr_array_idx);
+  auto *state_arg = get_current_state(*block.getParent());
   auto *array_type = *state.element_begin();
   // GPR array is the first field
   auto *const_zero = ConstantInt::get(ctx, APInt(64, 0));
@@ -179,19 +191,22 @@ void save_registers_before_return(Function &func, reg2vals &rmap, mbb2bb &m2b,
   }
 }
 
-auto generate_function(Module &m, MachineFunction &mf, const instr_impl &instrs,
-                       MachineModuleInfo &mmi, const target &tgt,
-                       StructType &state) {
+struct clone_function_result final {
+  mbb2bb blocks;
+  MachineFunction *mfunc = nullptr;
+};
+
+auto generate_function(Module &m, MachineFunction &mf,
+                       clone_function_result &dst_info,
+                       const instr_impl &instrs, MachineModuleInfo &mmi,
+                       const target &tgt, StructType &state) {
   reg2vals rmap;
-  mbb2bb m2b;
-  auto *func = generate_function_object(m, mf, rmap, mmi, state);
-  assert(func);
-  auto &dst = mmi.getOrCreateMachineFunction(*func);
-  create_basic_blocks_for_mfunc(mf, dst, m2b);
-  materialize_registers(mf, *func, rmap, mmi.getTarget(), state);
-  for (auto &mbb : dst)
-    fill_ir_for_bb(mbb, rmap, instrs, mmi.getTarget(), tgt, m2b);
-  save_registers_before_return(*func, rmap, m2b, state);
+  auto &func = dst_info.mfunc->getFunction();
+  materialize_registers(mf, func, rmap, mmi.getTarget(), state);
+  for (auto &mbb : *dst_info.mfunc)
+    fill_ir_for_bb(mbb, rmap, instrs, mmi.getTarget(), tgt, dst_info.blocks,
+                   state);
+  save_registers_before_return(func, rmap, dst_info.blocks, state);
 }
 
 std::string get_instruction_name(const MachineInstr &minst,
@@ -211,19 +226,47 @@ StructType &create_state_type(LLVMContext &ctx) {
   return *struct_type;
 }
 
+auto clone_machine_function(Module &m, MachineModuleInfo &mmi,
+                            MachineFunction &mfunc) {
+  auto *new_func = generate_function_object(m, mfunc);
+  assert(new_func);
+  auto &new_mfunc = mmi.getOrCreateMachineFunction(*new_func);
+  clone_function_result res = {{}, &new_mfunc};
+  create_basic_blocks_for_mfunc(mfunc, new_mfunc, res.blocks);
+  return res;
+}
+
 PreservedAnalyses block_ir_builder_pass::run(Module &m,
                                              ModuleAnalysisManager &mam) {
   std::set<Function *> target_functions;
-  transform(m, std::inserter(target_functions, target_functions.end()),
-            [](auto &f) { return &f; });
+  ranges::transform(m, std::inserter(target_functions, target_functions.end()),
+                    [](auto &f) { return &f; });
   fill_module_with_instrs(m, instrs);
-  auto m2b = mbb2bb{};
   auto &mmi = mam.getResult<MachineModuleAnalysis>(m).getMMI();
   auto &state = create_state_type(m.getContext());
+  DenseMap<MachineFunction *, clone_function_result> funcs;
   for (auto *f : target_functions) {
     auto &mf = mmi.getOrCreateMachineFunction(*f);
-    generate_function(m, mf, instrs, mmi, tgt, state);
+    funcs.try_emplace(&mf, clone_machine_function(m, mmi, mf));
   }
+  for (auto &&[oldf, func_info] : funcs) {
+    for (auto &block : *func_info.mfunc) {
+      for (auto &inst : block) {
+        if (!inst.isCall())
+          continue;
+        auto &&callee_op = inst.getOperand(0);
+        assert(callee_op.isGlobal());
+        auto *callee_global = callee_op.getGlobal();
+        auto *callee = dyn_cast<Function>(callee_global);
+        assert(callee);
+        auto *new_callee = funcs.at(mmi.getMachineFunction(*callee)).mfunc;
+        callee_op.ChangeToGA(&new_callee->getFunction(), /*Offset=*/0);
+      }
+    }
+  }
+  for (auto &&[oldf, func_info] : funcs)
+    generate_function(m, *oldf, func_info, instrs, mmi, tgt, state);
+
   for (auto *f : target_functions)
     f->eraseFromParent();
   return PreservedAnalyses::none();
@@ -278,11 +321,31 @@ auto generate_branch(const MachineInstr &minst, BasicBlock &bb, reg2vals &rmap,
   return builder.CreateCondBr(cond, if_true, if_false);
 }
 
+auto operand_to_value(const MachineOperand &mop, BasicBlock &block,
+                      reg2vals &rmap) -> Value * {
+  IRBuilder builder(block.getContext());
+  builder.SetInsertPoint(&block);
+  if (mop.isReg()) {
+    assert(mop.isUse());
+    auto *reg_addr = rmap[mop.getReg()];
+    auto *reg_val =
+        builder.CreateLoad(Type::getIntNTy(block.getContext(), 64), reg_addr);
+    return reg_val;
+  }
+  if (mop.isImm()) {
+    auto val = mop.getImm();
+    auto *imm = ConstantInt::get(block.getContext(), APInt(64, val));
+    return imm;
+  }
+  throw std::runtime_error("Unsupported operand type");
+}
+
 auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
                           reg2vals &rmap, const instr_impl &instrs,
                           LLVMContext &ctx,
                           const LLVMTargetMachine &target_machine,
-                          const target &tgt, const mbb2bb &m2b) -> Value * {
+                          const target &tgt, const mbb2bb &m2b,
+                          StructType &state) -> Value * {
   auto *iinfo = target_machine.getMCInstrInfo();
   auto name = get_instruction_name(minst, *iinfo);
   IRBuilder builder(ctx);
@@ -306,19 +369,26 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
     }
     return builder.CreateRetVoid();
   }
+  if (minst.isCall()) {
+    assert(minst.getNumOperands() >= 1);
+    auto op = minst.getOperand(0);
+    assert(op.isGlobal());
+    auto *callee = const_cast<Function *>(dyn_cast<Function>(op.getGlobal()));
+    assert(callee);
+    auto *call = builder.CreateCall(
+        callee->getFunctionType(), callee,
+        ArrayRef<Value *>{get_current_state(*bb.getParent())});
+    save_registers(bb, call->getIterator(), rmap, state);
+    return call;
+  }
   auto &instr_module = instrs.get(name);
   auto *func = instr_module.getFunction(name);
   if (!func)
     throw std::runtime_error("Could not find \"" + name + "\" in module");
-  std::vector<Value *> args;
-  for (auto &&use : minst.uses() | ranges::views::reverse) {
-    assert(use.isUse());
-    if (!use.isReg())
-      throw std::runtime_error("Only register operands are supported");
-    auto *reg_addr = rmap[use.getReg()];
-    auto *reg_val = builder.CreateLoad(Type::getIntNTy(ctx, 64), reg_addr);
-    args.push_back(reg_val);
-  }
+  auto op_to_val = [&](auto &mop) { return operand_to_value(mop, bb, rmap); };
+  auto values = minst.uses() | ranges::views::reverse |
+                ranges::views::transform(op_to_val);
+  std::vector<Value *> args(values.begin(), values.end());
   auto *call = builder.CreateCall(func->getFunctionType(), func, args);
   for (auto &def : minst.defs()) {
     assert(def.isDef());
@@ -333,12 +403,12 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
 void fill_ir_for_bb(MachineBasicBlock &mbb, reg2vals &rmap,
                     const instr_impl &instrs,
                     const LLVMTargetMachine &target_machine, const target &tgt,
-                    const mbb2bb &m2b) {
+                    const mbb2bb &m2b, StructType &state) {
   auto *bb = m2b[&mbb];
   assert(bb);
   for (auto &minst : mbb) {
     generate_instruction(minst, *bb, rmap, instrs, bb->getContext(),
-                         target_machine, tgt, m2b);
+                         target_machine, tgt, m2b, state);
   }
 }
 
