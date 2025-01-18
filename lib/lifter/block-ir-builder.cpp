@@ -180,6 +180,27 @@ void save_registers(BasicBlock &block, BasicBlock::iterator pos, reg2vals &rmap,
   }
 }
 
+void load_registers(BasicBlock &block, BasicBlock::iterator pos, reg2vals &rmap,
+                    StructType &state) {
+  auto &ctx = block.getContext();
+  IRBuilder builder(block.getContext());
+  builder.SetInsertPoint(&block);
+  auto *state_arg = get_current_state(*block.getParent());
+  auto *array_type = *state.element_begin();
+  // GPR array is the first field
+  auto *const_zero = ConstantInt::get(ctx, APInt(64, 0));
+  auto *array_ptr = builder.CreateGEP(&state, state_arg,
+                                      ArrayRef<Value *>{const_zero}, "GPRS");
+  for (auto &&[idx, val] : rmap | ranges::views::enumerate) {
+    auto *array_idx = ConstantInt::get(ctx, APInt(64, idx));
+    auto &&[reg, addr] = val;
+    auto *reg_src_addr = builder.CreateInBoundsGEP(
+        array_type, array_ptr, ArrayRef<Value *>{const_zero, array_idx});
+    auto *reg_val = builder.CreateLoad(Type::getIntNTy(ctx, 64), reg_src_addr);
+    builder.CreateStore(reg_val, addr);
+  }
+}
+
 void save_registers_before_return(Function &func, reg2vals &rmap, mbb2bb &m2b,
                                   StructType &state) {
   for (auto &block : func) {
@@ -379,6 +400,7 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
         callee->getFunctionType(), callee,
         ArrayRef<Value *>{get_current_state(*bb.getParent())});
     save_registers(bb, call->getIterator(), rmap, state);
+    load_registers(bb, call->getIterator(), rmap, state);
     return call;
   }
   auto &instr_module = instrs.get(name);
