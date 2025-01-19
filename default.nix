@@ -24,6 +24,7 @@ stdenv.mkDerivation {
   };
   nativeBuildInputs = with pkgs; [
     cmake
+    meson
     ninja
     yaml-cpp
   ];
