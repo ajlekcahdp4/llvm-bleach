@@ -329,19 +329,6 @@ auto get_if_false_block(const MachineInstr &minst,
   return m2b[op.getMBB()];
 }
 
-auto generate_branch(const MachineInstr &minst, BasicBlock &bb, reg2vals &rmap,
-                     const instr_impl &instrs, LLVMContext &ctx,
-                     const LLVMTargetMachine &target_machine, const target &tgt,
-                     const mbb2bb &m2b) -> Instruction * {
-  auto *cond =
-      tgt.create_branch_condition(minst, bb, {rmap.begin(), rmap.end()}, ctx);
-  IRBuilder builder(ctx);
-  builder.SetInsertPoint(&bb);
-  auto *if_true = get_if_true_block(minst, m2b);
-  auto *if_false = get_if_false_block(minst, m2b);
-  return builder.CreateCondBr(cond, if_true, if_false);
-}
-
 auto operand_to_value(const MachineOperand &mop, BasicBlock &block,
                       reg2vals &rmap) -> Value * {
   IRBuilder builder(block.getContext());
@@ -359,6 +346,29 @@ auto operand_to_value(const MachineOperand &mop, BasicBlock &block,
     return imm;
   }
   throw std::runtime_error("Unsupported operand type");
+}
+
+auto generate_branch(const MachineInstr &minst, BasicBlock &bb, reg2vals &rmap,
+                     const instr_impl &instrs, LLVMContext &ctx,
+                     const LLVMTargetMachine &target_machine, const target &tgt,
+                     const mbb2bb &m2b) -> Instruction * {
+  auto *iinfo = target_machine.getMCInstrInfo();
+  auto name = get_instruction_name(minst, *iinfo);
+  auto &instr_module = instrs.get(name);
+  auto *func = instr_module.getFunction(name);
+  if (!func)
+    throw std::runtime_error("Could not find \"" + name + "\" in module");
+  auto op_to_val = [&](auto &mop) { return operand_to_value(mop, bb, rmap); };
+  auto values = minst.uses() |
+                ranges::views::filter([](auto &&mop) { return !mop.isMBB(); }) |
+                ranges::views::transform(op_to_val);
+  std::vector<Value *> args(values.begin(), values.end());
+  IRBuilder builder(ctx);
+  builder.SetInsertPoint(&bb);
+  auto *cond = builder.CreateCall(func->getFunctionType(), func, args);
+  auto *if_true = get_if_true_block(minst, m2b);
+  auto *if_false = get_if_false_block(minst, m2b);
+  return builder.CreateCondBr(cond, if_true, if_false);
 }
 
 auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,

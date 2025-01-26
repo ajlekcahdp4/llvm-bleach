@@ -122,3 +122,66 @@ instructions:
           %3 = mul nsw i64 %0, %1
           ret i64 %3
         }
+  - BNE:
+      func: |
+        ; ModuleID = 'addsub'
+        source_filename = "addsub"
+        ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
+        define i1 @BNE(i64 noundef signext %0, i64 noundef signext %1) local_unnamed_addr #0 {
+          %3 = icmp ne i64 %0, %1
+          ret i1 %3
+        }
+  - BEQ:
+      func: |
+        ; ModuleID = 'addsub'
+        source_filename = "addsub"
+        ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
+        define i1 @BEQ(i64 noundef signext %0, i64 noundef signext %1) local_unnamed_addr #0 {
+          %3 = icmp eq i64 %0, %1
+          ret i1 %3
+        }
+  - BLT:
+      func: |
+        ; ModuleID = 'addsub'
+        source_filename = "addsub"
+        ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
+        define i1 @BLT(i64 noundef signext %0, i64 noundef signext %1) local_unnamed_addr #0 {
+          %3 = icmp slt i64 %0, %1
+          ret i1 %3
+        }
+  - BGT:
+      func: |
+        ; ModuleID = 'addsub'
+        source_filename = "addsub"
+        ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
+        define i1 @BGT(i64 noundef signext %0, i64 noundef signext %1) local_unnamed_addr #0 {
+          %3 = icmp sgt i64 %0, %1
+          ret i1 %3
+        }
+  - BLE:
+      func: |
+        ; ModuleID = 'addsub'
+        source_filename = "addsub"
+        ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
+        define i1 @BLE(i64 noundef signext %0, i64 noundef signext %1) local_unnamed_addr #0 {
+          %3 = icmp sle i64 %0, %1
+          ret i1 %3
+        }
+  - BGE:
+      func: |
+        ; ModuleID = 'addsub'
+        source_filename = "addsub"
+        ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
+        define i1 @BGE(i64 noundef signext %0, i64 noundef signext %1) local_unnamed_addr #0 {
+          %3 = icmp sge i64 %0, %1
+          ret i1 %3
+        }
+  - BLTU:
+      func: |
+        ; ModuleID = 'addsub'
+        source_filename = "addsub"
+        ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
+        define i1 @BLTU(i64 noundef signext %0, i64 noundef signext %1) local_unnamed_addr #0 {
+          %3 = icmp ult i64 %0, %1
+          ret i1 %3
+        }
