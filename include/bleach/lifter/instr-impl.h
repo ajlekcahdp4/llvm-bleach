@@ -17,6 +17,8 @@ struct instruction final {
 // @class instr_impl
 // @brief map from instr opcode to llvm ir impl
 class instr_impl final : private std::vector<instruction> {
+  std::string stack_pointer;
+
 public:
   instr_impl() = default;
   using vector::at;
@@ -27,6 +29,10 @@ public:
   using vector::operator[];
   using vector::emplace_back;
   using vector::push_back;
+
+  StringRef get_stack_pointer() const { return stack_pointer; }
+
+  void set_stack_pointer(std::string sp) { stack_pointer = std::move(sp); }
 
   auto &get(std::string_view name) const & {
     auto found = std::find_if(begin(), end(),

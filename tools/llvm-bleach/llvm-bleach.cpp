@@ -15,6 +15,7 @@
 #include <llvm/IR/IRPrintingPasses.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/PassManager.h>
+#include <llvm/IR/Verifier.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Passes/StandardInstrumentations.h>
 #include <llvm/Support/CommandLine.h>
@@ -165,7 +166,7 @@ auto main(int argc, char **argv) -> int try {
     mpm.addPass(createModuleToPostOrderCGSCCPassAdaptor(InlinerPass()));
   mpm.addPass(
       createModuleToFunctionPassAdaptor(SROAPass(SROAOptions::PreserveCFG)));
-
+  mpm.addPass(VerifierPass(false));
   mpm.run(*m, mam);
   m->print(outs(), nullptr);
   mam.clear();

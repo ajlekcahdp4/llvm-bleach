@@ -74,7 +74,8 @@ instruction denormalize_instruction(const normalized_instruction &norm,
   llvm::SMDiagnostic err;
   instr.ir_module = llvm::parseIR(mem_buf, err, ctx);
   if (!instr.ir_module)
-    throw std::runtime_error("Failed to parse LLVM IR");
+    throw std::runtime_error("Failed to parse LLVM IR: " +
+                             err.getMessage().str());
   return instr;
 }
 } // namespace
@@ -103,6 +104,7 @@ std::string save_to_yaml(const instr_impl &instrs) {
 instr_impl load_from_yaml(std::string yaml, llvm::LLVMContext &ctx) {
   auto instrs_conf = YAML::Load(yaml);
   instr_impl instrs;
+  instrs.set_stack_pointer(instrs_conf["stack-pointer"].as<std::string>());
   for (auto &&node : instrs_conf["instructions"]) {
     auto norm = node.as<normalized_instruction>();
     instrs.push_back(denormalize_instruction(norm, ctx));

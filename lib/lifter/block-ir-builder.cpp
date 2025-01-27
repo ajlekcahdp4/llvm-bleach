@@ -12,6 +12,7 @@
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 
+#include <expected>
 #include <ranges>
 #include <set>
 
@@ -239,10 +240,12 @@ StructType &create_state_type(LLVMContext &ctx) {
   // FIXME: register number and width should not be hardcoded. They can be
   // determined from input MIR.
   // GPR registers
-  auto *array_type =
+  auto *gprs_array_type =
       ArrayType::get(Type::getIntNTy(ctx, 64), /*register number*/ 32);
-  auto *struct_type =
-      StructType::create(ctx, ArrayRef<Type *>{array_type}, "register_state");
+  auto *stack_type =
+      ArrayType::get(Type::getIntNTy(ctx, 64), /*register number*/ 1000);
+  auto *struct_type = StructType::create(
+      ctx, ArrayRef<Type *>{gprs_array_type, stack_type}, "register_state");
   assert(struct_type);
   return *struct_type;
 }
@@ -256,6 +259,8 @@ auto clone_machine_function(Module &m, MachineModuleInfo &mmi,
   create_basic_blocks_for_mfunc(mfunc, new_mfunc, res.blocks);
   return res;
 }
+
+static MachineFunction *insert_prologue_function(StructType &state) {}
 
 PreservedAnalyses block_ir_builder_pass::run(Module &m,
                                              ModuleAnalysisManager &mam) {
@@ -371,6 +376,17 @@ auto generate_branch(const MachineInstr &minst, BasicBlock &bb, reg2vals &rmap,
   return builder.CreateCondBr(cond, if_true, if_false);
 }
 
+std::optional<unsigned> find_register_by_name(const MCRegisterInfo *reg_info,
+                                              StringRef name) {
+  for (auto &&rclass : reg_info->regclasses()) {
+    auto reg = ranges::find_if(
+        rclass, [&](auto &reg) { return name == reg_info->getName(reg); });
+    if (reg != rclass.end())
+      return *reg;
+  }
+  return std::nullopt;
+}
+
 auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
                           reg2vals &rmap, const instr_impl &instrs,
                           LLVMContext &ctx,
@@ -413,10 +429,89 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
     load_registers(bb, call->getIterator(), rmap, state);
     return call;
   }
+  if (minst.mayLoadOrStore()) {
+    auto uses = minst.uses();
+    auto offset_it =
+        ranges::find_if(uses, [](auto &&mop) { return mop.isImm(); });
+    auto *offset = [&] -> Value * {
+      if (offset_it == uses.end())
+        return ConstantInt::get(ctx, APInt(64, 0));
+      // FIXME: Do not hardcode register size as 8
+      return ConstantInt::get(ctx, APInt(64, -offset_it->getImm() / 8));
+    }();
+    auto *state_arg = get_current_state(*bb.getParent());
+    auto *reg_info = target_machine.getMCRegisterInfo();
+    auto sp_reg = find_register_by_name(reg_info, instrs.get_stack_pointer());
+    if (!sp_reg)
+      throw std::runtime_error(
+          "Could not find stack pointer under the name \"" +
+          instrs.get_stack_pointer().str() + "\"");
+    auto *sp_addr = rmap.at(*sp_reg);
+    auto *sp = builder.CreateLoad(Type::getIntNTy(ctx, 64), sp_addr);
+    auto *idx = builder.CreateAdd(sp, offset);
+    auto *stack_type = *std::next(state.element_begin());
+    auto *stack_addr = builder.CreateGEP(
+        &state, state_arg,
+        ArrayRef<Value *>{ConstantInt::get(ctx, APInt(64, 1))});
+    auto *addr = builder.CreateInBoundsGEP(
+        stack_type, stack_addr,
+        ArrayRef<Value *>{ConstantInt::get(ctx, APInt(64, 0)), idx});
+    auto &instr_module = instrs.get(name);
+    auto *func = instr_module.getFunction(name);
+    if (!func)
+      throw std::runtime_error("Could not find \"" + name + "\" in module");
+    auto op_to_val = [&](auto &mop) { return operand_to_value(mop, bb, rmap); };
+    auto num = ranges::size(minst.uses());
+    assert(num >= 2);
+    auto values = minst.uses() | ranges::views::take(num - 2) |
+                  ranges::views::transform(op_to_val);
+    std::vector<Value *> args(values.begin(), values.end());
+    args.push_back(addr);
+    auto *call = builder.CreateCall(func->getFunctionType(), func, args);
+    if (!minst.defs().empty())
+      builder.CreateStore(call, rmap.at(minst.defs().begin()->getReg()));
+    return call;
+  }
+  auto *reg_info = target_machine.getMCRegisterInfo();
+  auto sp_reg = find_register_by_name(reg_info, instrs.get_stack_pointer());
+  if (!sp_reg)
+    throw std::runtime_error("Could not find stack pointer under the name \"" +
+                             instrs.get_stack_pointer().str() + "\"");
   auto &instr_module = instrs.get(name);
   auto *func = instr_module.getFunction(name);
   if (!func)
     throw std::runtime_error("Could not find \"" + name + "\" in module");
+  if (!minst.defs().empty() && minst.defs().begin()->isReg() &&
+      minst.defs().begin()->getReg() == *sp_reg) {
+    auto uses = minst.uses();
+    auto imm = ranges::find_if(uses, [](auto &mop) { return mop.isImm(); });
+    if (imm == uses.end()) {
+      std::string err;
+      raw_string_ostream os(err);
+      os << "SP is expected to be used only as a stack pointer: \"";
+      minst.print(os);
+      os << "\"";
+      throw std::runtime_error(err);
+    }
+    std::vector<Value *> args;
+    ranges::transform(minst.uses(), std::back_inserter(args),
+                      [&](auto &mop) -> Value * {
+                        if (!mop.isImm() || mop.getImm() != imm->getImm())
+                          return operand_to_value(mop, bb, rmap);
+                        auto val = mop.getImm();
+                        return ConstantInt::get(ctx, APInt(64, -val / 8));
+                      });
+    auto *call = builder.CreateCall(func->getFunctionType(), func, args);
+    for (auto &def : minst.defs()) {
+      assert(def.isDef());
+      if (!def.isReg())
+        throw std::runtime_error("Only register operands are supported");
+      auto *reg_addr = rmap[def.getReg()];
+      builder.CreateStore(call, reg_addr);
+    }
+    return call;
+  }
+  // FIXME: if src and dest is SP then `add (-DELTA / 8)`
   auto op_to_val = [&](auto &mop) { return operand_to_value(mop, bb, rmap); };
   auto values = minst.uses() | ranges::views::transform(op_to_val);
   std::vector<Value *> args(values.begin(), values.end());

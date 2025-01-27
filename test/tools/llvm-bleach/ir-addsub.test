@@ -1,7 +1,7 @@
 # RUN: %bin/llvm-bleach %S/inputs/foo.mir \
 # RUN:   --instructions=%S/inputs/addsub.yaml -noinline-instr | filecheck %s
 
-# CHECK: %register_state = type { [32 x i64] }
+# CHECK: %register_state = type { [32 x i64], [1000 x i64] }
 
 # CHECK: define void @foo(ptr %0) {
 # CHECK: {{%[0-9]+}} = call i64 @ADDW(i64 {{%[0-9]+}}, i64 {{%[0-9]+}})
