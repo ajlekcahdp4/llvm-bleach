@@ -7,10 +7,11 @@
 }:
 let
   fs = lib.fileset;
+  versionJson = builtins.fromJSON (builtins.readFile ./version.json);
 in
 stdenv.mkDerivation {
   pname = "llvm-bleach";
-  version = "0.0.0";
+  version = versionJson.version;
   src = fs.toSource {
     root = ./.;
     fileset = fs.unions [
@@ -20,6 +21,7 @@ stdenv.mkDerivation {
       ./cmake
       ./include
       ./test
+      ./version.json
     ];
   };
   nativeBuildInputs = with pkgs; [

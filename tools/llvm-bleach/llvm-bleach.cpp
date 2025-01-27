@@ -4,6 +4,8 @@
 #include "bleach/target/target-selector.hpp"
 #include "bleach/target/target.hpp"
 
+#include "bleach/version.inc"
+
 #include <llvm/CodeGen/CommandFlags.h>
 #include <llvm/CodeGen/MIRParser/MIRParser.h>
 #include <llvm/CodeGen/MachineFunction.h>
@@ -81,6 +83,12 @@ codegen::RegisterCodeGenFlags cfg;
 } // namespace bleach
 using namespace bleach;
 auto main(int argc, char **argv) -> int try {
+  cl::AddExtraVersionPrinter([](raw_ostream &os) {
+    os << "Bleach version: " LLVM_BLEACH_VERSION_STRING "\n";
+  });
+  llvm::setBugReportMsg("PLEASE submit a bug report to "
+                        "https://github.com/ajlekcahdp4/llvm-bleach/issues and "
+                        "include the crash backtrace.\n");
   cl::ParseCommandLineOptions(argc, argv, "llvm-bleach");
   InitLLVM llvm_stacktrace(argc, argv);
   InitializeAllTargetInfos();

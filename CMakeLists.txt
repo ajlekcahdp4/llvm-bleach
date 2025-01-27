@@ -1,5 +1,13 @@
 cmake_minimum_required(VERSION 3.23)
-project(llvm-bleach)
+include(cmake/version-utils.cmake)
+
+get_source_info(${CMAKE_CURRENT_SOURCE_DIR} LLVM_BLEACH_VERSION)
+message(STATUS "LLVM_BLEACH_VERSION: " ${LLVM_BLEACH_VERSION})
+
+project(
+  llvm-bleach
+  VERSION ${LLVM_BLEACH_VERSION}
+  LANGUAGES C CXX)
 
 option(INSOURCEBUILD OFF) # Prevent in-source style builds
 if((${PROJECT_SOURCE_DIR} STREQUAL ${PROJECT_BINARY_DIR}) AND NOT
@@ -104,8 +112,28 @@ foreach(target ${BLEACH_LLVM_TARGETS})
   )
 endforeach()
 
+add_subdirectory(include)
 add_subdirectory(lib)
 add_subdirectory(tools)
+
+string(REGEX MATCH "^([0-9]+)\.([0-9]+)\.([0-9]+)"
+  LLVM_BLEACH_SEMVER_PARSE_MATCH ${LLVM_BLEACH_VERSION})
+
+if(LLVM_BLEACH_SEMVER_PARSE_MATCH STREQUAL "")
+  message(
+    FATAL_ERROR
+      "Invalid llvm-bleach version specified: ${LLVM_BLEACH_VERSION}, expected a semantic version"
+  )
+endif()
+
+set(LLVM_BLEACH_VERSION_MAJOR ${CMAKE_MATCH_1})
+set(LLVM_BLEACH_VERSION_MINOR ${CMAKE_MATCH_2})
+set(LLVM_BLEACH_VERSION_PATCH ${CMAKE_MATCH_3})
+
+message(STATUS "LLVM_BLEACH_VERSION: ${LLVM_BLEACH_VERSION}")
+message(STATUS "LLVM_BLEACH_VERSION_MAJOR: ${LLVM_BLEACH_VERSION_MAJOR}")
+message(STATUS "LLVM_BLEACH_VERSION_MINOR: ${LLVM_BLEACH_VERSION_MINOR}")
+message(STATUS "LLVM_BLEACH_VERSION_PATCH: ${LLVM_BLEACH_VERSION_PATCH}")
 
 include(CTest)
 set(CMAKE_CTEST_ARGUMENTS "--verbose")
