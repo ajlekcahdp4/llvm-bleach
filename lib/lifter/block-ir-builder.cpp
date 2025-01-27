@@ -387,6 +387,147 @@ std::optional<unsigned> find_register_by_name(const MCRegisterInfo *reg_info,
   return std::nullopt;
 }
 
+static auto write_value_to_register(Value *val, MCRegister reg,
+                                    IRBuilder<> &builder,
+                                    reg2vals &rmap) -> Value * {
+  auto *reg_addr = rmap.at(reg);
+  builder.CreateStore(val, reg_addr);
+  return val;
+}
+
+static auto read_register_value(MCRegister reg, IRBuilder<> &builder,
+                                reg2vals &rmap) -> Value * {
+  auto *reg_addr = rmap.at(reg);
+  auto &ctx = builder.getContext();
+  return builder.CreateLoad(Type::getIntNTy(ctx, 64), reg_addr);
+}
+static auto generate_return(const MachineInstr &minst, IRBuilder<> &builder,
+                            reg2vals &rmap) -> Value * {
+  assert(minst.getNumOperands() <= 1);
+  // non-void case
+  if (minst.getNumOperands() == 1) {
+    auto ret = minst.getOperand(0);
+    assert(ret.isReg());
+    auto *reg_val = read_register_value(ret.getReg(), builder, rmap);
+    return builder.CreateRet(reg_val);
+  }
+  return builder.CreateRetVoid();
+}
+
+static auto generate_call(const MachineInstr &minst, IRBuilder<> &builder,
+                          BasicBlock &bb, reg2vals &rmap,
+                          StructType &state) -> Value * {
+  assert(minst.getNumOperands() >= 1);
+  auto op = minst.getOperand(0);
+  assert(op.isGlobal());
+  auto *callee = const_cast<Function *>(dyn_cast<Function>(op.getGlobal()));
+  assert(callee);
+  auto *call =
+      builder.CreateCall(callee->getFunctionType(), callee,
+                         ArrayRef<Value *>{get_current_state(*bb.getParent())});
+  save_registers(bb, call->getIterator(), rmap, state);
+  load_registers(bb, call->getIterator(), rmap, state);
+  return call;
+}
+
+auto get_stack_pointer_value(const instr_impl &instrs, reg2vals &rmap,
+                             IRBuilder<> &builder, LLVMContext &ctx,
+                             const LLVMTargetMachine &tmachine) -> Value * {
+  auto *reg_info = tmachine.getMCRegisterInfo();
+  auto sp_reg = find_register_by_name(reg_info, instrs.get_stack_pointer());
+  if (!sp_reg)
+    throw std::runtime_error("Could not find stack pointer under the name \"" +
+                             instrs.get_stack_pointer().str() + "\"");
+  return read_register_value(*sp_reg, builder, rmap);
+}
+
+static auto generate_load_store_from_stack(
+    const MachineInstr &minst, IRBuilder<> &builder, BasicBlock &bb,
+    reg2vals &rmap, const instr_impl &instrs,
+    const LLVMTargetMachine &target_machine, StructType &state) -> Value * {
+  auto &ctx = bb.getContext();
+  auto uses = minst.uses();
+  auto offset_it =
+      ranges::find_if(uses, [](auto &&mop) { return mop.isImm(); });
+  auto *offset = [&] -> Value * {
+    if (offset_it == uses.end())
+      return ConstantInt::get(ctx, APInt(64, 0));
+    // FIXME: Do not hardcode register size as 8
+    return ConstantInt::get(ctx, APInt(64, -offset_it->getImm() / 8));
+  }();
+  auto *sp =
+      get_stack_pointer_value(instrs, rmap, builder, ctx, target_machine);
+  auto *idx = builder.CreateAdd(sp, offset);
+  auto *state_arg = get_current_state(*bb.getParent());
+  auto *stack_type = *std::next(state.element_begin());
+  auto *stack_addr =
+      builder.CreateGEP(&state, state_arg,
+                        ArrayRef<Value *>{ConstantInt::get(ctx, APInt(64, 1))});
+  auto *addr = builder.CreateInBoundsGEP(
+      stack_type, stack_addr,
+      ArrayRef<Value *>{ConstantInt::get(ctx, APInt(64, 0)), idx});
+  auto *iinfo = target_machine.getMCInstrInfo();
+  auto name = get_instruction_name(minst, *iinfo);
+  auto &instr_module = instrs.get(name);
+  auto *func = instr_module.getFunction(name);
+  if (!func)
+    throw std::runtime_error("Could not find \"" + name + "\" in module");
+  auto op_to_val = [&](auto &mop) { return operand_to_value(mop, bb, rmap); };
+  auto num = ranges::size(minst.uses());
+  assert(num >= 2);
+  auto values = minst.uses() | ranges::views::take(num - 2) |
+                ranges::views::transform(op_to_val);
+  std::vector<Value *> args(values.begin(), values.end());
+  args.push_back(addr);
+  auto *call = builder.CreateCall(func->getFunctionType(), func, args);
+  if (!minst.defs().empty())
+    builder.CreateStore(call, rmap.at(minst.defs().begin()->getReg()));
+  return call;
+}
+
+auto generate_stack_pointer_modification(const MachineInstr &minst,
+                                         IRBuilder<> &builder, BasicBlock &bb,
+                                         const LLVMTargetMachine &tmachine,
+                                         reg2vals &rmap,
+                                         const instr_impl &instrs) -> Value * {
+  auto &ctx = bb.getContext();
+  auto *reg_info = tmachine.getMCRegisterInfo();
+  auto sp_reg = find_register_by_name(reg_info, instrs.get_stack_pointer());
+  if (!sp_reg)
+    throw std::runtime_error("Could not find stack pointer under the name \"" +
+                             instrs.get_stack_pointer().str() + "\"");
+  auto uses = minst.uses();
+  auto imm = ranges::find_if(uses, [](auto &mop) { return mop.isImm(); });
+  if (imm == uses.end()) {
+    std::string err;
+    raw_string_ostream os(err);
+    os << "SP is expected to be used only as a stack pointer: \"";
+    minst.print(os);
+    os << "\"";
+    throw std::runtime_error(err);
+  }
+  std::vector<Value *> args;
+  ranges::transform(minst.uses(), std::back_inserter(args),
+                    [&](auto &mop) -> Value * {
+                      if (!mop.isImm() || mop.getImm() != imm->getImm())
+                        return operand_to_value(mop, bb, rmap);
+                      auto val = mop.getImm();
+                      return ConstantInt::get(ctx, APInt(64, -val / 8));
+                    });
+  auto *iinfo = tmachine.getMCInstrInfo();
+  auto name = get_instruction_name(minst, *iinfo);
+  auto &instr_module = instrs.get(name);
+  auto *func = instr_module.getFunction(name);
+  auto *call = builder.CreateCall(func->getFunctionType(), func, args);
+  for (auto &def : minst.defs()) {
+    assert(def.isDef());
+    if (!def.isReg())
+      throw std::runtime_error("Only register operands are supported");
+    write_value_to_register(call, def.getReg(), builder, rmap);
+  }
+  return call;
+}
+
 auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
                           reg2vals &rmap, const instr_impl &instrs,
                           LLVMContext &ctx,
@@ -404,74 +545,13 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
     return generate_branch(minst, bb, rmap, instrs, ctx, target_machine, tgt,
                            m2b);
   }
-  if (minst.isReturn()) {
-    assert(minst.getNumOperands() <= 1);
-    // non-void case
-    if (minst.getNumOperands() == 1) {
-      auto ret = minst.getOperand(0);
-      assert(ret.isReg());
-      auto *reg_addr = rmap[ret.getReg()];
-      auto *reg_val = builder.CreateLoad(Type::getIntNTy(ctx, 64), reg_addr);
-      return builder.CreateRet(reg_val);
-    }
-    return builder.CreateRetVoid();
-  }
-  if (minst.isCall()) {
-    assert(minst.getNumOperands() >= 1);
-    auto op = minst.getOperand(0);
-    assert(op.isGlobal());
-    auto *callee = const_cast<Function *>(dyn_cast<Function>(op.getGlobal()));
-    assert(callee);
-    auto *call = builder.CreateCall(
-        callee->getFunctionType(), callee,
-        ArrayRef<Value *>{get_current_state(*bb.getParent())});
-    save_registers(bb, call->getIterator(), rmap, state);
-    load_registers(bb, call->getIterator(), rmap, state);
-    return call;
-  }
-  if (minst.mayLoadOrStore()) {
-    auto uses = minst.uses();
-    auto offset_it =
-        ranges::find_if(uses, [](auto &&mop) { return mop.isImm(); });
-    auto *offset = [&] -> Value * {
-      if (offset_it == uses.end())
-        return ConstantInt::get(ctx, APInt(64, 0));
-      // FIXME: Do not hardcode register size as 8
-      return ConstantInt::get(ctx, APInt(64, -offset_it->getImm() / 8));
-    }();
-    auto *state_arg = get_current_state(*bb.getParent());
-    auto *reg_info = target_machine.getMCRegisterInfo();
-    auto sp_reg = find_register_by_name(reg_info, instrs.get_stack_pointer());
-    if (!sp_reg)
-      throw std::runtime_error(
-          "Could not find stack pointer under the name \"" +
-          instrs.get_stack_pointer().str() + "\"");
-    auto *sp_addr = rmap.at(*sp_reg);
-    auto *sp = builder.CreateLoad(Type::getIntNTy(ctx, 64), sp_addr);
-    auto *idx = builder.CreateAdd(sp, offset);
-    auto *stack_type = *std::next(state.element_begin());
-    auto *stack_addr = builder.CreateGEP(
-        &state, state_arg,
-        ArrayRef<Value *>{ConstantInt::get(ctx, APInt(64, 1))});
-    auto *addr = builder.CreateInBoundsGEP(
-        stack_type, stack_addr,
-        ArrayRef<Value *>{ConstantInt::get(ctx, APInt(64, 0)), idx});
-    auto &instr_module = instrs.get(name);
-    auto *func = instr_module.getFunction(name);
-    if (!func)
-      throw std::runtime_error("Could not find \"" + name + "\" in module");
-    auto op_to_val = [&](auto &mop) { return operand_to_value(mop, bb, rmap); };
-    auto num = ranges::size(minst.uses());
-    assert(num >= 2);
-    auto values = minst.uses() | ranges::views::take(num - 2) |
-                  ranges::views::transform(op_to_val);
-    std::vector<Value *> args(values.begin(), values.end());
-    args.push_back(addr);
-    auto *call = builder.CreateCall(func->getFunctionType(), func, args);
-    if (!minst.defs().empty())
-      builder.CreateStore(call, rmap.at(minst.defs().begin()->getReg()));
-    return call;
-  }
+  if (minst.isReturn())
+    return generate_return(minst, builder, rmap);
+  if (minst.isCall())
+    return generate_call(minst, builder, bb, rmap, state);
+  if (minst.mayLoadOrStore())
+    return generate_load_store_from_stack(minst, builder, bb, rmap, instrs,
+                                          target_machine, state);
   auto *reg_info = target_machine.getMCRegisterInfo();
   auto sp_reg = find_register_by_name(reg_info, instrs.get_stack_pointer());
   if (!sp_reg)
@@ -482,36 +562,9 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
   if (!func)
     throw std::runtime_error("Could not find \"" + name + "\" in module");
   if (!minst.defs().empty() && minst.defs().begin()->isReg() &&
-      minst.defs().begin()->getReg() == *sp_reg) {
-    auto uses = minst.uses();
-    auto imm = ranges::find_if(uses, [](auto &mop) { return mop.isImm(); });
-    if (imm == uses.end()) {
-      std::string err;
-      raw_string_ostream os(err);
-      os << "SP is expected to be used only as a stack pointer: \"";
-      minst.print(os);
-      os << "\"";
-      throw std::runtime_error(err);
-    }
-    std::vector<Value *> args;
-    ranges::transform(minst.uses(), std::back_inserter(args),
-                      [&](auto &mop) -> Value * {
-                        if (!mop.isImm() || mop.getImm() != imm->getImm())
-                          return operand_to_value(mop, bb, rmap);
-                        auto val = mop.getImm();
-                        return ConstantInt::get(ctx, APInt(64, -val / 8));
-                      });
-    auto *call = builder.CreateCall(func->getFunctionType(), func, args);
-    for (auto &def : minst.defs()) {
-      assert(def.isDef());
-      if (!def.isReg())
-        throw std::runtime_error("Only register operands are supported");
-      auto *reg_addr = rmap[def.getReg()];
-      builder.CreateStore(call, reg_addr);
-    }
-    return call;
-  }
-  // FIXME: if src and dest is SP then `add (-DELTA / 8)`
+      minst.defs().begin()->getReg() == *sp_reg)
+    return generate_stack_pointer_modification(minst, builder, bb,
+                                               target_machine, rmap, instrs);
   auto op_to_val = [&](auto &mop) { return operand_to_value(mop, bb, rmap); };
   auto values = minst.uses() | ranges::views::transform(op_to_val);
   std::vector<Value *> args(values.begin(), values.end());
@@ -520,8 +573,7 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
     assert(def.isDef());
     if (!def.isReg())
       throw std::runtime_error("Only register operands are supported");
-    auto *reg_addr = rmap[def.getReg()];
-    builder.CreateStore(call, reg_addr);
+    write_value_to_register(call, def.getReg(), builder, rmap);
   }
   return call;
 }
