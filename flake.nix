@@ -60,6 +60,7 @@
             llvm-bleach = pkgs.callPackage ./. { inherit self llvmLib; };
             default = llvm-bleach;
             inherit llvmLibDebug;
+            riscv-unified-db = pkgs.callPackage ./nix/pkgs/riscv-unified-db.nix { };
           };
           devShells.default = pkgs.mkShell {
             nativeBuildInputs =
