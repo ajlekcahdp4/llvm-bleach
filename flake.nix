@@ -60,6 +60,7 @@
             llvm-bleach = pkgs.callPackage ./. { inherit self llvmLib; };
             default = llvm-bleach;
             inherit llvmLibDebug;
+            inherit llvmLib;
           };
           devShells.default = pkgs.mkShell {
             nativeBuildInputs =
