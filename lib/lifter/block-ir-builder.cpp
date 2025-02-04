@@ -298,9 +298,8 @@ PreservedAnalyses block_ir_builder_pass::run(Module &m,
   return PreservedAnalyses::none();
 }
 
-auto generate_jump(const MachineInstr &minst, BasicBlock &bb, reg2vals &rmap,
-                   const instr_impl &instrs, LLVMContext &ctx,
-                   const LLVMTargetMachine &target, const mbb2bb &m2b) {
+auto generate_jump(const MachineInstr &minst, BasicBlock &bb, LLVMContext &ctx,
+                   const mbb2bb &m2b) {
   assert(minst.isBranch());
   auto mbb_op =
       llvm::find_if(minst.operands(), [](auto &op) { return op.isMBB(); });
@@ -354,13 +353,12 @@ auto operand_to_value(const MachineOperand &mop, BasicBlock &block,
 }
 
 auto generate_branch(const MachineInstr &minst, BasicBlock &bb, reg2vals &rmap,
-                     const instr_impl &instrs, LLVMContext &ctx,
-                     const LLVMTargetMachine &target_machine, const target &tgt,
-                     const mbb2bb &m2b) -> Instruction * {
+                     LLVMContext &ctx, const LLVMTargetMachine &target_machine,
+                     const target &tgt, const mbb2bb &m2b) -> Instruction * {
   auto *iinfo = target_machine.getMCInstrInfo();
   auto name = get_instruction_name(minst, *iinfo);
-  auto &instr_module = instrs.get(name);
-  auto *func = instr_module.getFunction(name);
+  auto *m = bb.getParent()->getParent();
+  auto *func = m->getFunction(name);
   if (!func)
     throw std::runtime_error("Could not find \"" + name + "\" in module");
   auto op_to_val = [&](auto &mop) { return operand_to_value(mop, bb, rmap); };
@@ -468,8 +466,8 @@ static auto generate_load_store_from_stack(
       ArrayRef<Value *>{ConstantInt::get(ctx, APInt(64, 0)), idx});
   auto *iinfo = target_machine.getMCInstrInfo();
   auto name = get_instruction_name(minst, *iinfo);
-  auto &instr_module = instrs.get(name);
-  auto *func = instr_module.getFunction(name);
+  auto *m = bb.getParent()->getParent();
+  auto *func = m->getFunction(name);
   if (!func)
     throw std::runtime_error("Could not find \"" + name + "\" in module");
   auto op_to_val = [&](auto &mop) { return operand_to_value(mop, bb, rmap); };
@@ -516,8 +514,8 @@ auto generate_stack_pointer_modification(const MachineInstr &minst,
                     });
   auto *iinfo = tmachine.getMCInstrInfo();
   auto name = get_instruction_name(minst, *iinfo);
-  auto &instr_module = instrs.get(name);
-  auto *func = instr_module.getFunction(name);
+  auto *m = bb.getParent()->getParent();
+  auto *func = m->getFunction(name);
   auto *call = builder.CreateCall(func->getFunctionType(), func, args);
   for (auto &def : minst.defs()) {
     assert(def.isDef());
@@ -540,10 +538,9 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
   builder.SetInsertPoint(&bb);
   if (minst.isBranch()) {
     if (minst.isUnconditionalBranch())
-      return generate_jump(minst, bb, rmap, instrs, ctx, target_machine, m2b);
+      return generate_jump(minst, bb, ctx, m2b);
     assert(minst.isConditionalBranch());
-    return generate_branch(minst, bb, rmap, instrs, ctx, target_machine, tgt,
-                           m2b);
+    return generate_branch(minst, bb, rmap, ctx, target_machine, tgt, m2b);
   }
   if (minst.isReturn())
     return generate_return(minst, builder, rmap);
@@ -557,8 +554,8 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
   if (!sp_reg)
     throw std::runtime_error("Could not find stack pointer under the name \"" +
                              instrs.get_stack_pointer().str() + "\"");
-  auto &instr_module = instrs.get(name);
-  auto *func = instr_module.getFunction(name);
+  auto *m = bb.getParent()->getParent();
+  auto *func = m->getFunction(name);
   if (!func)
     throw std::runtime_error("Could not find \"" + name + "\" in module");
   if (!minst.defs().empty() && minst.defs().begin()->isReg() &&
