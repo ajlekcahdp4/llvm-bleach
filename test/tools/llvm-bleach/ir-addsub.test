@@ -7,5 +7,6 @@
 # CHECK: {{%[0-9]+}} = call i64 @ADDW(i64 {{%[0-9]+}}, i64 {{%[0-9]+}})
 # CHECK-NEXT:   {{%[0-9]+}} = call i64 @ADDW(i64 {{%[0-9]+}}, i64 {{%[0-9]+}})
 # CHECK-NEXT:   {{%[0-9]+}} = call i64 @SUBW(i64 {{%[0-9]+}}, i64 {{%[0-9]+}})
+# CHECK:   ret void
 # CHECK-NEXT: }
 

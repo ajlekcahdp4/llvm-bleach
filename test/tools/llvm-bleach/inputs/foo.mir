@@ -29,5 +29,5 @@ body:             |
     renamable $x10 = ADDW renamable $x11, killed renamable $x10
     renamable $x11 = ADDW $x10, $x10
     renamable $x11 = SUBW killed renamable $x11, renamable $x10 
-
+    PseudoRET
 ...
