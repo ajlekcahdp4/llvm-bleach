@@ -30,6 +30,7 @@
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/TargetParser/Host.h>
 #include <llvm/TargetParser/Triple.h>
+#include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Scalar/SROA.h>
 
 #include <fstream>

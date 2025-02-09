@@ -72,17 +72,10 @@ void create_basic_blocks_for_mfunc(MachineFunction &src, MachineFunction &dst,
     m2b.insert({new_mblock, new_block});
     block_map.insert({&mbb, new_mblock});
   }
-  for (auto [old_block, new_block] : block_map) {
-    for (auto &mbb : dst) {
-      if (&mbb == old_block)
-        continue;
-      if (!is_contained(mbb.successors(), old_block))
-        continue;
-      mbb.ReplaceUsesOfBlockWith(old_block, new_block);
-    }
+  for (auto &mbb : dst) {
+    for (auto *succ : mbb.successors())
+      mbb.ReplaceUsesOfBlockWith(succ, block_map.at(succ));
   }
-  for (auto &mbb : src)
-    m2b.erase(&mbb);
   for (auto &block : dst.getFunction()) {
     for (auto &inst : block)
       if (auto *call = dyn_cast<CallInst>(&inst)) {
@@ -91,6 +84,23 @@ void create_basic_blocks_for_mfunc(MachineFunction &src, MachineFunction &dst,
           call->setCalledFunction(&dst.getFunction());
         }
       }
+  }
+  assert(ranges::all_of(dst, [](auto &mbb) {
+    return ranges::all_of(mbb.successors(), [&mbb](auto *succ) {
+      return succ->getParent() == mbb.getParent();
+    });
+  }));
+
+  for (auto &mbb : dst) {
+    for (auto &minst : mbb) {
+      if (minst.isBranch()) {
+        auto dst_mbb = llvm::find_if(minst.operands(),
+                                     [](auto &op) { return op.isMBB(); });
+        assert(dst_mbb != minst.operands_end());
+        assert(!block_map.count(dst_mbb->getMBB()));
+        assert(dst_mbb->getMBB()->getParent() == &dst);
+      }
+    }
   }
 }
 
@@ -257,6 +267,7 @@ auto clone_machine_function(Module &m, MachineModuleInfo &mmi,
   auto &new_mfunc = mmi.getOrCreateMachineFunction(*new_func);
   clone_function_result res = {{}, &new_mfunc};
   create_basic_blocks_for_mfunc(mfunc, new_mfunc, res.blocks);
+  // mfunc.getFunction().eraseFromParent();
   return res;
 }
 
@@ -298,18 +309,21 @@ PreservedAnalyses block_ir_builder_pass::run(Module &m,
   return PreservedAnalyses::none();
 }
 
-auto generate_jump(const MachineInstr &minst, BasicBlock &bb, LLVMContext &ctx,
-                   const mbb2bb &m2b) {
+auto generate_jump(const MachineInstr &minst, BasicBlock &bb,
+                   IRBuilder<> &builder, LLVMContext &ctx,
+                   const mbb2bb &m2b) -> Instruction * {
   assert(minst.isBranch());
   auto mbb_op =
       llvm::find_if(minst.operands(), [](auto &op) { return op.isMBB(); });
+  if (minst.getIterator() != minst.getParent()->begin()) {
+    if (std::prev(minst.getIterator())->isConditionalBranch())
+      return nullptr;
+  }
   assert(mbb_op != minst.operands_end());
   auto *mbb = mbb_op->getMBB();
   assert(mbb);
   auto *target_bb = m2b[mbb];
   assert(target_bb);
-  IRBuilder builder(ctx);
-  builder.SetInsertPoint(&bb);
   return builder.CreateBr(target_bb);
 }
 
@@ -323,14 +337,20 @@ auto get_if_true_block(const MachineInstr &minst,
 
 auto get_if_false_block(const MachineInstr &minst,
                         const mbb2bb &m2b) -> BasicBlock * {
+
   assert(minst.isConditionalBranch());
   assert(minst.getNumOperands() >= 2);
   auto next = std::next(minst.getIterator());
-  assert(next != minst.getParent()->end());
-  assert(next->isUnconditionalBranch());
-  auto &op = next->getOperand(0);
-  assert(op.isMBB());
-  return m2b[op.getMBB()];
+  if (next != minst.getParent()->end()) {
+    if (next->isUnconditionalBranch()) {
+      auto &op = next->getOperand(0);
+      assert(op.isMBB());
+      return m2b[op.getMBB()];
+    }
+    auto *func = m2b[minst.getParent()]->getParent();
+    return BasicBlock::Create(func->getContext(), "", func);
+  }
+  return m2b[std::addressof(*std::next(minst.getParent()->getIterator()))];
 }
 
 auto operand_to_value(const MachineOperand &mop, BasicBlock &block,
@@ -352,9 +372,10 @@ auto operand_to_value(const MachineOperand &mop, BasicBlock &block,
   throw std::runtime_error("Unsupported operand type");
 }
 
-auto generate_branch(const MachineInstr &minst, BasicBlock &bb, reg2vals &rmap,
-                     LLVMContext &ctx, const LLVMTargetMachine &target_machine,
-                     const target &tgt, const mbb2bb &m2b) -> Instruction * {
+auto generate_branch(const MachineInstr &minst, BasicBlock &bb,
+                     IRBuilder<> &builder, reg2vals &rmap, LLVMContext &ctx,
+                     const LLVMTargetMachine &target_machine, const target &tgt,
+                     const mbb2bb &m2b) -> Instruction * {
   auto *iinfo = target_machine.getMCInstrInfo();
   auto name = get_instruction_name(minst, *iinfo);
   auto *m = bb.getParent()->getParent();
@@ -366,12 +387,12 @@ auto generate_branch(const MachineInstr &minst, BasicBlock &bb, reg2vals &rmap,
                 ranges::views::filter([](auto &&mop) { return !mop.isMBB(); }) |
                 ranges::views::transform(op_to_val);
   std::vector<Value *> args(values.begin(), values.end());
-  IRBuilder builder(ctx);
-  builder.SetInsertPoint(&bb);
   auto *cond = builder.CreateCall(func->getFunctionType(), func, args);
   auto *if_true = get_if_true_block(minst, m2b);
   auto *if_false = get_if_false_block(minst, m2b);
-  return builder.CreateCondBr(cond, if_true, if_false);
+  auto *br = builder.CreateCondBr(cond, if_true, if_false);
+  builder.SetInsertPoint(if_false);
+  return br;
 }
 
 std::optional<unsigned> find_register_by_name(const MCRegisterInfo *reg_info,
@@ -527,20 +548,19 @@ auto generate_stack_pointer_modification(const MachineInstr &minst,
 }
 
 auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
-                          reg2vals &rmap, const instr_impl &instrs,
-                          LLVMContext &ctx,
+                          IRBuilder<> &builder, reg2vals &rmap,
+                          const instr_impl &instrs, LLVMContext &ctx,
                           const LLVMTargetMachine &target_machine,
                           const target &tgt, const mbb2bb &m2b,
                           StructType &state) -> Value * {
   auto *iinfo = target_machine.getMCInstrInfo();
   auto name = get_instruction_name(minst, *iinfo);
-  IRBuilder builder(ctx);
-  builder.SetInsertPoint(&bb);
   if (minst.isBranch()) {
     if (minst.isUnconditionalBranch())
-      return generate_jump(minst, bb, ctx, m2b);
+      return generate_jump(minst, bb, builder, ctx, m2b);
     assert(minst.isConditionalBranch());
-    return generate_branch(minst, bb, rmap, ctx, target_machine, tgt, m2b);
+    return generate_branch(minst, bb, builder, rmap, ctx, target_machine, tgt,
+                           m2b);
   }
   if (minst.isReturn())
     return generate_return(minst, builder, rmap);
@@ -579,11 +599,19 @@ void fill_ir_for_bb(MachineBasicBlock &mbb, reg2vals &rmap,
                     const instr_impl &instrs,
                     const LLVMTargetMachine &target_machine, const target &tgt,
                     const mbb2bb &m2b, StructType &state) {
+  assert(!mbb.empty());
   auto *bb = m2b[&mbb];
+  IRBuilder builder(bb->getContext());
+  builder.SetInsertPoint(bb);
   assert(bb);
   for (auto &minst : mbb) {
-    generate_instruction(minst, *bb, rmap, instrs, bb->getContext(),
+    generate_instruction(minst, *bb, builder, rmap, instrs, bb->getContext(),
                          target_machine, tgt, m2b, state);
+  }
+  auto last = std::prev(mbb.end());
+  if (!last->isBranch() && !last->isReturn()) {
+    auto succ = std::next(mbb.getIterator());
+    builder.CreateBr(m2b[std::addressof(*succ)]);
   }
 }
 

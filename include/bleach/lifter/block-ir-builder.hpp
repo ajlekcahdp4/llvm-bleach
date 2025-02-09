@@ -3,6 +3,7 @@
 #include "bleach/lifter/instr-impl.h"
 #include "bleach/target/target.hpp"
 
+#include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/PassManager.h>
 
 #include <map>
@@ -51,8 +52,9 @@ public:
   using DenseMap::size;
   auto operator[](const MachineBasicBlock *mbb) const {
     auto found = find(mbb);
-    if (found == end())
+    if (found == end()) {
       throw std::invalid_argument("Attempt to get Basic Block for unknown MBB");
+    }
     return found->second;
   }
 };

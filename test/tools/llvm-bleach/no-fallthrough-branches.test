@@ -1,0 +1,29 @@
+# RUN: %bin/llvm-bleach %S/inputs/no-fallthrough-branches.mir \
+# RUN:   --instructions=%S/inputs/logical.yaml | FileCheck %s
+
+# CHECK: define void @SnippyFunction(ptr %0) {
+# CHECK-NEXT:   %GPRS = getelementptr %register_state, ptr %0, i64 0
+# CHECK-32:     {{%[0-9]+}} = load i64, ptr {{%[0-9]+}}, align 8
+# CHECK:   br label %[[BLOCK1:[0-9]+]]
+# CHECK: [[BLOCK1]]:
+# CHECK:   phi i64 [ {{%[0-9]+}}, %1 ], [ {{%[0-9]+}}, %[[BLOCK1]] ]
+# CHACK:   icmp eq
+# CHECK:   br i1 {{%[0-9]+}}, label %[[BLOCK1]], label %[[BLOCK2:[0-9]+]]
+# CHECK: [[BLOCK2]]:
+# CHECK:   br label %[[BLOCK3:[0-9]+]]
+# CHECK: [[BLOCK3]]:
+# CHECK:   icmp eq
+# CHECK:   br i1 {{%[0-9]+}}, label %[[BLOCK3]], label %[[BLOCK4:[0-9]+]]
+# CHECK: [[BLOCK4]]:
+# CHECK:   icmp eq
+# CHECK:   br i1 {{%[0-9]+}}, label %[[BLOCK7:[0-9]+]], label %[[BLOCK5:[0-9]+]]
+# CHECK: [[BLOCK5]]:
+# CHECK:   icmp slt
+# CHECK:   br i1 {{%[0-9]+}}, label %[[BLOCK6:[0-9]+]], label %[[BLOCK6]]
+# CHECK: [[BLOCK6]]:
+# CHECK:   icmp eq
+# CHECK:   br i1 {{%[0-9]+}}, label %[[BLOCK7]], label %[[BLOCK7]]
+# CHECK: [[BLOCK7]]:
+# CHECK:   %GPRS1 = getelementptr %register_state, ptr %0, i64 0
+# CHECK-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+# CHECK:   ret void
