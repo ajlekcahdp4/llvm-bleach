@@ -10,4 +10,7 @@
 # RUN: %t.out | FileCheck %s
 
 # CHECK: factorial(5) = 120
+# CHECK: factorial(0) = 1
+# CHECK: factorial(1) = 1
+# CHECK: factorial(13) = 6227020800
 

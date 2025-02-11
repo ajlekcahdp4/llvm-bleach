@@ -15,7 +15,14 @@ static long long lifted_factorial(long long n) {
   return fact(&regs);
 }
 
+void test(long long n) {
+  printf("factorial(%lld) = %lld\n", n, lifted_factorial(n));
+}
+
 int main() {
-  printf("factorial(5) = %lld\n", lifted_factorial(5));
+  test(5);
+  test(0);
+  test(1);
+  test(13);
   return 0;
 }
