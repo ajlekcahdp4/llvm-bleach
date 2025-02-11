@@ -1,7 +1,7 @@
 # RUN: %bin/llvm-bleach %S/inputs/logical.mir \
 # RUN:   --instructions=%S/inputs/logical.yaml -noinline-instr | FileCheck %s
 
-# CHECK: define void @foo(ptr %0) {
+# CHECK: define i64 @foo(ptr %0) {
 # CHECK-NEXT:   %GPRS = getelementptr %register_state, ptr %0, i64 0
 # CHECK:   [[X10ADDR:%[0-9]+]] = getelementptr inbounds [32 x i64], ptr %GPRS, i64 0, i64 10
 # CHECK-NEXT:   [[X10:%[0-9]+]] = load i64, ptr [[X10ADDR]], align 8

@@ -34,6 +34,9 @@ stdenv.mkDerivation {
     lit
     filecheck
     yq
+    clang
+    pkgsCross.riscv64.buildPackages.clang
+    pkgsCross.riscv64.buildPackages.llvmPackages.bintools
   ];
   checkInputs = with pkgs; [ gtest ];
   doCheck = true;

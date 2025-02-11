@@ -1,9 +1,9 @@
 # RUN: %bin/llvm-bleach %S/inputs/logical-branches.mir \
 # RUN:   --instructions=%S/inputs/logical.yaml -noinline-instr | FileCheck %s
 
-# CHECK: define void @foo(ptr %0) {
+# CHECK: define i64 @foo(ptr %0) {
 # CHECK-NEXT:   %GPRS = getelementptr %register_state, ptr %0, i64 0
 # CHECK:   br label %[[BLOCK1:[0-9]+]]
 # CHECK: [[BLOCK1]]:
-# CHECK:   ret void
+# CHECK:   ret i64 %[[RET:[0-9]+]]
 # CHECK-NEXT: }

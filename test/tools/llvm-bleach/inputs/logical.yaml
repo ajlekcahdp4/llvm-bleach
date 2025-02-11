@@ -78,6 +78,38 @@ instructions:
           %3 = sub nsw i64 %0, %1
           ret i64 %3
         }
+  - SUBW:
+      func: |
+        ; ModuleID = 'addsub'
+        source_filename = "addsub"
+        ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
+        define dso_local signext i64 @SUBW(i64 noundef signext %0, i64 noundef signext %1) local_unnamed_addr #0 {
+          %3 = trunc i64 %0 to i32
+          %4 = trunc i64 %1 to i32
+          %5 = sub nsw i32 %3, %4
+          %6 = zext i32 %5 to i64
+          ret i64 %6
+        }
+  - ADDW:
+      func: |
+        ; ModuleID = 'addsub'
+        source_filename = "addsub"
+        ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
+        define dso_local signext i64 @ADDW(i64 noundef signext %0, i64 noundef signext %1) local_unnamed_addr #0 {
+          %3 = trunc i64 %0 to i32
+          %4 = trunc i64 %1 to i32
+          %5 = add nsw i32 %3, %4
+          %6 = zext i32 %5 to i64
+          ret i64 %6
+        }
+  - COPY:
+      func: |
+        ; ModuleID = 'addsub'
+        source_filename = "addsub"
+        ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
+        define dso_local signext i64 @COPY(i64 noundef signext %0) local_unnamed_addr #0 {
+          ret i64 %0
+        }
   - MULW:
       func: |
         ; ModuleID = 'addsub'
@@ -102,6 +134,15 @@ instructions:
         source_filename = "addsub"
         ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
         define dso_local signext i64 @ADDI(i64 noundef signext %0, i64 noundef signext %1) local_unnamed_addr #0 {
+          %3 = add nsw i64 %0, %1
+          ret i64 %3
+        }
+  - ADDIW:
+      func: |
+        ; ModuleID = 'addsub'
+        source_filename = "addsub"
+        ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
+        define dso_local signext i64 @ADDIW(i64 noundef signext %0, i64 noundef signext %1) local_unnamed_addr #0 {
           %3 = add nsw i64 %0, %1
           ret i64 %3
         }

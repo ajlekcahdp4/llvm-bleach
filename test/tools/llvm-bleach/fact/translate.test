@@ -1,0 +1,13 @@
+# RUN: riscv64-unknown-linux-gnu-clang %S/fact.c -c -O2 -emit-llvm \
+# RUN:   -o %t.fact.ll -march=rv64im
+# RUN: riscv64-unknown-linux-gnu-llc -stop-after machine-cp %t.fact.ll \
+# RUN:   -o %t.fact.mir
+# RUN: %bin/llvm-bleach %t.fact.mir --instructions=%S/../inputs/logical.yaml \
+# RUN:   > %t.lifted.ll
+# RUN: gcc -c %S/main.c -o %t.main.o
+# RUN: clang -c %t.lifted.ll -o %t.fact.o
+# RUN: gcc %t.main.o %t.fact.o -o %t.out
+# RUN: %t.out | FileCheck %s
+
+# CHECK: factorial(5) = 120
+

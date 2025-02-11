@@ -73,5 +73,5 @@ body:             |
     renamable $x11 = nsw ADD killed renamable $x13, killed renamable $x11
     renamable $x10 = OR killed renamable $x11, killed renamable $x10
     renamable $x10 = nsw SUB killed renamable $x12, killed renamable $x10
-    PseudoRET
+    PseudoRET implicit $x10
 ...

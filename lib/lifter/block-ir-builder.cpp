@@ -158,7 +158,7 @@ void materialize_registers(MachineFunction &mf, Function &func, reg2vals &rmap,
 }
 
 auto *generate_function_object(Module &m, MachineFunction &mf) {
-  auto *ret_type = Type::getVoidTy(m.getContext());
+  auto *ret_type = mf.getFunction().getFunctionType()->getReturnType();
   auto *func_type = FunctionType::get(
       ret_type, ArrayRef<Type *>{PointerType::getUnqual(m.getContext())},
       /* is var arg */ false);

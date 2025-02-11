@@ -4,8 +4,8 @@
   target triple = "riscv64-unknown-linux-gnu"
 
   ; Function Attrs: nofree norecurse nosync nounwind memory(none) uwtable
-  define dso_local signext i32 @foo(i32 noundef signext %0) local_unnamed_addr #0 {
-    ret i32 %0
+  define dso_local signext i64 @foo(i64 noundef signext %0) local_unnamed_addr #0 {
+    ret i64 %0
   }
 ...
 ---
@@ -81,5 +81,5 @@ body:             |
     liveins: $x10, $x11
 
     $x10 = ADD killed renamable $x10, renamable $x11
-    PseudoRET
+    PseudoRET implicit $x10
 ...
