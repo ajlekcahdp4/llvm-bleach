@@ -105,6 +105,10 @@ instr_impl load_from_yaml(std::string yaml, llvm::LLVMContext &ctx) {
   auto instrs_conf = YAML::Load(yaml);
   instr_impl instrs;
   instrs.set_stack_pointer(instrs_conf["stack-pointer"].as<std::string>());
+  for (auto &&node : instrs_conf["constant_registers"]) {
+    instrs.get_const_regs().push_back(
+        {node.first.as<std::string>(), node.second.as<uint64_t>()});
+  }
   for (auto &&node : instrs_conf["instructions"]) {
     auto norm = node.as<normalized_instruction>();
     instrs.push_back(denormalize_instruction(norm, ctx));

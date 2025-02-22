@@ -14,10 +14,16 @@ struct instruction final {
   std::unique_ptr<Module> ir_module;
 };
 
+struct constant_reg final {
+  std::string name;
+  uint64_t value;
+};
+
 // @class instr_impl
 // @brief map from instr opcode to llvm ir impl
 class instr_impl final : private std::vector<instruction> {
   std::string stack_pointer;
+  std::vector<constant_reg> const_regs;
 
 public:
   instr_impl() = default;
@@ -31,6 +37,9 @@ public:
   using vector::push_back;
 
   StringRef get_stack_pointer() const { return stack_pointer; }
+
+  auto &get_const_regs() { return const_regs; }
+  auto &get_const_regs() const { return const_regs; }
 
   void set_stack_pointer(std::string sp) { stack_pointer = std::move(sp); }
 

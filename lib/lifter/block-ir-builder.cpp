@@ -406,10 +406,37 @@ std::optional<unsigned> find_register_by_name(const MCRegisterInfo *reg_info,
   return std::nullopt;
 }
 
-static auto write_value_to_register(Value *val, MCRegister reg,
-                                    IRBuilder<> &builder,
-                                    reg2vals &rmap) -> Value * {
+static auto write_value_to_register_impl(Value *val, MCRegister reg,
+                                         IRBuilder<> &builder,
+                                         reg2vals &rmap) -> Value * {
   auto *reg_addr = rmap.at(reg);
+  builder.CreateStore(val, reg_addr);
+  return val;
+}
+
+static auto
+write_value_to_register(Value *val, MCRegister reg, IRBuilder<> &builder,
+                        reg2vals &rmap, const instr_impl &instrs,
+                        const LLVMTargetMachine &tmachine) -> Value * {
+  auto *reg_addr = rmap.at(reg);
+  auto *reg_info = tmachine.getMCRegisterInfo();
+  auto &const_regs = instrs.get_const_regs();
+  auto const_regs_vals = std::unordered_map<unsigned, uint64_t>();
+  ranges::transform(
+      const_regs, std::inserter(const_regs_vals, const_regs_vals.end()),
+      [reg_info](auto &e) -> std::pair<unsigned, uint64_t> {
+        auto special_reg = find_register_by_name(reg_info, e.name);
+        if (!special_reg)
+          throw std::runtime_error(
+              "Could not find constant register under the name \"" + e.name +
+              "\"");
+        return {*special_reg, e.value};
+      });
+  if (const_regs_vals.count(reg)) {
+    return builder.CreateStore(
+        ConstantInt::get(val->getContext(), APInt(64, const_regs_vals.at(reg))),
+        reg_addr);
+  }
   builder.CreateStore(val, reg_addr);
   return val;
 }
@@ -542,7 +569,8 @@ auto generate_stack_pointer_modification(const MachineInstr &minst,
     assert(def.isDef());
     if (!def.isReg())
       throw std::runtime_error("Only register operands are supported");
-    write_value_to_register(call, def.getReg(), builder, rmap);
+    write_value_to_register(call, def.getReg(), builder, rmap, instrs,
+                            tmachine);
   }
   return call;
 }
@@ -590,7 +618,8 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
     assert(def.isDef());
     if (!def.isReg())
       throw std::runtime_error("Only register operands are supported");
-    write_value_to_register(call, def.getReg(), builder, rmap);
+    write_value_to_register(call, def.getReg(), builder, rmap, instrs,
+                            target_machine);
   }
   return call;
 }

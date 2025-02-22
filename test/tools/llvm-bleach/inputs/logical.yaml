@@ -1,4 +1,6 @@
 stack-pointer: X2
+constant-registers:
+  - X0: 0x0000000000000000
 instructions:
   - SLT:
       func: |
