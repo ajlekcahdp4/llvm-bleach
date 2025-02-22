@@ -53,11 +53,25 @@ instructions:
           %4 = shl i64 %0, %3
           ret i64 %4
         }
+  - SLLI:
+      func: |
+        ; ModuleID = 'SLL'
+        ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
+        define dso_local i64 @SLLI(i64 noundef %0, i64 noundef %1) local_unnamed_addr #0 {
+          %3 = and i64 %1, 63
+          %4 = shl i64 %0, %3
+          ret i64 %4
+        }
   - SRL:
       func: |
         ; ModuleID = 'AND'
         ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
         define dso_local i64 @SRL(i64 noundef %0, i64 noundef %1) local_unnamed_addr #0 {
+          %3 = and i64 %1, 63
+          %4 = ashr i64 %0, %3
+          ret i64 %4
+        }
+        define dso_local i64 @SRLI(i64 noundef %0, i64 noundef %1) local_unnamed_addr #0 {
           %3 = and i64 %1, 63
           %4 = ashr i64 %0, %3
           ret i64 %4
@@ -165,6 +179,14 @@ instructions:
         define i64 @LD(ptr noundef %0) local_unnamed_addr #0 {
           %val = load i64, ptr %0, align 8
           ret i64 %val
+        }
+  - LUI:
+      func: |
+        ; ModuleID = 'addsub'
+        source_filename = "addsub"
+        ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
+        define dso_local signext i64 @LUI(i64 noundef signext %0) local_unnamed_addr #0 {
+          ret i64 %0
         }
   - BNE:
       func: |

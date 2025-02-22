@@ -1,0 +1,32 @@
+# RUN: llvm-snippy %S/layout.yaml -dump-mir=%t.mir \
+# RUN:   --initial-regs-yaml=%S/valuegram.yaml -o %t.snippy.elf
+#
+#
+#
+# RUN: sed -i '/isCalleeSavedInfoValid/d' %t.mir
+# RUN: sed -i '/varArgsSaveSize/d' %t.mir
+# RUN: sed -i '/varArgsFrameIndex/d' %t.mir
+# RUN: sed -i 's/\(x[13567][0-9]\? = \([A-Z]\{3,\}\).*\$\)x2\(,\|$\)/\1x11\3/g' %t.mir
+# RUN: sed -i 's/\(x[13567][0-9]\? = \([A-Z]\{3,\}\).*\$\)x2\(,\|$\)/\1x11\3/g' %t.mir
+# RUN: sed -i 's/\(x2[0-9] = \([A-Z]\{3,\}\).*\$\)x2\(,\|$\)/\1x11\3/g' %t.mir
+# RUN: sed -i 's/\(x2[0-9] = \([A-Z]\{3,\}\).*\$\)x2\(,\|$\)/\1x11\3/g' %t.mir
+# RUN: sed -i 's/\([A-Z]\{3,\}.*\$\)x1\(,\|$\)/\1x10\2/g' %t.mir
+# RUN: sed -i 's/\([A-Z]\{3,\}.*\$\)x1\(,\|$\)/\1x10\2/g' %t.mir
+# RUN: sed -i 's/x1 = \([A-Z]\{3,\}\)/x10 = \1/g' %t.mir
+# RUN: sed -i '/\$x1 = ADDI \$x0, 0/d' %t.mir
+
+
+
+
+# RUN: riscv64-unknown-linux-gnu-llc %t.mir -o %t.snippy.S -march=riscv64 -mattr=+m,+f,+d,-c -O0
+# RUN: riscv64-unknown-linux-musl-gcc -c %S/main-rv64.c -o %t.main-rv64.o -march=rv64imfd
+# RUN: riscv64-unknown-linux-gnu-clang -c %S/print.S -o %t.print.o -march=rv64imfd
+# RUN: riscv64-unknown-linux-musl-gcc %t.main-rv64.o %t.print.o %t.snippy.S -o %t.rv.out -march=rv64imfd --static -O0
+# RUN: qemu-riscv64 %t.rv.out > %t.rv.log
+# RUN: %bin/llvm-bleach %t.mir --instructions=%S/../inputs/logical.yaml \
+# RUN:   -march=riscv64 --assume-function-nop > %t.ll
+# RUN: sed -i 's/define void \@print/define weak void @print/g' %t.ll
+# RUN: llc %t.ll -o %t.native.mir --stop-after machine-cp -O0
+# RUN: clang %S/main.c %t.ll -o %t.out -O3
+# RUN: %t.out > %t.log
+# RUN: diff %t.rv.log %t.log
