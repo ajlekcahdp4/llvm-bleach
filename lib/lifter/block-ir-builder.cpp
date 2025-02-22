@@ -16,9 +16,16 @@
 #include <ranges>
 #include <set>
 
+namespace bleach {
+cl::OptionCategory options("llvm-bleach lifter options");
+}
 namespace bleach::lifter {
 namespace ranges = std::ranges;
 using namespace llvm;
+static cl::opt<bool>
+    assume_function_nop("assume-function-nop",
+                        cl::desc("Assume called functions don't change state"),
+                        cl::cat(options));
 
 void copy_instructions(const MachineBasicBlock &src, MachineBasicBlock &dst) {
   auto *mf = dst.getParent();
@@ -472,7 +479,8 @@ static auto generate_call(const MachineInstr &minst, IRBuilder<> &builder,
       builder.CreateCall(callee->getFunctionType(), callee,
                          ArrayRef<Value *>{get_current_state(*bb.getParent())});
   save_registers(bb, call->getIterator(), rmap, state);
-  load_registers(bb, call->getIterator(), rmap, state);
+  if (!assume_function_nop)
+    load_registers(bb, call->getIterator(), rmap, state);
   return call;
 }
 
