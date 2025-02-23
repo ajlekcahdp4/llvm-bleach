@@ -3,6 +3,7 @@
   lib,
   stdenv,
   llvmLib,
+  llvm-snippy,
   ...
 }:
 let
@@ -35,9 +36,14 @@ stdenv.mkDerivation {
     filecheck
     yq
     clang
+    pkgsCross.riscv64.pkgsStatic.stdenv.cc
     pkgsCross.riscv64.buildPackages.clang
     pkgsCross.riscv64.buildPackages.llvmPackages.bintools
+    qemu
   ];
-  checkInputs = with pkgs; [ gtest ];
+  checkInputs = with pkgs; [
+    gtest
+    llvm-snippy
+  ];
   doCheck = true;
 }
