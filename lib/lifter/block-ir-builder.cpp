@@ -26,6 +26,16 @@ static cl::opt<bool>
     assume_function_nop("assume-function-nop",
                         cl::desc("Assume called functions don't change state"),
                         cl::cat(options));
+std::optional<const TargetRegisterClass *>
+get_register_class(const TargetRegisterInfo &rinfo, unsigned reg) {
+  auto &&rclasses = rinfo.regclasses();
+  auto found = ranges::find_if(rclasses, [reg](auto &rclass) -> bool {
+    return is_contained(*rclass, reg);
+  });
+  if (found == rclasses.end())
+    return std::nullopt;
+  return *found;
+}
 
 void copy_instructions(const MachineBasicBlock &src, MachineBasicBlock &dst) {
   auto *mf = dst.getParent();
@@ -127,6 +137,17 @@ auto get_current_state(Function &func) -> Value * {
   return func.getArg(gpr_array_idx);
 }
 
+std::optional<unsigned> get_register_size_in_bits(const MCRegisterInfo &rinfo,
+                                                  StringRef name) {
+  for (auto &&rclass : rinfo.regclasses()) {
+    auto reg = ranges::find_if(
+        rclass, [&](auto &reg) { return name == rinfo.getName(reg); });
+    if (reg != rclass.end())
+      return rclass.getSizeInBits();
+  }
+  return std::nullopt;
+}
+
 void materialize_registers(MachineFunction &mf, Function &func, reg2vals &rmap,
                            const LLVMTargetMachine &target_machine,
                            StructType &state) {
@@ -151,14 +172,22 @@ void materialize_registers(MachineFunction &mf, Function &func, reg2vals &rmap,
   auto &gpr_class = reg_info->getRegClass(gpr_class_idx);
   auto sorted_regs = std::set<unsigned>();
   ranges::copy(gpr_class, std::inserter(sorted_regs, sorted_regs.end()));
+  auto *stinfo = target_machine.getSubtargetImpl(func);
+  assert(stinfo);
+  auto *rinfo = stinfo->getRegisterInfo();
+  assert(rinfo);
   for (auto [idx, reg] : ranges::views::enumerate(sorted_regs)) {
+    auto rclass = get_register_class(*rinfo, reg);
+    assert(rclass.has_value());
     auto *array_idx = ConstantInt::get(ctx, APInt(64, idx));
-    auto *reg_dst_addr =
-        builder.CreateAlloca(Type::getIntNTy(ctx, 64), /*array size*/ nullptr,
-                             reg_info->getName(reg));
+    auto *reg_dst_addr = builder.CreateAlloca(
+        Type::getIntNTy(ctx, rinfo->getRegSizeInBits(*rclass.value())),
+        /*array size*/ nullptr, reg_info->getName(reg));
     auto *reg_addr = builder.CreateInBoundsGEP(
         array_type, array_ptr, ArrayRef<Value *>{const_zero, array_idx});
-    auto *reg_val = builder.CreateLoad(Type::getIntNTy(ctx, 64), reg_addr);
+    auto *reg_val = builder.CreateLoad(
+        Type::getIntNTy(ctx, rinfo->getRegSizeInBits(*rclass.value())),
+        reg_addr);
     builder.CreateStore(reg_val, reg_dst_addr);
     rmap.try_emplace(reg, reg_dst_addr);
   }
@@ -177,9 +206,14 @@ auto *generate_function_object(Module &m, MachineFunction &mf) {
 }
 
 void save_registers(BasicBlock &block, BasicBlock::iterator pos, reg2vals &rmap,
+                    const LLVMTargetMachine &tmachine,
 
                     StructType &state) {
   auto &ctx = block.getContext();
+  auto *stinfo = tmachine.getSubtargetImpl(*block.getParent());
+  assert(stinfo);
+  auto *rinfo = stinfo->getRegisterInfo();
+  assert(rinfo);
   IRBuilder builder(block.getContext());
   builder.SetInsertPoint(pos);
   auto *state_arg = get_current_state(*block.getParent());
@@ -191,7 +225,10 @@ void save_registers(BasicBlock &block, BasicBlock::iterator pos, reg2vals &rmap,
   for (auto &&[idx, val] : rmap | ranges::views::enumerate) {
     auto *array_idx = ConstantInt::get(ctx, APInt(64, idx));
     auto &&[reg, addr] = val;
-    auto *reg_val = builder.CreateLoad(Type::getIntNTy(ctx, 64), addr);
+    auto rclass = get_register_class(*rinfo, reg);
+    assert(rclass.has_value());
+    auto *reg_val = builder.CreateLoad(
+        Type::getIntNTy(ctx, rinfo->getRegSizeInBits(*rclass.value())), addr);
     auto *reg_dst_addr = builder.CreateInBoundsGEP(
         array_type, array_ptr, ArrayRef<Value *>{const_zero, array_idx});
     builder.CreateStore(reg_val, reg_dst_addr);
@@ -199,8 +236,12 @@ void save_registers(BasicBlock &block, BasicBlock::iterator pos, reg2vals &rmap,
 }
 
 void load_registers(BasicBlock &block, BasicBlock::iterator pos, reg2vals &rmap,
-                    StructType &state) {
+                    const LLVMTargetMachine &tmachine, StructType &state) {
   auto &ctx = block.getContext();
+  auto *stinfo = tmachine.getSubtargetImpl(*block.getParent());
+  assert(stinfo);
+  auto *rinfo = stinfo->getRegisterInfo();
+  assert(rinfo);
   IRBuilder builder(block.getContext());
   builder.SetInsertPoint(&block);
   auto *state_arg = get_current_state(*block.getParent());
@@ -212,21 +253,26 @@ void load_registers(BasicBlock &block, BasicBlock::iterator pos, reg2vals &rmap,
   for (auto &&[idx, val] : rmap | ranges::views::enumerate) {
     auto *array_idx = ConstantInt::get(ctx, APInt(64, idx));
     auto &&[reg, addr] = val;
+    auto rclass = get_register_class(*rinfo, reg);
+    assert(rclass.has_value());
     auto *reg_src_addr = builder.CreateInBoundsGEP(
         array_type, array_ptr, ArrayRef<Value *>{const_zero, array_idx});
-    auto *reg_val = builder.CreateLoad(Type::getIntNTy(ctx, 64), reg_src_addr);
+    auto *reg_val = builder.CreateLoad(
+        Type::getIntNTy(ctx, rinfo->getRegSizeInBits(*rclass.value())),
+        reg_src_addr);
     builder.CreateStore(reg_val, addr);
   }
 }
 
 void save_registers_before_return(Function &func, reg2vals &rmap, mbb2bb &m2b,
+                                  const LLVMTargetMachine &tmachine,
                                   StructType &state) {
   for (auto &block : func) {
     auto ret = ranges::find_if(
         block, [](auto &inst) { return isa<ReturnInst>(inst); });
     if (ret == block.end())
       continue;
-    save_registers(block, ret, rmap, state);
+    save_registers(block, ret, rmap, tmachine, state);
   }
 }
 
@@ -245,7 +291,8 @@ auto generate_function(Module &m, MachineFunction &mf,
   for (auto &mbb : *dst_info.mfunc)
     fill_ir_for_bb(mbb, rmap, instrs, mmi.getTarget(), tgt, dst_info.blocks,
                    state);
-  save_registers_before_return(func, rmap, dst_info.blocks, state);
+  save_registers_before_return(func, rmap, dst_info.blocks, mmi.getTarget(),
+                               state);
 }
 
 std::string get_instruction_name(const MachineInstr &minst,
@@ -253,14 +300,13 @@ std::string get_instruction_name(const MachineInstr &minst,
   return instr_info.getName(minst.getOpcode()).str();
 }
 
-StructType &create_state_type(LLVMContext &ctx) {
-  // FIXME: register number and width should not be hardcoded. They can be
-  // determined from input MIR.
-  // GPR registers
-  auto *gprs_array_type =
-      ArrayType::get(Type::getIntNTy(ctx, 64), /*register number*/ 32);
-  auto *stack_type =
-      ArrayType::get(Type::getIntNTy(ctx, 64), /*register number*/ 1000);
+StructType &create_state_type(LLVMContext &ctx,
+                              const LLVMTargetMachine &tmachine,
+                              size_t stack_size, unsigned regs_num) {
+  auto *gprs_array_type = ArrayType::get(
+      Type::getIntNTy(ctx, tmachine.getPointerSize(/*AS*/ 0) * CHAR_BIT),
+      regs_num);
+  auto *stack_type = ArrayType::get(Type::getInt64Ty(ctx), stack_size);
   auto *struct_type = StructType::create(
       ctx, ArrayRef<Type *>{gprs_array_type, stack_type}, "register_state");
   assert(struct_type);
@@ -287,7 +333,8 @@ PreservedAnalyses block_ir_builder_pass::run(Module &m,
                     [](auto &f) { return &f; });
   fill_module_with_instrs(m, instrs);
   auto &mmi = mam.getResult<MachineModuleAnalysis>(m).getMMI();
-  auto &state = create_state_type(m.getContext());
+  auto &state = create_state_type(m.getContext(), mmi.getTarget(),
+                                  /*stack_size*/ 1000, /*regs_num*/ 32);
   DenseMap<MachineFunction *, clone_function_result> funcs;
   for (auto *f : target_functions) {
     auto &mf = mmi.getOrCreateMachineFunction(*f);
@@ -361,14 +408,23 @@ auto get_if_false_block(const MachineInstr &minst,
 }
 
 auto operand_to_value(const MachineOperand &mop, BasicBlock &block,
+                      const LLVMTargetMachine &tmachine,
                       reg2vals &rmap) -> Value * {
   IRBuilder builder(block.getContext());
   builder.SetInsertPoint(&block);
   if (mop.isReg()) {
+    auto *stinfo = tmachine.getSubtargetImpl(*block.getParent());
+    assert(stinfo);
+    auto *rinfo = stinfo->getRegisterInfo();
+    assert(rinfo);
     assert(mop.isUse());
+    auto rclass = get_register_class(*rinfo, mop.getReg());
+    assert(rclass.has_value());
     auto *reg_addr = rmap[mop.getReg()];
-    auto *reg_val =
-        builder.CreateLoad(Type::getIntNTy(block.getContext(), 64), reg_addr);
+    auto *reg_val = builder.CreateLoad(
+        Type::getIntNTy(block.getContext(),
+                        rinfo->getRegSizeInBits(*rclass.value())),
+        reg_addr);
     return reg_val;
   }
   if (mop.isImm()) {
@@ -389,7 +445,9 @@ auto generate_branch(const MachineInstr &minst, BasicBlock &bb,
   auto *func = m->getFunction(name);
   if (!func)
     throw std::runtime_error("Could not find \"" + name + "\" in module");
-  auto op_to_val = [&](auto &mop) { return operand_to_value(mop, bb, rmap); };
+  auto op_to_val = [&](auto &mop) {
+    return operand_to_value(mop, bb, target_machine, rmap);
+  };
   auto values = minst.uses() |
                 ranges::views::filter([](auto &&mop) { return !mop.isMBB(); }) |
                 ranges::views::transform(op_to_val);
@@ -439,29 +497,49 @@ write_value_to_register(Value *val, MCRegister reg, IRBuilder<> &builder,
               "\"");
         return {*special_reg, e.value};
       });
+  auto *stinfo =
+      tmachine.getSubtargetImpl(*builder.saveIP().getBlock()->getParent());
+  assert(stinfo);
+  auto *rinfo = stinfo->getRegisterInfo();
+  assert(rinfo);
+  auto rclass = get_register_class(*rinfo, reg);
+  assert(rclass.has_value());
   if (const_regs_vals.count(reg)) {
     return builder.CreateStore(
-        ConstantInt::get(val->getContext(), APInt(64, const_regs_vals.at(reg))),
+        ConstantInt::get(val->getContext(),
+                         APInt(rinfo->getRegSizeInBits(*rclass.value()),
+                               const_regs_vals.at(reg))),
         reg_addr);
   }
   builder.CreateStore(val, reg_addr);
   return val;
 }
 
-static auto read_register_value(MCRegister reg, IRBuilder<> &builder,
+static auto read_register_value(MCRegister reg,
+                                const LLVMTargetMachine &tmachine,
+                                IRBuilder<> &builder,
                                 reg2vals &rmap) -> Value * {
   auto *reg_addr = rmap.at(reg);
   auto &ctx = builder.getContext();
-  return builder.CreateLoad(Type::getIntNTy(ctx, 64), reg_addr);
+  auto *stinfo =
+      tmachine.getSubtargetImpl(*builder.saveIP().getBlock()->getParent());
+  assert(stinfo);
+  auto *rinfo = stinfo->getRegisterInfo();
+  assert(rinfo);
+  auto rclass = get_register_class(*rinfo, reg);
+  assert(rclass.has_value());
+  return builder.CreateLoad(
+      Type::getIntNTy(ctx, rinfo->getRegSizeInBits(*rclass.value())), reg_addr);
 }
-static auto generate_return(const MachineInstr &minst, IRBuilder<> &builder,
-                            reg2vals &rmap) -> Value * {
+static auto generate_return(const MachineInstr &minst,
+                            const LLVMTargetMachine &tmachine,
+                            IRBuilder<> &builder, reg2vals &rmap) -> Value * {
   assert(minst.getNumOperands() <= 1);
   // non-void case
   if (minst.getNumOperands() == 1) {
     auto ret = minst.getOperand(0);
     assert(ret.isReg());
-    auto *reg_val = read_register_value(ret.getReg(), builder, rmap);
+    auto *reg_val = read_register_value(ret.getReg(), tmachine, builder, rmap);
     return builder.CreateRet(reg_val);
   }
   return builder.CreateRetVoid();
@@ -469,6 +547,7 @@ static auto generate_return(const MachineInstr &minst, IRBuilder<> &builder,
 
 static auto generate_call(const MachineInstr &minst, IRBuilder<> &builder,
                           BasicBlock &bb, reg2vals &rmap,
+                          const LLVMTargetMachine &tmachine,
                           StructType &state) -> Value * {
   assert(minst.getNumOperands() >= 1);
   auto op = minst.getOperand(0);
@@ -478,9 +557,9 @@ static auto generate_call(const MachineInstr &minst, IRBuilder<> &builder,
   auto *call =
       builder.CreateCall(callee->getFunctionType(), callee,
                          ArrayRef<Value *>{get_current_state(*bb.getParent())});
-  save_registers(bb, call->getIterator(), rmap, state);
+  save_registers(bb, call->getIterator(), rmap, tmachine, state);
   if (!assume_function_nop)
-    load_registers(bb, call->getIterator(), rmap, state);
+    load_registers(bb, call->getIterator(), rmap, tmachine, state);
   return call;
 }
 
@@ -492,7 +571,7 @@ auto get_stack_pointer_value(const instr_impl &instrs, reg2vals &rmap,
   if (!sp_reg)
     throw std::runtime_error("Could not find stack pointer under the name \"" +
                              instrs.get_stack_pointer().str() + "\"");
-  return read_register_value(*sp_reg, builder, rmap);
+  return read_register_value(*sp_reg, tmachine, builder, rmap);
 }
 
 static auto generate_load_store_from_stack(
@@ -526,7 +605,9 @@ static auto generate_load_store_from_stack(
   auto *func = m->getFunction(name);
   if (!func)
     throw std::runtime_error("Could not find \"" + name + "\" in module");
-  auto op_to_val = [&](auto &mop) { return operand_to_value(mop, bb, rmap); };
+  auto op_to_val = [&](auto &mop) {
+    return operand_to_value(mop, bb, target_machine, rmap);
+  };
   auto num = ranges::size(minst.uses());
   assert(num >= 2);
   auto values = minst.uses() | ranges::views::take(num - 2) |
@@ -564,7 +645,7 @@ auto generate_stack_pointer_modification(const MachineInstr &minst,
   ranges::transform(minst.uses(), std::back_inserter(args),
                     [&](auto &mop) -> Value * {
                       if (!mop.isImm() || mop.getImm() != imm->getImm())
-                        return operand_to_value(mop, bb, rmap);
+                        return operand_to_value(mop, bb, tmachine, rmap);
                       auto val = mop.getImm();
                       return ConstantInt::get(ctx, APInt(64, -val / 8));
                     });
@@ -599,9 +680,9 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
                            m2b);
   }
   if (minst.isReturn())
-    return generate_return(minst, builder, rmap);
+    return generate_return(minst, target_machine, builder, rmap);
   if (minst.isCall())
-    return generate_call(minst, builder, bb, rmap, state);
+    return generate_call(minst, builder, bb, rmap, target_machine, state);
   if (minst.mayLoadOrStore())
     return generate_load_store_from_stack(minst, builder, bb, rmap, instrs,
                                           target_machine, state);
@@ -618,7 +699,9 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
       minst.defs().begin()->getReg() == *sp_reg)
     return generate_stack_pointer_modification(minst, builder, bb,
                                                target_machine, rmap, instrs);
-  auto op_to_val = [&](auto &mop) { return operand_to_value(mop, bb, rmap); };
+  auto op_to_val = [&](auto &mop) {
+    return operand_to_value(mop, bb, target_machine, rmap);
+  };
   auto values = minst.uses() | ranges::views::transform(op_to_val);
   std::vector<Value *> args(values.begin(), values.end());
   auto *call = builder.CreateCall(func->getFunctionType(), func, args);
