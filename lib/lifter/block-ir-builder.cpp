@@ -18,7 +18,7 @@
 
 namespace bleach {
 cl::OptionCategory options("llvm-bleach lifter options");
-}
+} // namespace bleach
 namespace bleach::lifter {
 namespace ranges = std::ranges;
 using namespace llvm;
@@ -186,7 +186,10 @@ void save_registers(BasicBlock &block, BasicBlock::iterator pos, reg2vals &rmap,
   auto *rinfo = stinfo->getRegisterInfo();
   assert(rinfo);
   IRBuilder builder(block.getContext());
-  builder.SetInsertPoint(pos);
+  if (pos == block.end())
+    builder.SetInsertPoint(&block);
+  else
+    builder.SetInsertPoint(pos);
   auto *state_arg = get_current_state(*block.getParent());
   auto *array_type = *state.element_begin();
   // GPR array is the first field
@@ -214,7 +217,10 @@ void load_registers(BasicBlock &block, BasicBlock::iterator pos, reg2vals &rmap,
   auto *rinfo = stinfo->getRegisterInfo();
   assert(rinfo);
   IRBuilder builder(block.getContext());
-  builder.SetInsertPoint(&block);
+  if (pos == block.end())
+    builder.SetInsertPoint(&block);
+  else
+    builder.SetInsertPoint(pos);
   auto *state_arg = get_current_state(*block.getParent());
   auto *array_type = *state.element_begin();
   // GPR array is the first field
@@ -233,7 +239,7 @@ void load_registers(BasicBlock &block, BasicBlock::iterator pos, reg2vals &rmap,
   }
 }
 
-void save_registers_before_return(Function &func, reg2vals &rmap, mbb2bb &m2b,
+void save_registers_before_return(Function &func, reg2vals &rmap,
                                   const LLVMTargetMachine &tmachine,
                                   StructType &state,
                                   const register_stats &reg_stats) {
@@ -251,19 +257,16 @@ struct clone_function_result final {
   MachineFunction *mfunc = nullptr;
 };
 
-auto generate_function(Module &m, MachineFunction &mf,
-                       clone_function_result &dst_info,
+auto generate_function(MachineFunction &mf, clone_function_result &dst_info,
                        const instr_impl &instrs, MachineModuleInfo &mmi,
-                       const target &tgt, StructType &state,
-                       const register_stats &reg_stats) {
+                       StructType &state, const register_stats &reg_stats) {
   reg2vals rmap;
   auto &func = dst_info.mfunc->getFunction();
   materialize_registers(mf, func, rmap, mmi.getTarget(), state, reg_stats);
   for (auto &mbb : *dst_info.mfunc)
-    fill_ir_for_bb(mbb, rmap, instrs, mmi.getTarget(), tgt, dst_info.blocks,
-                   state, reg_stats);
-  save_registers_before_return(func, rmap, dst_info.blocks, mmi.getTarget(),
-                               state, reg_stats);
+    fill_ir_for_bb(mbb, rmap, instrs, mmi.getTarget(), dst_info.blocks, state,
+                   reg_stats);
+  save_registers_before_return(func, rmap, mmi.getTarget(), state, reg_stats);
 }
 
 std::string get_instruction_name(const MachineInstr &minst,
@@ -368,7 +371,7 @@ PreservedAnalyses block_ir_builder_pass::run(Module &m,
   ranges::transform(m, std::inserter(target_functions, target_functions.end()),
                     [](auto &f) { return &f; });
   fill_module_with_instrs(m, instrs);
-  DenseMap<MachineFunction *, clone_function_result> funcs;
+  std::unordered_map<MachineFunction *, clone_function_result> funcs;
   for (auto *f : target_functions) {
     auto &mf = mmi.getOrCreateMachineFunction(*f);
     funcs.try_emplace(&mf, clone_machine_function(m, mmi, mf));
@@ -392,15 +395,14 @@ PreservedAnalyses block_ir_builder_pass::run(Module &m,
   auto &state = create_state_type(m.getContext(), mmi.getTarget(),
                                   /*stack_size*/ 1000, /*regs_num*/ 32);
   for (auto &&[oldf, func_info] : funcs)
-    generate_function(m, *oldf, func_info, instrs, mmi, tgt, state, reg_stats);
+    generate_function(*oldf, func_info, instrs, mmi, state, reg_stats);
 
   for (auto *f : target_functions)
     f->eraseFromParent();
   return PreservedAnalyses::none();
 }
 
-auto generate_jump(const MachineInstr &minst, BasicBlock &bb,
-                   IRBuilder<> &builder, LLVMContext &ctx,
+auto generate_jump(const MachineInstr &minst, IRBuilder<> &builder,
                    const mbb2bb &m2b) -> Instruction * {
   assert(minst.isBranch());
   auto mbb_op =
@@ -470,9 +472,8 @@ auto operand_to_value(const MachineOperand &mop, BasicBlock &block,
 }
 
 auto generate_branch(const MachineInstr &minst, BasicBlock &bb,
-                     IRBuilder<> &builder, reg2vals &rmap, LLVMContext &ctx,
-                     const LLVMTargetMachine &target_machine, const target &tgt,
-                     const mbb2bb &m2b,
+                     IRBuilder<> &builder, reg2vals &rmap,
+                     const LLVMTargetMachine &target_machine, const mbb2bb &m2b,
                      const register_stats &reg_stats) -> Instruction * {
   auto *iinfo = target_machine.getMCInstrInfo();
   auto name = get_instruction_name(minst, *iinfo);
@@ -498,20 +499,12 @@ auto generate_branch(const MachineInstr &minst, BasicBlock &bb,
 std::optional<unsigned> find_register_by_name(const MCRegisterInfo *reg_info,
                                               StringRef name) {
   for (auto &&rclass : reg_info->regclasses()) {
-    auto reg = ranges::find_if(
+    auto reg_it = ranges::find_if(
         rclass, [&](auto &reg) { return name == reg_info->getName(reg); });
-    if (reg != rclass.end())
-      return *reg;
+    if (reg_it != rclass.end())
+      return *reg_it;
   }
   return std::nullopt;
-}
-
-static auto write_value_to_register_impl(Value *val, MCRegister reg,
-                                         IRBuilder<> &builder,
-                                         reg2vals &rmap) -> Value * {
-  auto *reg_addr = rmap.at(reg);
-  builder.CreateStore(val, reg_addr);
-  return val;
 }
 
 static auto
@@ -594,12 +587,13 @@ static auto generate_call(const MachineInstr &minst, IRBuilder<> &builder,
                          ArrayRef<Value *>{get_current_state(*bb.getParent())});
   save_registers(bb, call->getIterator(), rmap, tmachine, state, reg_stats);
   if (!assume_function_nop)
-    load_registers(bb, call->getIterator(), rmap, tmachine, state, reg_stats);
+    load_registers(bb, std::next(call->getIterator()), rmap, tmachine, state,
+                   reg_stats);
   return call;
 }
 
 auto get_stack_pointer_value(const instr_impl &instrs, reg2vals &rmap,
-                             IRBuilder<> &builder, LLVMContext &ctx,
+                             IRBuilder<> &builder,
                              const LLVMTargetMachine &tmachine,
                              const register_stats &reg_stats) -> Value * {
   auto *reg_info = tmachine.getMCRegisterInfo();
@@ -625,8 +619,8 @@ static auto generate_load_store_from_stack(
     // FIXME: Do not hardcode register size as 8
     return ConstantInt::get(ctx, APInt(64, -offset_it->getImm() / 8));
   }();
-  auto *sp = get_stack_pointer_value(instrs, rmap, builder, ctx, target_machine,
-                                     reg_stats);
+  auto *sp =
+      get_stack_pointer_value(instrs, rmap, builder, target_machine, reg_stats);
   auto *idx = builder.CreateAdd(sp, offset);
   auto *state_arg = get_current_state(*bb.getParent());
   auto *stack_type = *std::next(state.element_begin());
@@ -702,19 +696,18 @@ auto generate_stack_pointer_modification(
 
 auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
                           IRBuilder<> &builder, reg2vals &rmap,
-                          const instr_impl &instrs, LLVMContext &ctx,
+                          const instr_impl &instrs,
                           const LLVMTargetMachine &target_machine,
-                          const target &tgt, const mbb2bb &m2b,
-                          StructType &state,
+                          const mbb2bb &m2b, StructType &state,
                           const register_stats &reg_stats) -> Value * {
   auto *iinfo = target_machine.getMCInstrInfo();
   auto name = get_instruction_name(minst, *iinfo);
   if (minst.isBranch()) {
     if (minst.isUnconditionalBranch())
-      return generate_jump(minst, bb, builder, ctx, m2b);
+      return generate_jump(minst, builder, m2b);
     assert(minst.isConditionalBranch());
-    return generate_branch(minst, bb, builder, rmap, ctx, target_machine, tgt,
-                           m2b, reg_stats);
+    return generate_branch(minst, bb, builder, rmap, target_machine, m2b,
+                           reg_stats);
   }
   if (minst.isReturn())
     return generate_return(minst, target_machine, builder, rmap, reg_stats);
@@ -755,17 +748,16 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
 
 void fill_ir_for_bb(MachineBasicBlock &mbb, reg2vals &rmap,
                     const instr_impl &instrs,
-                    const LLVMTargetMachine &target_machine, const target &tgt,
-                    const mbb2bb &m2b, StructType &state,
-                    const register_stats &reg_stats) {
+                    const LLVMTargetMachine &target_machine, const mbb2bb &m2b,
+                    StructType &state, const register_stats &reg_stats) {
   assert(!mbb.empty());
   auto *bb = m2b[&mbb];
   IRBuilder builder(bb->getContext());
   builder.SetInsertPoint(bb);
   assert(bb);
   for (auto &minst : mbb) {
-    generate_instruction(minst, *bb, builder, rmap, instrs, bb->getContext(),
-                         target_machine, tgt, m2b, state, reg_stats);
+    generate_instruction(minst, *bb, builder, rmap, instrs, target_machine, m2b,
+                         state, reg_stats);
   }
   auto last = std::prev(mbb.end());
   if (!last->isBranch() && !last->isReturn()) {

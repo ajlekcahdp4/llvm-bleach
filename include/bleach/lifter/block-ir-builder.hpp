@@ -44,14 +44,15 @@ public:
   }
 };
 
-class mbb2bb final : private DenseMap<const MachineBasicBlock *, BasicBlock *> {
+class mbb2bb final
+    : private std::unordered_map<const MachineBasicBlock *, BasicBlock *> {
 public:
-  using DenseMap::begin;
-  using DenseMap::empty;
-  using DenseMap::end;
-  using DenseMap::erase;
-  using DenseMap::insert;
-  using DenseMap::size;
+  using unordered_map::begin;
+  using unordered_map::empty;
+  using unordered_map::end;
+  using unordered_map::erase;
+  using unordered_map::insert;
+  using unordered_map::size;
   auto operator[](const MachineBasicBlock *mbb) const {
     auto found = find(mbb);
     if (found == end()) {
@@ -119,7 +120,7 @@ public:
 
 void fill_ir_for_bb(MachineBasicBlock &mbb, reg2vals &rmap,
                     const instr_impl &instrs, const LLVMTargetMachine &tm,
-                    const target &tgt, const mbb2bb &m2b, StructType &state,
+                    const mbb2bb &m2b, StructType &state,
                     const register_stats &reg_stats);
 
 struct basic_block {
