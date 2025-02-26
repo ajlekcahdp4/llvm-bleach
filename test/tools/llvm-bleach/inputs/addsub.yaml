@@ -1,4 +1,6 @@
 stack-pointer: X2
+register-classes:
+  - "X[0-9][0-9]?"
 instructions:
   - ADDW:
       func: |

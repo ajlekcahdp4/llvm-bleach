@@ -24,6 +24,7 @@ struct constant_reg final {
 class instr_impl final : private std::vector<instruction> {
   std::string stack_pointer;
   std::vector<constant_reg> const_regs;
+  std::vector<std::string> regclasses;
 
 public:
   instr_impl() = default;
@@ -40,6 +41,9 @@ public:
 
   auto &get_const_regs() { return const_regs; }
   auto &get_const_regs() const { return const_regs; }
+
+  auto &get_regclasses() const { return regclasses; }
+  auto &get_regclasses() { return regclasses; }
 
   void set_stack_pointer(std::string sp) { stack_pointer = std::move(sp); }
 

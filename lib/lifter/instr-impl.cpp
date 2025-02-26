@@ -109,6 +109,8 @@ instr_impl load_from_yaml(std::string yaml, llvm::LLVMContext &ctx) {
     instrs.get_const_regs().push_back(
         {node.first.as<std::string>(), node.second.as<uint64_t>()});
   }
+  for (auto &&node : instrs_conf["register-classes"])
+    instrs.get_regclasses().push_back(node.as<std::string>());
   for (auto &&node : instrs_conf["instructions"]) {
     auto norm = node.as<normalized_instruction>();
     instrs.push_back(denormalize_instruction(norm, ctx));
