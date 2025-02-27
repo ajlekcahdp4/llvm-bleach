@@ -532,7 +532,9 @@ write_value_to_register(Value *val, MCRegister reg, IRBuilder<> &builder,
   auto *rinfo = stinfo->getRegisterInfo();
   assert(rinfo);
   auto &rclass = reg_stats.get_register_class_for(reg);
-  if (const_regs_vals.count(reg)) {
+  auto found = ranges::find_if(
+      const_regs, [&](auto &r) { return r.name == reg_info->getName(reg); });
+  if (found != const_regs.end()) {
     return builder.CreateStore(
         ConstantInt::get(val->getContext(), APInt(rclass.get_register_size(),
                                                   const_regs_vals.at(reg))),

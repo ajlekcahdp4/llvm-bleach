@@ -1,6 +1,6 @@
 stack-pointer: X2
 constant-registers:
-  - X0: 0x0000000000000000
+  X0: 0x0000000000000000
 register-classes:
   - "X[0-9][0-9]?"
 instructions:

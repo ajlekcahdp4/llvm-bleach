@@ -1,0 +1,34 @@
+--- |
+  ; ModuleID = 'foo.ll'
+  source_filename = "foo.c"
+  target datalayout = "e-m:e-p:64:64-i64:64-i128:128-n32:64-S128"
+  target triple = "riscv64-unknown-linux-gnu"
+
+  ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
+  define dso_local signext void @foo(i64 noundef signext %0, i64 noundef signext %1) local_unnamed_addr #0 {
+   ret void
+  }
+...
+---
+name:            foo
+alignment:       2
+tracksRegLiveness: true
+tracksDebugUserValues: true
+liveins:
+  - { reg: '$x0' }
+  - { reg: '$x10' }
+  - { reg: '$x11' }
+frameInfo:
+  maxAlignment:    1
+machineFunctionInfo:
+  varArgsFrameIndex: 0
+  varArgsSaveSize: 0
+body:             |
+  bb.0 (%ir-block.2):
+    liveins: $x10, $x11
+
+    renamable $x10 = ADDW renamable $x11, killed renamable $x10
+    $x0 = ADDW $x10, $x10
+    renamable $x11 = SUBW killed renamable $x11, renamable $x10 
+    PseudoRET
+...
