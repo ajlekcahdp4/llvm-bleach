@@ -62,19 +62,23 @@ instructions:
         }
   - SRL:
       func: |
-        ; ModuleID = 'AND'
+        ; ModuleID = 'SRL'
         ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
         define dso_local i64 @SRL(i64 noundef %0, i64 noundef %1) local_unnamed_addr #0 {
-          %3 = lshr i64 %0, %1
-          ret i64 %3
+          %3 = icmp ugt i64 %1, 7
+          %4 = lshr i64 %0, %1
+          %5 = select i1 %3, i64 0, i64 %4
+          ret i64 %5
         }
   - SRLI:
       func: |
-        ; ModuleID = 'AND'
+        ; ModuleID = 'SRL'
         ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
         define dso_local i64 @SRLI(i64 noundef %0, i64 noundef %1) local_unnamed_addr #0 {
-          %3 = lshr i64 %0, %1
-          ret i64 %3
+          %3 = icmp ugt i64 %1, 7
+          %4 = lshr i64 %0, %1
+          %5 = select i1 %3, i64 0, i64 %4
+          ret i64 %5
         }
   - ADD:
       func: |
