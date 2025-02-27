@@ -51,18 +51,40 @@ instructions:
         ; ModuleID = 'SLL'
         ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
         define dso_local i64 @SLL(i64 noundef %0, i64 noundef %1) local_unnamed_addr #0 {
-          %3 = and i64 %1, 63
-          %4 = shl i64 %0, %3
-          ret i64 %4
+          %3 = icmp sgt i64 %1, 7
+          %4 = shl i64 %0, %1
+          %5 = select i1 %3, i64 0, i64 %4
+          ret i64 %5
+        }
+  - SLLI:
+      func: |
+        ; ModuleID = 'SLLI'
+        ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
+        define dso_local i64 @SLLI(i64 noundef %0, i64 noundef %1) local_unnamed_addr #0 {
+          %3 = icmp sgt i64 %1, 7
+          %4 = shl i64 %0, %1
+          %5 = select i1 %3, i64 0, i64 %4
+          ret i64 %5
         }
   - SRL:
       func: |
-        ; ModuleID = 'AND'
+        ; ModuleID = 'SRL'
         ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
         define dso_local i64 @SRL(i64 noundef %0, i64 noundef %1) local_unnamed_addr #0 {
-          %3 = and i64 %1, 63
-          %4 = ashr i64 %0, %3
-          ret i64 %4
+          %3 = icmp sgt i64 %1, 7
+          %4 = lshr i64 %0, %1
+          %5 = select i1 %3, i64 0, i64 %4
+          ret i64 %5
+        }
+  - SRLI:
+      func: |
+        ; ModuleID = 'SRL'
+        ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
+        define dso_local i64 @SRLI(i64 noundef %0, i64 noundef %1) local_unnamed_addr #0 {
+          %3 = icmp ugt i64 %1, 7
+          %4 = lshr i64 %0, %1
+          %5 = select i1 %3, i64 0, i64 %4
+          ret i64 %5
         }
   - ADD:
       func: |
@@ -70,7 +92,7 @@ instructions:
         source_filename = "addsub"
         ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
         define dso_local signext i64 @ADD(i64 noundef signext %0, i64 noundef signext %1) local_unnamed_addr #0 {
-          %3 = add nsw i64 %1, %0
+          %3 = add i64 %1, %0
           ret i64 %3
         }
   - SUB:
@@ -79,7 +101,7 @@ instructions:
         source_filename = "addsub"
         ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
         define dso_local signext i64 @SUB(i64 noundef signext %0, i64 noundef signext %1) local_unnamed_addr #0 {
-          %3 = sub nsw i64 %0, %1
+          %3 = sub i64 %0, %1
           ret i64 %3
         }
   - SUBW:
@@ -90,7 +112,7 @@ instructions:
         define dso_local signext i64 @SUBW(i64 noundef signext %0, i64 noundef signext %1) local_unnamed_addr #0 {
           %3 = trunc i64 %0 to i32
           %4 = trunc i64 %1 to i32
-          %5 = sub nsw i32 %3, %4
+          %5 = sub i32 %3, %4
           %6 = zext i32 %5 to i64
           ret i64 %6
         }
@@ -102,7 +124,7 @@ instructions:
         define dso_local signext i64 @ADDW(i64 noundef signext %0, i64 noundef signext %1) local_unnamed_addr #0 {
           %3 = trunc i64 %0 to i32
           %4 = trunc i64 %1 to i32
-          %5 = add nsw i32 %3, %4
+          %5 = add i32 %3, %4
           %6 = zext i32 %5 to i64
           ret i64 %6
         }
@@ -120,7 +142,7 @@ instructions:
         source_filename = "addsub"
         ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
         define dso_local signext i64 @MULW(i64 noundef signext %0, i64 noundef signext %1) local_unnamed_addr #0 {
-          %3 = mul nsw i64 %0, %1
+          %3 = mul i64 %0, %1
           ret i64 %3
         }
   - MUL:
@@ -129,7 +151,7 @@ instructions:
         source_filename = "addsub"
         ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
         define dso_local signext i64 @MUL(i64 noundef signext %0, i64 noundef signext %1) local_unnamed_addr #0 {
-          %3 = mul nsw i64 %0, %1
+          %3 = mul i64 %0, %1
           ret i64 %3
         }
   - ADDI:
@@ -138,7 +160,7 @@ instructions:
         source_filename = "addsub"
         ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
         define dso_local signext i64 @ADDI(i64 noundef signext %0, i64 noundef signext %1) local_unnamed_addr #0 {
-          %3 = add nsw i64 %0, %1
+          %3 = add i64 %0, %1
           ret i64 %3
         }
   - ADDIW:
@@ -147,7 +169,7 @@ instructions:
         source_filename = "addsub"
         ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
         define dso_local signext i64 @ADDIW(i64 noundef signext %0, i64 noundef signext %1) local_unnamed_addr #0 {
-          %3 = add nsw i64 %0, %1
+          %3 = add i64 %0, %1
           ret i64 %3
         }
   - SD:
