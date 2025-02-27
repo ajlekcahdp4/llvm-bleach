@@ -6,6 +6,8 @@ bld_dir=$4/$seed
 src_dir=$5
 bleach_cfg=$6
 num_instrs=$7
+runner=$8
+target_clang=$9
 mir_file=$bld_dir/snippy.$seed.mir
 rv_asm_file=$bld_dir/snippy.S
 
@@ -20,6 +22,8 @@ sed -i '/varArgsSaveSize/d' $mir_file
 sed -i '/varArgsFrameIndex/d' $mir_file
 sed -i 's/\(x[13567][0-9]\? = \([A-Z]\{3,\}\).*\$\)x2\(,\|$\)/\1x11\3/g' $mir_file
 sed -i 's/\(x[13567][0-9]\? = \([A-Z]\{3,\}\).*\$\)x2\(,\|$\)/\1x11\3/g' $mir_file
+sed -i 's/\(x[1-9][0-9]\? = \(OR\).*\$\)x[12]\(,\|$\)/\1x11\3/g' $mir_file
+sed -i 's/\(x[1-9][0-9]\? = \(OR\).*\$\)x[12]\(,\|$\)/\1x11\3/g' $mir_file
 sed -i 's/\(x2[0-9] = \([A-Z]\{3,\}\).*\$\)x2\(,\|$\)/\1x11\3/g' $mir_file
 sed -i 's/\(x2[0-9] = \([A-Z]\{3,\}\).*\$\)x2\(,\|$\)/\1x11\3/g' $mir_file
 sed -i 's/\([A-Z]\{3,\}.*\$\)x1\(,\|$\)/\1x10\2/g' $mir_file
@@ -35,8 +39,7 @@ qemu-riscv64 $bld_dir/rv.out > $bld_dir/rv.log
 $BLEACH_PATH/llvm-bleach $mir_file --instructions=$bleach_cfg \
   -march=riscv64 --assume-function-nop > $bld_dir/lifted.ll
 sed -i 's/define void \@print/define weak void @print/g' $bld_dir/lifted.ll
-clang $src_dir/main.c $bld_dir/lifted.ll -o $bld_dir/lifted.out -O3
-llc --stop-after=stack-frame-layout $bld_dir/lifted.ll -o $bld_dir/native.mir
-$bld_dir/lifted.out > $bld_dir/lifted.log
+$target_clang $src_dir/main.c $bld_dir/lifted.ll -o $bld_dir/lifted.out -O3 --static -march=rv64imfd
+$runner $bld_dir/lifted.out > $bld_dir/lifted.log
 diff $bld_dir/rv.log $bld_dir/lifted.log
 rm -rd $bld_dir
