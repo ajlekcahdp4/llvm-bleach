@@ -51,40 +51,36 @@ instructions:
         ; ModuleID = 'SLL'
         ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
         define dso_local i64 @SLL(i64 noundef %0, i64 noundef %1) local_unnamed_addr #0 {
-          %3 = icmp sgt i64 %1, 7
-          %4 = shl i64 %0, %1
-          %5 = select i1 %3, i64 0, i64 %4
-          ret i64 %5
+          %3 = and i64 %1, 63
+          %4 = shl i64 %0, %3
+          ret i64 %4
         }
   - SLLI:
       func: |
         ; ModuleID = 'SLLI'
         ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
         define dso_local i64 @SLLI(i64 noundef %0, i64 noundef %1) local_unnamed_addr #0 {
-          %3 = icmp sgt i64 %1, 7
-          %4 = shl i64 %0, %1
-          %5 = select i1 %3, i64 0, i64 %4
-          ret i64 %5
+          %3 = and i64 %1, 63
+          %4 = shl i64 %0, %3
+          ret i64 %4
         }
   - SRL:
       func: |
         ; ModuleID = 'SRL'
         ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
         define dso_local i64 @SRL(i64 noundef %0, i64 noundef %1) local_unnamed_addr #0 {
-          %3 = icmp sgt i64 %1, 7
-          %4 = lshr i64 %0, %1
-          %5 = select i1 %3, i64 0, i64 %4
-          ret i64 %5
+          %3 = and i64 %1, 63
+          %4 = lshr i64 %0, %3
+          ret i64 %4
         }
   - SRLI:
       func: |
         ; ModuleID = 'SRL'
         ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
         define dso_local i64 @SRLI(i64 noundef %0, i64 noundef %1) local_unnamed_addr #0 {
-          %3 = icmp ugt i64 %1, 7
-          %4 = lshr i64 %0, %1
-          %5 = select i1 %3, i64 0, i64 %4
-          ret i64 %5
+          %3 = and i64 %1, 63
+          %4 = lshr i64 %0, %3
+          ret i64 %4
         }
   - ADD:
       func: |
