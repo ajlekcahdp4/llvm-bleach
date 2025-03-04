@@ -6,7 +6,7 @@
 
 # RUN: %bin/llvm-bleach %S/inputs/foo32.mir \
 # RUN:   --instructions=%S/inputs/logical.yaml \
-# RUN:   --state-struct-file=%t.rv32.h \
+# RUN:   --state-struct-file=%t.rv32.h --stack-size=4000 \
 # RUN:   | FileCheck %s --check-prefix RV32IR
 # RUN: FileCheck %s --check-prefix RV32C --input-file %t.rv32.h
 
@@ -18,10 +18,10 @@
 # RV64C-NEXT: int64_t stack[1000];
 # RV64C-NEXT: }
 
-# RV32IR:  %register_state = type { [32 x i32], [1000 x i64] }
+# RV32IR:  %register_state = type { [32 x i32], [1000 x i32] }
 # RV32C: struct register_state {
 # RV32C-NEXT: int32_t regs[32];
-# RV32C-NEXT: int64_t stack[1000];
+# RV32C-NEXT: int32_t stack[1000];
 # RV32C-NEXT: }
 
 

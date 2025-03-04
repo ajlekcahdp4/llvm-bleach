@@ -32,6 +32,11 @@ static cl::opt<bool>
 static cl::opt<std::string>
     dump_struct_def_option("state-struct-file",
                            cl::desc("File to dump state struct definition to"));
+
+static cl::opt<unsigned>
+    stack_size_option("stack-size", cl::desc("Stack size for array (bytes)"),
+                      cl::init(8000));
+
 void copy_instructions(const MachineBasicBlock &src, MachineBasicBlock &dst) {
   auto *mf = dst.getParent();
   assert(mf);
@@ -284,9 +289,11 @@ StructType &create_state_type(LLVMContext &ctx,
                               const LLVMTargetMachine &tmachine,
                               size_t stack_size, unsigned regs_num,
                               unsigned reg_bitsize) {
+  errs() << "stack_size: " << stack_size << "\n";
   auto *gprs_array_type =
       ArrayType::get(Type::getIntNTy(ctx, reg_bitsize), regs_num);
-  auto *stack_type = ArrayType::get(Type::getInt64Ty(ctx), stack_size);
+  auto *stack_type =
+      ArrayType::get(Type::getIntNTy(ctx, reg_bitsize), stack_size);
   auto *struct_type = StructType::create(
       ctx, ArrayRef<Type *>{gprs_array_type, stack_type}, "register_state");
   assert(struct_type);
@@ -382,7 +389,7 @@ std::string get_state_struct_definition(const register_stats &regs,
   raw_string_ostream ss(strct);
   ss << "struct register_state {\n";
   ss << formatv("  int{0}_t regs[{1}];\n", reg_size, num_regs);
-  ss << formatv("  int64_t stack[{0}];\n", stack_size);
+  ss << formatv("  int{0}_t stack[{1}];\n", reg_size, stack_size);
   ss << "};";
   return strct;
 }
@@ -416,17 +423,20 @@ PreservedAnalyses block_ir_builder_pass::run(Module &m,
     }
   }
 
-  constexpr size_t stack_size = 1000;
+  auto stack_size_bytes = stack_size_option.getValue();
   auto num_regs = std::accumulate(
       reg_stats.begin(), reg_stats.end(), 0u,
       [](auto acc, auto &val) -> size_t { return acc + val.size(); });
   // FIXME: consider all regs are of the same size
   auto &rclass = *reg_stats.begin();
   auto reg_size = rclass.get_register_size();
-  auto &state = create_state_type(m.getContext(), mmi.getTarget(), stack_size,
-                                  num_regs, reg_size);
+  auto reg_size_bytes = reg_size / CHAR_BIT;
+  auto stack_size_elems = stack_size_bytes / reg_size_bytes;
+  auto &state = create_state_type(m.getContext(), mmi.getTarget(),
+                                  stack_size_elems, num_regs, reg_size);
   if (!dump_struct_def_option.empty()) {
-    auto struct_def_str = get_state_struct_definition(reg_stats, stack_size);
+    auto struct_def_str =
+        get_state_struct_definition(reg_stats, stack_size_elems);
     if (dump_struct_def_option == "-") {
       std::cout << struct_def_str << std::endl;
     } else {
