@@ -9,10 +9,13 @@
 #include <llvm/IR/Module.h>
 #include <llvm/Linker/Linker.h>
 #include <llvm/MC/MCInstrInfo.h>
+#include <llvm/Support/FormatVariadic.h>
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 
 #include <expected>
+#include <fstream>
+#include <iostream>
 #include <ranges>
 #include <set>
 
@@ -26,6 +29,9 @@ static cl::opt<bool>
     assume_function_nop("assume-function-nop",
                         cl::desc("Assume called functions don't change state"),
                         cl::cat(options));
+static cl::opt<std::string>
+    dump_struct_def_option("state-struct-file",
+                           cl::desc("File to dump state struct definition to"));
 void copy_instructions(const MachineBasicBlock &src, MachineBasicBlock &dst) {
   auto *mf = dst.getParent();
   assert(mf);
@@ -276,10 +282,10 @@ std::string get_instruction_name(const MachineInstr &minst,
 
 StructType &create_state_type(LLVMContext &ctx,
                               const LLVMTargetMachine &tmachine,
-                              size_t stack_size, unsigned regs_num) {
-  auto *gprs_array_type = ArrayType::get(
-      Type::getIntNTy(ctx, tmachine.getPointerSize(/*AS*/ 0) * CHAR_BIT),
-      regs_num);
+                              size_t stack_size, unsigned regs_num,
+                              unsigned reg_bitsize) {
+  auto *gprs_array_type =
+      ArrayType::get(Type::getIntNTy(ctx, reg_bitsize), regs_num);
   auto *stack_type = ArrayType::get(Type::getInt64Ty(ctx), stack_size);
   auto *struct_type = StructType::create(
       ctx, ArrayRef<Type *>{gprs_array_type, stack_type}, "register_state");
@@ -363,6 +369,24 @@ register_stats collect_register_stats(const instr_impl &instr, Module &m,
   return stats;
 }
 
+std::string get_state_struct_definition(const register_stats &regs,
+                                        size_t stack_size) {
+  auto num_regs = std::accumulate(
+      regs.begin(), regs.end(), 0u,
+      [](auto acc, auto &val) -> size_t { return acc + val.size(); });
+  assert(num_regs);
+  // FIXME: consider all regs are of the same size
+  auto &rclass = *regs.begin();
+  auto reg_size = rclass.get_register_size();
+  std::string strct;
+  raw_string_ostream ss(strct);
+  ss << "struct register_state {\n";
+  ss << formatv("  int{0}_t regs[{1}];\n", reg_size, num_regs);
+  ss << formatv("  int64_t stack[{0}];\n", stack_size);
+  ss << "};";
+  return strct;
+}
+
 PreservedAnalyses block_ir_builder_pass::run(Module &m,
                                              ModuleAnalysisManager &mam) {
   auto &mmi = mam.getResult<MachineModuleAnalysis>(m).getMMI();
@@ -392,8 +416,28 @@ PreservedAnalyses block_ir_builder_pass::run(Module &m,
     }
   }
 
-  auto &state = create_state_type(m.getContext(), mmi.getTarget(),
-                                  /*stack_size*/ 1000, /*regs_num*/ 32);
+  constexpr size_t stack_size = 1000;
+  auto num_regs = std::accumulate(
+      reg_stats.begin(), reg_stats.end(), 0u,
+      [](auto acc, auto &val) -> size_t { return acc + val.size(); });
+  // FIXME: consider all regs are of the same size
+  auto &rclass = *reg_stats.begin();
+  auto reg_size = rclass.get_register_size();
+  auto &state = create_state_type(m.getContext(), mmi.getTarget(), stack_size,
+                                  num_regs, reg_size);
+  if (!dump_struct_def_option.empty()) {
+    auto struct_def_str = get_state_struct_definition(reg_stats, stack_size);
+    if (dump_struct_def_option == "-") {
+      std::cout << struct_def_str << std::endl;
+    } else {
+      std::fstream fs(dump_struct_def_option.getValue(), std::fstream::out);
+      if (!fs.is_open())
+        throw std::runtime_error("Could not open file \"" +
+                                 dump_struct_def_option.getValue() + "\"");
+      fs << struct_def_str << std::endl;
+    }
+  }
+
   for (auto &&[oldf, func_info] : funcs)
     generate_function(*oldf, func_info, instrs, mmi, state, reg_stats);
 
