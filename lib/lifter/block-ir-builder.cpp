@@ -290,7 +290,6 @@ StructType &create_state_type(LLVMContext &ctx,
                               const LLVMTargetMachine &tmachine,
                               size_t stack_size, unsigned regs_num,
                               unsigned reg_bitsize) {
-  errs() << "stack_size: " << stack_size << "\n";
   auto *gprs_array_type =
       ArrayType::get(Type::getIntNTy(ctx, reg_bitsize), regs_num);
   auto *stack_type =
@@ -649,12 +648,18 @@ static auto generate_call(const MachineInstr &minst, IRBuilder<> &builder,
   return call;
 }
 
+std::optional<unsigned> get_stack_pointer(const instr_impl &instrs,
+                                          const LLVMTargetMachine &tmachine) {
+  auto *reg_info = tmachine.getMCRegisterInfo();
+  auto sp_reg = find_register_by_name(reg_info, instrs.get_stack_pointer());
+  return sp_reg;
+}
+
 auto get_stack_pointer_value(const instr_impl &instrs, reg2vals &rmap,
                              IRBuilder<> &builder,
                              const LLVMTargetMachine &tmachine,
                              const register_stats &reg_stats) -> Value * {
-  auto *reg_info = tmachine.getMCRegisterInfo();
-  auto sp_reg = find_register_by_name(reg_info, instrs.get_stack_pointer());
+  auto sp_reg = get_stack_pointer(instrs, tmachine);
   if (!sp_reg)
     throw std::runtime_error("Could not find stack pointer under the name \"" +
                              instrs.get_stack_pointer().str() + "\"");
@@ -668,13 +673,20 @@ static auto generate_load_store_from_stack(
     const register_stats &reg_stats) -> Value * {
   auto &ctx = bb.getContext();
   auto uses = minst.uses();
+  auto sp_reg = get_stack_pointer(instrs, target_machine);
+  if (!sp_reg)
+    throw std::runtime_error("Could not find stack pointer under the name \"" +
+                             instrs.get_stack_pointer().str() + "\"");
+  auto &rclass = reg_stats.get_register_class_for(*sp_reg);
+  auto reg_bitsize = rclass.get_register_size();
+  auto reg_bytesize = reg_bitsize / CHAR_BIT;
   auto offset_it =
       ranges::find_if(uses, [](auto &&mop) { return mop.isImm(); });
   auto *offset = [&] -> Value * {
     if (offset_it == uses.end())
       return ConstantInt::get(ctx, APInt(64, 0));
-    // FIXME: Do not hardcode register size as 8
-    return ConstantInt::get(ctx, APInt(64, -offset_it->getImm() / 8));
+    return ConstantInt::get(ctx,
+                            APInt(64, -offset_it->getImm() / reg_bytesize));
   }();
   auto *sp =
       get_stack_pointer_value(instrs, rmap, builder, target_machine, reg_stats);
