@@ -13,5 +13,5 @@ bleach_add_llvm_based_tool(
   SOURCES
   llvm-bleach.cpp)
 target_enable_linter(llvm-bleach)
-target_link_libraries(llvm-bleach PUBLIC bleach-lifter bleach-target-selector bleach-headers)
+target_link_libraries(llvm-bleach PUBLIC bleach-lifter bleach-headers)
 install(TARGETS llvm-bleach DESTINATION ${CMAKE_INSTALL_BINDIR})

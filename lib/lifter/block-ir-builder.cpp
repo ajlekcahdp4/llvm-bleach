@@ -9,6 +9,7 @@
 #include <llvm/IR/Module.h>
 #include <llvm/Linker/Linker.h>
 #include <llvm/MC/MCInstrInfo.h>
+#include <llvm/Support/CommandLine.h>
 #include <llvm/Support/FormatVariadic.h>
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Transforms/Utils/Cloning.h>
@@ -20,7 +21,7 @@
 #include <set>
 
 namespace bleach {
-cl::OptionCategory options("llvm-bleach lifter options");
+llvm::cl::OptionCategory options("llvm-bleach lifter options");
 } // namespace bleach
 namespace bleach::lifter {
 namespace ranges = std::ranges;

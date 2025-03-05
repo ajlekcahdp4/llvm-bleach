@@ -1,7 +1,6 @@
 #pragma once
 
 #include "bleach/lifter/instr-impl.h"
-#include "bleach/target/target.hpp"
 
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/PassManager.h>
@@ -20,11 +19,9 @@ using namespace llvm;
 
 class block_ir_builder_pass : public PassInfoMixin<block_ir_builder_pass> {
   const instr_impl &instrs;
-  const target &tgt;
 
 public:
-  block_ir_builder_pass(const instr_impl &insts, const target &target)
-      : instrs(insts), tgt(target) {}
+  block_ir_builder_pass(const instr_impl &insts) : instrs(insts) {}
 
   PreservedAnalyses run(Module &m, ModuleAnalysisManager &mam);
 };
