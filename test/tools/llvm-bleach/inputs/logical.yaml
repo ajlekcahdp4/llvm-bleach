@@ -150,6 +150,16 @@ instructions:
           %3 = mul i64 %0, %1
           ret i64 %3
         }
+  - LUI:
+      func: |
+        ; ModuleID = 'addsub'
+        source_filename = "addsub"
+        ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
+        define dso_local signext i64 @LUI(i32 noundef signext %0) local_unnamed_addr #0 {
+          %2 = shl i32 %0, 12
+          %3 = sext i32 %2 to i64
+          ret i64 %3
+        }
   - ADDI:
       func: |
         ; ModuleID = 'addsub'
@@ -173,8 +183,10 @@ instructions:
         ; ModuleID = 'addsub'
         source_filename = "addsub"
         ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
-        define void @SD(i64 noundef signext %0, ptr noundef %1) local_unnamed_addr #0 {
-          store i64 %0, ptr %1, align 8
+        define void @SD(i64 %val, i64 %rs1, i64 %offset) local_unnamed_addr #0 {
+          %3 = add i64 %rs1, %offset
+          %4 = inttoptr i64 %3 to ptr
+          store i64 %val, ptr %4, align 8
           ret void
         }
   - LD:
@@ -182,9 +194,33 @@ instructions:
         ; ModuleID = 'addsub'
         source_filename = "addsub"
         ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
-        define i64 @LD(ptr noundef %0) local_unnamed_addr #0 {
-          %val = load i64, ptr %0, align 8
-          ret i64 %val
+        define i64 @LD(i64 %rs1, i64 %offset) local_unnamed_addr #0 {
+          %3 = add i64 %rs1, %offset
+          %4 = inttoptr i64 %3 to ptr
+          %5 = load i64, ptr %4
+          ret i64 %5
+        }
+  - SW:
+      func: |
+        ; ModuleID = 'addsub'
+        source_filename = "addsub"
+        ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
+        define void @SW(i32 %val, i64 %rs1, i64 %offset) local_unnamed_addr #0 {
+          %3 = add i64 %rs1, %offset
+          %4 = inttoptr i64 %3 to ptr
+          store i32 %val, ptr %4, align 8
+          ret void
+        }
+  - LW:
+      func: |
+        ; ModuleID = 'addsub'
+        source_filename = "addsub"
+        ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
+        define i32 @LW(i64 %rs1, i64 %offset) local_unnamed_addr #0 {
+          %3 = add i64 %rs1, %offset
+          %4 = inttoptr i64 %3 to ptr
+          %5 = load i32, ptr %4
+          ret i32 %5
         }
   - BNE:
       func: |

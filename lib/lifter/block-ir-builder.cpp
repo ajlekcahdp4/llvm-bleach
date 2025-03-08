@@ -705,19 +705,29 @@ static auto generate_load_store_from_stack(
   auto *func = m->getFunction(name);
   if (!func)
     throw std::runtime_error("Could not find \"" + name + "\" in module");
-  auto op_to_val = [&](auto &mop) {
-    return operand_to_value(mop, bb, target_machine, rmap, reg_stats);
-  };
-  auto num = ranges::size(minst.uses());
-  assert(num >= 2);
-  auto values = minst.uses() | ranges::views::take(num - 2) |
-                ranges::views::transform(op_to_val);
-  std::vector<Value *> args(values.begin(), values.end());
-  args.push_back(addr);
-  auto *call = builder.CreateCall(func->getFunctionType(), func, args);
+  auto *inserted = [&] -> Value * {
+    // Loading value from stack
+    if (minst.mayLoad()) {
+      if (minst.mayStore())
+        throw std::runtime_error("Unsupported stack manipulation. Instruction "
+                                 "can both load and store");
+      auto *ret_type = func->getFunctionType()->getReturnType();
+      return builder.CreateLoad(ret_type, addr);
+    }
+    assert(minst.mayStore());
+    auto op_to_val = [&](auto &mop) {
+      return operand_to_value(mop, bb, target_machine, rmap, reg_stats);
+    };
+    // Value, addr reg and offset expected
+    assert(ranges::size(minst.uses()) == 3);
+    // Skip source register and offset.
+    auto &&value = op_to_val(*minst.uses().begin());
+    return builder.CreateStore(value, addr);
+  }();
+  // save result to register
   if (!minst.defs().empty())
-    builder.CreateStore(call, rmap.at(minst.defs().begin()->getReg()));
-  return call;
+    builder.CreateStore(inserted, rmap.at(minst.defs().begin()->getReg()));
+  return inserted;
 }
 
 auto generate_stack_pointer_modification(
@@ -763,6 +773,26 @@ auto generate_stack_pointer_modification(
   return call;
 }
 
+// Operation is considered a stack manipulation if it is a load or store and
+// its source register is stack pointer
+bool is_stack_manipulation(const MachineInstr &minst, const instr_impl &instrs,
+                           const LLVMTargetMachine &tmachine) {
+  if (!minst.mayLoadOrStore())
+    return false;
+  auto sp_reg_opt = get_stack_pointer(instrs, tmachine);
+  if (!sp_reg_opt)
+    throw std::runtime_error("Could not find stack pointer under the name \"" +
+                             instrs.get_stack_pointer().str() + "\"");
+  auto sp_reg = *sp_reg_opt;
+  auto operands = minst.uses();
+  auto regops = operands |
+                ranges::views::filter([](auto &mop) { return mop.isReg(); }) |
+                ranges::views::transform(
+                    [](auto &mop) -> unsigned { return mop.getReg(); });
+  auto used_reg = ranges::find(regops, sp_reg);
+  return used_reg != regops.end();
+}
+
 auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
                           IRBuilder<> &builder, reg2vals &rmap,
                           const instr_impl &instrs,
@@ -783,9 +813,13 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
   if (minst.isCall())
     return generate_call(minst, builder, bb, rmap, target_machine, state,
                          reg_stats);
-  if (minst.mayLoadOrStore())
-    return generate_load_store_from_stack(minst, builder, bb, rmap, instrs,
-                                          target_machine, state, reg_stats);
+  if (minst.mayLoadOrStore()) {
+    // Instructions that are not considered stack manipulation are generated
+    // just like any other instruction
+    if (is_stack_manipulation(minst, instrs, target_machine))
+      return generate_load_store_from_stack(minst, builder, bb, rmap, instrs,
+                                            target_machine, state, reg_stats);
+  }
   auto *reg_info = target_machine.getMCRegisterInfo();
   auto sp_reg = find_register_by_name(reg_info, instrs.get_stack_pointer());
   if (!sp_reg)
