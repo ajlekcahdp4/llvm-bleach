@@ -1,0 +1,227 @@
+stack-pointer: X2
+constant-registers:
+  X0: 0x0000000000000000
+register-classes:
+  - "X[0-9][0-9]?"
+instructions:
+  SLT:
+    func: |
+      define i\xlen\ @SLT(i\xlen\ noundef %0, i\xlen\ noundef %1) {
+        %3 = icmp slt i\xlen\ %0, %1
+        %4 = zext i1 %3 to i\xlen\
+        ret i\xlen\ %4
+      }
+  SLTU:
+    func: |
+      define i\xlen\ @SLTU(i\xlen\ noundef %0, i\xlen\ noundef %1) {
+        %3 = icmp ult i\xlen\ %0, %1
+        %4 = zext i1 %3 to i\xlen\
+        ret i\xlen\ %4
+      }
+  AND:
+    func: |
+      define i\xlen\ @AND(i\xlen\ noundef %0, i\xlen\ noundef %1) {
+        %3 = and i\xlen\ %1, %0
+        ret i\xlen\ %3
+      }
+  OR:
+    func: |
+      define i\xlen\ @OR(i\xlen\ noundef %0, i\xlen\ noundef %1) {
+        %3 = or i\xlen\ %1, %0
+        ret i\xlen\ %3
+      }
+  XOR:
+    func: |
+      define i\xlen\ @XOR(i\xlen\ noundef %0, i\xlen\ noundef %1) {
+        %3 = xor i\xlen\ %1, %0
+        ret i\xlen\ %3
+      }
+  SLL:
+    func: |
+      define i\xlen\ @SLL(i\xlen\ noundef %0, i\xlen\ noundef %1) {
+        %3 = and i\xlen\ %1, \xlen - 1\
+        %4 = shl i\xlen\ %0, %3
+        ret i\xlen\ %4
+      }
+  SLLI:
+    func: |
+      define i\xlen\ @SLLI(i\xlen\ noundef %0, i\xlen\ noundef %1) {
+        %3 = and i\xlen\ %1, \xlen - 1\
+        %4 = shl i\xlen\ %0, %3
+        ret i\xlen\ %4
+      }
+  SRL:
+    func: |
+      define i\xlen\ @SRL(i\xlen\ noundef %0, i\xlen\ noundef %1) {
+        %3 = and i\xlen\ %1, \xlen - 1\
+        %4 = lshr i\xlen\ %0, %3
+        ret i\xlen\ %4
+      }
+  SRLI:
+    func: |
+      define i\xlen\ @SRLI(i\xlen\ noundef %0, i\xlen\ noundef %1) {
+        %3 = and i\xlen\ %1, \xlen - 1\
+        %4 = lshr i\xlen\ %0, %3
+        ret i\xlen\ %4
+      }
+  ADD:
+    func: |
+      define i\xlen\ @ADD(i\xlen\ noundef signext %0, i\xlen\ noundef signext %1) {
+        %3 = add i\xlen\ %1, %0
+        ret i\xlen\ %3
+      }
+  SUB:
+    func: |
+      define i\xlen\ @SUB(i\xlen\ noundef signext %0, i\xlen\ noundef signext %1) {
+        %3 = sub i\xlen\ %0, %1
+        ret i\xlen\ %3
+      }
+  SUBW:
+    requires: rv64
+    func: |
+      define i64 @SUBW(i64 noundef signext %0, i64 noundef signext %1) {
+        %3 = trunc i64 %0 to i32
+        %4 = trunc i64 %1 to i32
+        %5 = sub i32 %3, %4
+        %6 = sext i32 %5 to i64
+        ret i64 %6
+      }
+  ADDW:
+    requires: rv64
+    func: |
+      define i64 @ADDW(i64 noundef signext %0, i64 noundef signext %1) {
+        %3 = trunc i64 %0 to i32
+        %4 = trunc i64 %1 to i32
+        %5 = add i32 %3, %4
+        %6 = sext i32 %5 to i64
+        ret i64 %6
+      }
+  COPY:
+    func: |
+      define i\xlen\ @COPY(i\xlen\ noundef signext %0) {
+        ret i\xlen\ %0
+      }
+  MULW:
+    requires: rv64
+    func: |
+      define i64 @MULW(i64 %0, i64 %1) {
+        %3 = trunc i64 %0 to i32
+        %4 = trunc i64 %1 to i32
+        %5 = mul i32 %3, %4
+        %6 = sext i32 %5 to i64
+        ret i64 %6
+      }
+  MUL:
+    func: |
+      define signext i\xlen\ @MUL(i\xlen\ noundef signext %0, i\xlen\ noundef signext %1) {
+        %3 = mul i\xlen\ %0, %1
+        ret i\xlen\ %3
+      }
+  LUI:
+    func: |
+      define signext i\xlen\ @LUI(i20 noundef signext %0) {
+        %3 = zext i20 %0 to i64
+        %4 = shl i64 %3, 12
+        ret i\xlen\ %4
+      }
+  ADDI:
+    func: |
+      define signext i\xlen\ @ADDI(i\xlen\ noundef signext %0, i\xlen\ noundef signext %1) {
+        %3 = add i\xlen\ %0, %1
+        ret i\xlen\ %3
+      }
+  ADDIW:
+    requires: rv64
+    func: |
+      define signext i64 @ADDIW(i64 noundef signext %0, i64 noundef signext %1) {
+        %3 = trunc i64 %1 to i32
+        %4 = trunc i64 %0 to i32
+        %5 = add i32 %3, %4
+        %6 = sext i32 %5 to i64
+        ret i64 %6
+      }
+  SD:
+    requires: rv64
+    func: |
+      define void @SD(i64 %val, i64 %rs1, i64 %offset) {
+        %3 = add i64 %rs1, %offset
+        %4 = inttoptr i64 %3 to ptr
+        store i64 %val, ptr %4, align 8
+        ret void
+      }
+  LD:
+    requires: rv64
+    func: |
+      define i64 @LD(i64 %rs1, i64 %offset) {
+        %3 = add i64 %rs1, %offset
+        %4 = inttoptr i64 %3 to ptr
+        %5 = load i64, ptr %4
+        ret i64 %5
+      }
+  SW:
+    func: |
+      define void @SW(i\xlen\ %val, i\xlen\ %rs1, i\xlen\ %offset) {
+        %v = zext i32 -1 to i64
+        %3 = and i64 %val, %v
+        %4 = trunc i64 %val to i32
+        %5 = add i\xlen\ %rs1, %offset
+        %6 = inttoptr i\xlen\ %5 to ptr
+        store i32 %4, ptr %6, align 4
+        ret void
+      }
+  LW:
+    func: |
+      define i32 @LW(i\xlen\ %rs1, i\xlen\ %offset) {
+        %3 = add i\xlen\ %rs1, %offset
+        %4 = inttoptr i\xlen\ %3 to ptr
+        %5 = load i32, ptr %4
+        ret i32 %5
+      }
+  BNE:
+    func: |
+      define i1 @BNE(i\xlen\ noundef signext %0, i\xlen\ noundef signext %1) {
+        %3 = icmp ne i\xlen\ %0, %1
+        ret i1 %3
+      }
+  BEQ:
+    func: |
+      define i1 @BEQ(i\xlen\ noundef signext %0, i\xlen\ noundef signext %1) {
+        %3 = icmp eq i\xlen\ %0, %1
+        ret i1 %3
+      }
+  BLT:
+    func: |
+      define i1 @BLT(i\xlen\ noundef signext %0, i\xlen\ noundef signext %1) {
+        %3 = icmp slt i\xlen\ %0, %1
+        ret i1 %3
+      }
+  BGT:
+    func: |
+      define i1 @BGT(i\xlen\ noundef signext %0, i\xlen\ noundef signext %1) {
+        %3 = icmp sgt i\xlen\ %0, %1
+        ret i1 %3
+      }
+  BLE:
+    func: |
+      define i1 @BLE(i\xlen\ noundef signext %0, i\xlen\ noundef signext %1) {
+        %3 = icmp sle i\xlen\ %0, %1
+        ret i1 %3
+      }
+  BGE:
+    func: |
+      define i1 @BGE(i\xlen\ noundef signext %0, i\xlen\ noundef signext %1) {
+        %3 = icmp sge i\xlen\ %0, %1
+        ret i1 %3
+      }
+  BLTU:
+    func: |
+      define i1 @BLTU(i\xlen\ noundef signext %0, i\xlen\ noundef signext %1) {
+        %3 = icmp ult i\xlen\ %0, %1
+        ret i1 %3
+      }
+  BGEU:
+    func: |
+      define i1 @BGEU(i\xlen\ noundef signext %0, i\xlen\ noundef signext %1) {
+        %3 = icmp uge i\xlen\ %0, %1
+        ret i1 %3
+      }

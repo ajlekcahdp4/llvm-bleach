@@ -34,6 +34,7 @@ stdenv.mkDerivation {
     lit
     filecheck
     yq
+    ruby
     clang
     pkgsCross.riscv64.buildPackages.clang
     pkgsCross.riscv64.buildPackages.llvmPackages.bintools

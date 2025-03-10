@@ -1,0 +1,5 @@
+# RUN: not %src_path/config-gen.rb --march rv32im --template-dir wrong/path \
+# RUN:   -o %t.yaml >& %t.err
+# RUN: FileCheck %s --input-file %t.err
+
+# CHECK: Directory {{.*}}wrong/path does not exist

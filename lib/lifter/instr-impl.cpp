@@ -73,9 +73,12 @@ instruction denormalize_instruction(const normalized_instruction &norm,
   auto mem_buf = llvm::SmallVectorMemoryBuffer(std::move(ir_buf), "");
   llvm::SMDiagnostic err;
   instr.ir_module = llvm::parseIR(mem_buf, err, ctx);
-  if (!instr.ir_module)
-    throw std::runtime_error("Failed to parse LLVM IR: " +
-                             err.getMessage().str());
+  if (!instr.ir_module) {
+    std::string err_str;
+    raw_string_ostream ss(err_str);
+    err.print(("for \"" + instr.name + "\"").c_str(), ss);
+    throw std::runtime_error("Failed to parse LLVM IR: " + err_str);
+  }
   return instr;
 }
 } // namespace

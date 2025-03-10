@@ -35,6 +35,7 @@ if(THREAD_SANITIZE AND SANITIZE)
 endif()
 
 include(cmake/functions.cmake)
+include(GNUInstallDirs)
 
 function(add_example_executable TARGET_NAME SOURCE)
   add_executable(${TARGET_NAME} ${SOURCE})

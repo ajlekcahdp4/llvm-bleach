@@ -8,7 +8,7 @@ instructions:
       func: |
         ; ModuleID = 'SLT'
         ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtabl
-        define dso_local noundef i64 @SLT(i64 noundef %0, i64 noundef %1) local_unnamed_addr #0 {
+        define i64 @SLT(i64 noundef %0, i64 noundef %1) local_unnamed_addr #0 {
           %3 = icmp slt i64 %0, %1
           %4 = zext i1 %3 to i64
           ret i64 %4

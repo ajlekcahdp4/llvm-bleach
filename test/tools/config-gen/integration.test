@@ -1,0 +1,7 @@
+# RUN: %src_path/config-gen.rb --march rv64im --template-dir %src_path/templates -o %t.yaml
+# RUN: %bin/llvm-bleach %S/inputs/foo.mir --instructions=%t.yaml \
+# RUN:   | FileCheck %s
+
+# CHECK: foo
+# CHECK: load i32
+# CHECK: store i32

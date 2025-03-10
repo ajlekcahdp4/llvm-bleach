@@ -6,9 +6,9 @@ if(lit-NOTFOUND)
 endif()
 
 configure_file(lit.site.cfg.py.in lit.site.cfg.py)
-add_test(NAME llvm-bleach-tool-test COMMAND ${lit} --verbose
+add_test(NAME config-gen-tool-test COMMAND ${lit} --verbose
                                             ${CMAKE_CURRENT_BINARY_DIR})
 set_property(
-  TEST llvm-bleach-tool-test
+  TEST config-gen-tool-test
   PROPERTY ENVIRONMENT PATH="${CMAKE_BINARY_DIR}/bin:$ENV{PATH}"
   PROPERTY ENVIRONMENT RUN_PATH=${CMAKE_CURRENT_BINARY_DIR})

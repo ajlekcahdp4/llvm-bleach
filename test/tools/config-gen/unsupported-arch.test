@@ -1,0 +1,5 @@
+# RUN: not %src_path/config-gen.rb --march rv46 --template-dir \
+# RUN:   %src_path/templates -o %t.yaml >& %t.err
+# RUN: FileCheck %s --input-file %t.err
+
+# CHECK: Invalid arch name. Supported prefixes are:
