@@ -39,6 +39,9 @@ stdenv.mkDerivation {
     pkgsCross.riscv64.buildPackages.clang
     pkgsCross.riscv64.buildPackages.llvmPackages.bintools
   ];
+  preCheck = ''
+    patchShebangs ..
+  '';
   checkInputs = with pkgs; [ gtest ];
   doCheck = true;
 }
