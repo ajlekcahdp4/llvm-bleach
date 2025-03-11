@@ -65,6 +65,9 @@
             inherit llvmLibDebug;
             inherit llvmLib;
           };
+          checks = {
+            inherit (packages) llvm-bleach;
+          };
           devShells.default = pkgs.mkShell {
             nativeBuildInputs =
               packages.llvm-bleach.nativeBuildInputs
