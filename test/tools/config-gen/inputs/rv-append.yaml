@@ -1,0 +1,13 @@
+stack-pointer: X2
+register-classes:
+  - "X[0-9][0-9]?"
+extern-functions:
+  - declare i64 @load_mem64(i64 noundef %0)
+instructions:
+  SLT:
+    func: |
+      define i64 @LD(i\xlen\ %0, i\xlen\ %1) {
+        %3 = add i\xlen\ %0, %1
+        %4 = call i64 @load_mem64(i\xlen\ %3)
+        ret i64 %4
+      }

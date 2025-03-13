@@ -1,0 +1,17 @@
+# RUN: %src_path/config-gen.rb --march rv64im \
+# RUN:   --template %S/inputs/rv-append.yaml -o %t.yaml
+# RUN: FileCheck %s --input-file %t.yaml
+# RUN: %bin/llvm-bleach %S/inputs/slt.mir --instructions=%t.yaml \
+# RUN:   | FileCheck %s --check-prefix=LIFTED
+
+# CHECK: define i64 @LD(i64 %0, i64 %1) {
+# CHECK-NEXT: %3 = add i64 %0, %1
+# CHECK-NEXT: %4 = call i64 @load_mem64(i64 %3)
+# CHECK-NEXT: ret i64 %4
+# CHECK-NEXT: }
+# CHECK: declare i64 @load_mem64(i64 noundef %0)
+
+
+# LIFTED: %[[ADDR:[0-9]+]] = add i64 %{{[0-9]+}}, %{{[0-9]+}}
+# LIFTED: %{{[0-9]+}} = call i64 @load_mem64(i64 %[[ADDR]])
+

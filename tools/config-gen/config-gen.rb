@@ -23,6 +23,10 @@ OptionParser
       options[:templ_dir] = a
     end
 
+    opts.on("-t", "--template FILE", "Path to template") do |a|
+      options[:templ] = a
+    end
+
     opts.on("-o", "--output FILE", "Output config file") do |
         a
       |
@@ -106,6 +110,23 @@ def replace_all_expressions(templ, xlen)
   return templ
 end
 
+def append_declarations_if_needed(config, func)
+  if !config["extern-functions"]
+    return func
+  end
+
+  func << "\n"
+  extern_functions = config["extern-functions"].map do |f|
+    [/@[a-zA-Z_0-9]+\(/.match(f).to_s[1..-2], f]
+  end
+
+  extern_functions.select { |f| /call.*#{f[0]}/.match(func) }.each do |f|
+    func << f[1] << "\n"
+  end
+
+  func
+end
+
 def instantiate_for(templ, arch)
   xlen = arch.get_xlen
   config = {}
@@ -118,6 +139,7 @@ def instantiate_for(templ, arch)
     next if instr[1].key?("requires") && instr[1]["requires"] != arch.prefix
     func = instr[1]["func"]
     func = replace_all_expressions(func, xlen)
+    func = append_declarations_if_needed(config, func)
     {name => {"func" => func}}
   end
 
@@ -130,19 +152,26 @@ if !options[:arch]
   exit(-1)
 end
 
-if !options[:templ_dir]
-  raise "No template dir specified"
-end
-
 if !options[:out]
   raise "No output file specified"
 end
 
 arch = parse_arch(options[:arch])
-dir_path = File.expand_path(options[:templ_dir])
-raise "Directory #{dir_path} does not exist" unless File.exist?(dir_path)
+if !options[:templ] && !options[:templ_dir]
+  raise "Either template directory or template file should be specified"
+end
 
-templ = get_template(arch, dir_path)
+templ = nil
+if options[:templ_dir]
+  dir_path = File.expand_path(options[:templ_dir])
+  raise "Directory #{dir_path} does not exist" unless File.exist?(dir_path)
+  templ = get_template(arch, dir_path)
+else
+  templ_path = File.expand_path(options[:templ])
+  raise "Template file does not exist" unless File.exist?(templ_path)
+  templ = YAML.load_file(templ_path)
+end
+
 config = instantiate_for(templ, arch)
 out = options[:out]
 if out == "-"
