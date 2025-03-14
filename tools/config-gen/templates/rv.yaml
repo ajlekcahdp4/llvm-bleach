@@ -43,6 +43,39 @@ instructions:
         %4 = shl i\xlen\ %0, %3
         ret i\xlen\ %4
       }
+  SLLW:
+    requires: rv64
+    func: |
+      define i\xlen\ @SLLW(i\xlen\ noundef %0, i\xlen\ noundef %1) {
+        %3 = trunc i64 %1 to i32
+        %4 = trunc i64 %0 to i32
+        %5 = and i32 %4, 15
+        %6 = shl i32 %3, %5
+        %7 = sext i32 %6 to i64
+        ret i64 %7
+      }
+  SRLW:
+    requires: rv64
+    func: |
+      define i\xlen\ @SRLW(i\xlen\ noundef %0, i\xlen\ noundef %1) {
+        %3 = trunc i64 %1 to i32
+        %4 = trunc i64 %0 to i32
+        %5 = and i32 %4, 15
+        %6 = lshr i32 %3, %5
+        %7 = sext i32 %6 to i64
+        ret i64 %7
+      }
+  SRAW:
+    requires: rv64
+    func: |
+      define i\xlen\ @SRAW(i\xlen\ noundef %0, i\xlen\ noundef %1) {
+        %3 = trunc i64 %1 to i32
+        %4 = trunc i64 %0 to i32
+        %5 = and i32 %4, 15
+        %6 = ashr i32 %3, %5
+        %7 = sext i32 %6 to i64
+        ret i64 %7
+      }
   SLLI:
     func: |
       define i\xlen\ @SLLI(i\xlen\ noundef %0, i\xlen\ noundef %1) {
@@ -57,12 +90,59 @@ instructions:
         %4 = lshr i\xlen\ %0, %3
         ret i\xlen\ %4
       }
+  SRA:
+    func: |
+      define i\xlen\ @SRA(i\xlen\ noundef %0, i\xlen\ noundef %1) {
+        %3 = and i\xlen\ %1, \xlen - 1\
+        %4 = ashr i\xlen\ %0, %3
+        ret i\xlen\ %4
+      }
   SRLI:
     func: |
       define i\xlen\ @SRLI(i\xlen\ noundef %0, i\xlen\ noundef %1) {
         %3 = and i\xlen\ %1, \xlen - 1\
         %4 = lshr i\xlen\ %0, %3
         ret i\xlen\ %4
+      }
+  SRAI:
+    func: |
+      define i\xlen\ @SRAI(i\xlen\ noundef %0, i\xlen\ noundef %1) {
+        %3 = and i\xlen\ %1, \xlen - 1\
+        %4 = ashr i\xlen\ %0, %3
+        ret i\xlen\ %4
+      }
+  SLLIW:
+    requires: rv64
+    func: |
+      define i64 @SLLIW(i64 noundef %0, i64 noundef %1) {
+        %3 = trunc i64 %0 to i32
+        %4 = trunc i64 %1 to i32
+        %5 = and i32 %4, 63
+        %6 = shl i32 %3, %5
+        %7 = sext i32 %6 to i64
+        ret i64 %7
+      }
+  SRLIW:
+    requires: rv64
+    func: |
+      define i64 @SRLIW(i64 noundef %0, i64 noundef %1) {
+        %3 = trunc i64 %0 to i32
+        %4 = trunc i64 %1 to i32
+        %5 = and i32 %4, 63
+        %6 = lshr i32 %3, %5
+        %7 = sext i32 %6 to i64
+        ret i64 %7
+      }
+  SRAIW:
+    requires: rv64
+    func: |
+      define i64 @SRAIW(i64 noundef %0, i64 noundef %1) {
+        %3 = trunc i64 %0 to i32
+        %4 = trunc i64 %1 to i32
+        %5 = and i32 %4, 63
+        %6 = ashr i32 %3, %5
+        %7 = sext i32 %6 to i64
+        ret i64 %7
       }
   ADD:
     func: |
