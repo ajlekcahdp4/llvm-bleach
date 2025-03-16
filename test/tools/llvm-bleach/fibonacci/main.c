@@ -1,17 +1,14 @@
 #include <stdio.h>
+// generated header
+#include <state.h>
 
-typedef struct {
-  long long regs[32];
-  long long stack[1000];
-} state;
+extern long long fibonacci(struct register_state *st);
 
-extern long long fibonacci(state *st);
-
-static state regs = {};
+static struct register_state regs = {};
 
 static long long lifted_fibonacci(long long n) {
   // According to RISC-V calling convention X10 is the first argument
-  regs.regs[10] = n;
+  regs.GPR[10] = n;
   return fibonacci(&regs);
 }
 

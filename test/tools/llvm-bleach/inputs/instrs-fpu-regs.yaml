@@ -1,0 +1,20 @@
+stack-pointer: X2
+register-classes:
+  GPR: "X[0-9][0-9]?"
+  FPR: "F[0-9][0-9]?_D"
+instructions:
+  - FADD_D:
+      func: |
+        define double @FADD_D(double %0, double %1, i4 %r) {
+          %3 = fadd double %0, %1
+          ret double %3
+        }
+  - ADD:
+      func: |
+        ; ModuleID = 'addsub'
+        source_filename = "addsub"
+        ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
+        define dso_local signext i64 @ADD(i64 noundef signext %0, i64 noundef signext %1) local_unnamed_addr #0 {
+          %3 = add nsw i64 %1, %0
+          ret i64 %3
+        }

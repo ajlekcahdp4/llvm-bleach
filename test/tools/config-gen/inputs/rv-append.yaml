@@ -1,6 +1,6 @@
 stack-pointer: X2
 register-classes:
-  - "X[0-9][0-9]?"
+  GPR: "X[0-9][0-9]?"
 extern-functions:
   - declare i64 @load_mem64(i64 noundef %0)
 instructions:

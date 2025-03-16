@@ -288,14 +288,25 @@ std::string get_instruction_name(const MachineInstr &minst,
 
 StructType &create_state_type(LLVMContext &ctx,
                               const LLVMTargetMachine &tmachine,
-                              size_t stack_size, unsigned regs_num,
-                              unsigned reg_bitsize) {
-  auto *gprs_array_type =
-      ArrayType::get(Type::getIntNTy(ctx, reg_bitsize), regs_num);
-  auto *stack_type =
-      ArrayType::get(Type::getIntNTy(ctx, reg_bitsize), stack_size);
-  auto *struct_type = StructType::create(
-      ctx, ArrayRef<Type *>{gprs_array_type, stack_type}, "register_state");
+                              const register_stats &stats,
+                              size_t stack_size_bytes) {
+
+  std::vector<Type *> members;
+  ranges::transform(stats, std::back_inserter(members), [&ctx](auto &rclass) {
+    auto num_regs = rclass.size();
+    auto reg_size = rclass.get_register_size();
+    return ArrayType::get(Type::getIntNTy(ctx, reg_size), num_regs);
+  });
+  auto largest_regsize =
+      ranges::max_element(stats, ranges::less{}, [](auto &rclass) {
+        return rclass.get_register_size();
+      });
+  assert(largest_regsize != stats.end() && "Empty regstats");
+  auto largest_regsize_bytes = largest_regsize->get_register_size() / CHAR_BIT;
+  members.push_back(
+      ArrayType::get(Type::getIntNTy(ctx, largest_regsize->get_register_size()),
+                     stack_size_bytes / largest_regsize_bytes));
+  auto *struct_type = StructType::create(ctx, members, "register_state");
   assert(struct_type);
   return *struct_type;
 }
@@ -376,20 +387,32 @@ register_stats collect_register_stats(const instr_impl &instr, Module &m,
   return stats;
 }
 
-std::string get_state_struct_definition(const register_stats &regs,
-                                        size_t stack_size) {
-  auto num_regs = std::accumulate(
-      regs.begin(), regs.end(), 0u,
-      [](auto acc, auto &val) -> size_t { return acc + val.size(); });
-  assert(num_regs);
-  // FIXME: consider all regs are of the same size
-  auto &rclass = *regs.begin();
-  auto reg_size = rclass.get_register_size();
+std::string get_state_struct_definition(const StructType &type,
+                                        const register_stats &rstats) {
+  auto elements = type.elements();
+  assert(rstats.size() == elements.size() - 1);
   std::string strct;
   raw_string_ostream ss(strct);
+  ss << "#include <stdint.h>\n";
   ss << "struct register_state {\n";
-  ss << formatv("  int{0}_t regs[{1}];\n", reg_size, num_regs);
-  ss << formatv("  int{0}_t stack[{1}];\n", reg_size, stack_size);
+  for (auto &&[rclass, member] : ranges::views::zip(rstats, elements)) {
+    auto *arr = dyn_cast<ArrayType>(member);
+    assert(arr);
+    auto *elem = dyn_cast<IntegerType>(arr->getElementType());
+    assert(elem);
+    ss << formatv("  int{0}_t {1}[{2}];\n", elem->getBitWidth(),
+                  rclass.get_name(), arr->getNumElements());
+  }
+  // Last member is stack;
+  assert(!elements.empty());
+  auto *stack_type = elements.back();
+  auto *arr = dyn_cast<ArrayType>(stack_type);
+  assert(arr);
+  auto *stack_elem = arr->getElementType();
+  auto *elem = dyn_cast<IntegerType>(stack_elem);
+  assert(elem);
+  ss << formatv("  int{0}_t stack[{1}];\n", elem->getBitWidth(),
+                arr->getNumElements());
   ss << "};";
   return strct;
 }
@@ -424,19 +447,10 @@ PreservedAnalyses block_ir_builder_pass::run(Module &m,
   }
 
   auto stack_size_bytes = stack_size_option.getValue();
-  auto num_regs = std::accumulate(
-      reg_stats.begin(), reg_stats.end(), 0u,
-      [](auto acc, auto &val) -> size_t { return acc + val.size(); });
-  // FIXME: consider all regs are of the same size
-  auto &rclass = *reg_stats.begin();
-  auto reg_size = rclass.get_register_size();
-  auto reg_size_bytes = reg_size / CHAR_BIT;
-  auto stack_size_elems = stack_size_bytes / reg_size_bytes;
-  auto &state = create_state_type(m.getContext(), mmi.getTarget(),
-                                  stack_size_elems, num_regs, reg_size);
+  auto &state = create_state_type(m.getContext(), mmi.getTarget(), reg_stats,
+                                  stack_size_bytes);
   if (!dump_struct_def_option.empty()) {
-    auto struct_def_str =
-        get_state_struct_definition(reg_stats, stack_size_elems);
+    auto struct_def_str = get_state_struct_definition(state, reg_stats);
     if (dump_struct_def_option == "-") {
       std::cout << struct_def_str << std::endl;
     } else {

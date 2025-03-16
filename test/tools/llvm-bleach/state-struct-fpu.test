@@ -1,0 +1,13 @@
+# RUN: %bin/llvm-bleach %S/inputs/foo-fpu-fadd.mir \
+# RUN:   --instructions=%S/inputs/instrs-fpu-regs.yaml \
+# RUN:   --state-struct-file=%t.h \
+# RUN:   | FileCheck %s --check-prefix IR
+# RUN: FileCheck %s --check-prefix HEADER --input-file %t.h
+
+# IR:  %register_state = type { [32 x i64], [32 x i64], [1000 x i64] }
+# HEADER: struct register_state {
+# HEADER-NEXT: int64_t GPR[32];
+# HEADER-NEXT: int64_t FPR[32];
+# HEADER-NEXT: int64_t stack[1000];
+# HEADER-NEXT: }
+

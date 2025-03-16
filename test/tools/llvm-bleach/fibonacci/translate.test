@@ -4,8 +4,8 @@
 # RUN:   %t.fibonacci.ll -o %t.fibonacci.mir
 # RUN: sed -i '/CFI_INSTRUCTION/d' %t.fibonacci.mir
 # RUN: %bin/llvm-bleach %t.fibonacci.mir --instructions=%S/../inputs/logical.yaml \
-# RUN:   > %t.lifted.ll
-# RUN: gcc -c %S/main.c -o %t.main.o
+# RUN:   --state-struct-file=%T/state.h > %t.lifted.ll
+# RUN: gcc -c %S/main.c -I %T -o %t.main.o
 # RUN: clang -c %t.lifted.ll -o %t.fibonacci.o
 # RUN: gcc %t.main.o %t.fibonacci.o -o %t.out
 # RUN: %t.out | FileCheck %s

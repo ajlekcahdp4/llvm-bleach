@@ -43,6 +43,7 @@ template <> struct convert<lifter::normalized_instruction> {
   static bool decode(const Node &node, lifter::normalized_instruction &instr) {
     if (node.size() != 1)
       throw std::runtime_error("Instruction entry must have only 1 key");
+    // FIXME: There's only one. Change format
     for (auto &&inst : node) {
       instr.name = inst.first.as<std::string>();
       instr.function_str = inst.second["func"].as<std::string>();
@@ -113,7 +114,8 @@ instr_impl load_from_yaml(std::string yaml, llvm::LLVMContext &ctx) {
         {node.first.as<std::string>(), node.second.as<uint64_t>()});
   }
   for (auto &&node : instrs_conf["register-classes"])
-    instrs.get_regclasses().push_back(node.as<std::string>());
+    instrs.get_regclasses().push_back(
+        {node.first.as<std::string>(), node.second.as<std::string>()});
   for (auto &&node : instrs_conf["instructions"]) {
     auto norm = node.as<normalized_instruction>();
     instrs.push_back(denormalize_instruction(norm, ctx));

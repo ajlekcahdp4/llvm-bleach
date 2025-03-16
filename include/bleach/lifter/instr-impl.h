@@ -19,12 +19,17 @@ struct constant_reg final {
   uint64_t value;
 };
 
+struct regclass final {
+  std::string name;
+  std::string regex;
+};
+
 // @class instr_impl
 // @brief map from instr opcode to llvm ir impl
 class instr_impl final : private std::vector<instruction> {
   std::string stack_pointer;
   std::vector<constant_reg> const_regs;
-  std::vector<std::string> regclasses;
+  std::vector<regclass> regclasses;
 
 public:
   instr_impl() = default;

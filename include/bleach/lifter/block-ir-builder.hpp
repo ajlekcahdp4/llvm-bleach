@@ -60,6 +60,7 @@ public:
 };
 
 class register_class final : private std::unordered_set<unsigned> {
+  std::string name;
   llvm::Regex regex;
   const TargetRegisterClass *rclass = nullptr;
   unsigned reg_bitsize = 0;
@@ -72,11 +73,14 @@ public:
   using unordered_set::insert;
   using unordered_set::size;
 
-  register_class(llvm::Regex &&rx) : regex(std::move(rx)) {}
+  register_class(std::string &&rcname, llvm::Regex &&rx)
+      : name(std::move(rcname)), regex(std::move(rx)) {}
 
   void add_reg(unsigned reg) { insert(reg); }
 
-  auto &get_regex() const { return regex; }
+  auto &get_regex() const & { return regex; }
+
+  std::string_view get_name() const & { return name; }
 
   auto *get_target_regclass() const { return rclass; }
 
@@ -98,7 +102,7 @@ public:
 
   template <typename It> register_stats(It start, It finish) {
     for (; start != finish; ++start)
-      vector::emplace_back(Regex(*start));
+      vector::emplace_back(std::string(start->name), Regex(start->regex));
   }
 
   auto &get_register_class_for(unsigned reg) const {
