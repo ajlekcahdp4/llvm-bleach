@@ -25,6 +25,7 @@ llvm::cl::OptionCategory options("llvm-bleach lifter options");
 } // namespace bleach
 namespace bleach::lifter {
 namespace ranges = std::ranges;
+namespace views = std::views;
 using namespace llvm;
 static cl::opt<bool>
     assume_function_nop("assume-function-nop",
@@ -43,7 +44,7 @@ void copy_instructions(const MachineBasicBlock &src, MachineBasicBlock &dst) {
   assert(mf);
   auto *instr_info = mf->getSubtarget().getInstrInfo();
   assert(instr_info);
-  for (auto &instr : src.instrs() | ranges::views::filter([](auto &instr) {
+  for (auto &instr : src.instrs() | views::filter([](auto &instr) {
                        return !instr.isBundledWithPred();
                      })) {
     auto &instr_copy = instr_info->duplicate(dst, dst.end(), instr);
@@ -144,33 +145,30 @@ void materialize_registers(MachineFunction &mf, Function &func, reg2vals &rmap,
   if (mf.empty())
     return;
   auto &ctx = func.getContext();
-  auto *state_arg = get_current_state(func);
-  auto *array_type = *state.element_begin();
   assert(!func.empty());
   auto &first_block = func.front();
   auto builder = IRBuilder(ctx);
   builder.SetInsertPoint(&first_block);
   // pointer to a single state
-  // GPR array is the first field
   auto *const_zero = ConstantInt::get(ctx, APInt(64, 0));
-  auto *array_ptr = builder.CreateGEP(&state, state_arg,
-                                      ArrayRef<Value *>{const_zero}, "GPRS");
-  auto *stinfo = target_machine.getSubtargetImpl(func);
-  assert(stinfo);
-  auto *rinfo = stinfo->getRegisterInfo();
-  assert(rinfo);
-  for (auto &reg_class : reg_stats) {
+  auto *state_arg = get_current_state(func);
+  for (auto &&[idx, rclass] : reg_stats | views::enumerate) {
+    auto *array_type = state.getElementType(idx);
+    auto *arr_idx = ConstantInt::get(ctx, APInt(64, idx));
+    auto *array_ptr = builder.CreateGEP(
+        &state, state_arg, ArrayRef<Value *>{arr_idx}, rclass.get_name());
     auto sorted_regs = std::set<unsigned>();
-    ranges::copy(reg_class, std::inserter(sorted_regs, sorted_regs.end()));
-    for (auto [idx, reg] : ranges::views::enumerate(sorted_regs)) {
-      auto *array_idx = ConstantInt::get(ctx, APInt(64, idx));
-      auto *reg_dst_addr = builder.CreateAlloca(
-          Type::getIntNTy(ctx, reg_class.get_register_size()),
-          /*array size*/ nullptr);
-      auto *reg_addr = builder.CreateInBoundsGEP(
-          array_type, array_ptr, ArrayRef<Value *>{const_zero, array_idx});
+    ranges::copy(rclass, std::inserter(sorted_regs, sorted_regs.end()));
+    for (auto &&[reg_idx, reg] : sorted_regs | views::enumerate) {
+      auto *array_reg_idx = ConstantInt::get(ctx, APInt(64, reg_idx));
+      auto *reg_src_addr = builder.CreateInBoundsGEP(
+          array_type, array_ptr, ArrayRef<Value *>{const_zero, array_reg_idx});
+      auto *reg_dst_addr =
+          builder.CreateAlloca(Type::getIntNTy(ctx, rclass.get_register_size()),
+                               /*array size*/ nullptr);
+
       auto *reg_val = builder.CreateLoad(
-          Type::getIntNTy(ctx, reg_class.get_register_size()), reg_addr);
+          Type::getIntNTy(ctx, rclass.get_register_size()), reg_src_addr);
       builder.CreateStore(reg_val, reg_dst_addr);
       rmap.try_emplace(reg, reg_dst_addr);
     }
@@ -202,21 +200,24 @@ void save_registers(BasicBlock &block, BasicBlock::iterator pos, reg2vals &rmap,
     builder.SetInsertPoint(&block);
   else
     builder.SetInsertPoint(pos);
-  auto *state_arg = get_current_state(*block.getParent());
-  auto *array_type = *state.element_begin();
-  // GPR array is the first field
   auto *const_zero = ConstantInt::get(ctx, APInt(64, 0));
-  auto *array_ptr = builder.CreateGEP(&state, state_arg,
-                                      ArrayRef<Value *>{const_zero}, "GPRS");
-  for (auto &&[idx, val] : rmap | ranges::views::enumerate) {
-    auto *array_idx = ConstantInt::get(ctx, APInt(64, idx));
-    auto &&[reg, addr] = val;
-    auto &rclass = reg_stats.get_register_class_for(reg);
-    auto *reg_val = builder.CreateLoad(
-        Type::getIntNTy(ctx, rclass.get_register_size()), addr);
-    auto *reg_dst_addr = builder.CreateInBoundsGEP(
-        array_type, array_ptr, ArrayRef<Value *>{const_zero, array_idx});
-    builder.CreateStore(reg_val, reg_dst_addr);
+  auto *state_arg = get_current_state(*block.getParent());
+  for (auto &&[idx, rclass] : reg_stats | views::enumerate) {
+    auto *array_type = state.getElementType(idx);
+    auto *arr_idx = ConstantInt::get(ctx, APInt(64, idx));
+    auto *array_ptr = builder.CreateGEP(
+        &state, state_arg, ArrayRef<Value *>{arr_idx}, rclass.get_name());
+    for (auto &&[reg_idx, val] : rmap | views::filter([&rclass](auto r) {
+                                   return rclass.contains(r.first);
+                                 }) | views::enumerate) {
+      auto *array_idx = ConstantInt::get(ctx, APInt(64, reg_idx));
+      auto &&[reg, addr] = val;
+      auto *reg_dst_addr = builder.CreateInBoundsGEP(
+          array_type, array_ptr, ArrayRef<Value *>{const_zero, array_idx});
+      auto *reg_val = builder.CreateLoad(
+          Type::getIntNTy(ctx, rclass.get_register_size()), addr);
+      builder.CreateStore(reg_val, reg_dst_addr);
+    }
   }
 }
 
@@ -233,21 +234,24 @@ void load_registers(BasicBlock &block, BasicBlock::iterator pos, reg2vals &rmap,
     builder.SetInsertPoint(&block);
   else
     builder.SetInsertPoint(pos);
-  auto *state_arg = get_current_state(*block.getParent());
-  auto *array_type = *state.element_begin();
-  // GPR array is the first field
   auto *const_zero = ConstantInt::get(ctx, APInt(64, 0));
-  auto *array_ptr = builder.CreateGEP(&state, state_arg,
-                                      ArrayRef<Value *>{const_zero}, "GPRS");
-  for (auto &&[idx, val] : rmap | ranges::views::enumerate) {
-    auto *array_idx = ConstantInt::get(ctx, APInt(64, idx));
-    auto &&[reg, addr] = val;
-    auto &rclass = reg_stats.get_register_class_for(reg);
-    auto *reg_src_addr = builder.CreateInBoundsGEP(
-        array_type, array_ptr, ArrayRef<Value *>{const_zero, array_idx});
-    auto *reg_val = builder.CreateLoad(
-        Type::getIntNTy(ctx, rclass.get_register_size()), reg_src_addr);
-    builder.CreateStore(reg_val, addr);
+  auto *state_arg = get_current_state(*block.getParent());
+  for (auto &&[idx, rclass] : reg_stats | views::enumerate) {
+    auto *array_type = state.getElementType(idx);
+    auto *arr_idx = ConstantInt::get(ctx, APInt(64, idx));
+    auto *array_ptr = builder.CreateGEP(
+        &state, state_arg, ArrayRef<Value *>{arr_idx}, rclass.get_name());
+    for (auto &&[reg_idx, val] : rmap | views::filter([&rclass](auto r) {
+                                   return rclass.contains(r.first);
+                                 }) | views::enumerate) {
+      auto *array_idx = ConstantInt::get(ctx, APInt(64, reg_idx));
+      auto &&[reg, addr] = val;
+      auto *reg_src_addr = builder.CreateInBoundsGEP(
+          array_type, array_ptr, ArrayRef<Value *>{const_zero, array_idx});
+      auto *reg_val = builder.CreateLoad(
+          Type::getIntNTy(ctx, rclass.get_register_size()), reg_src_addr);
+      builder.CreateStore(reg_val, addr);
+    }
   }
 }
 
@@ -395,7 +399,7 @@ std::string get_state_struct_definition(const StructType &type,
   raw_string_ostream ss(strct);
   ss << "#include <stdint.h>\n";
   ss << "struct register_state {\n";
-  for (auto &&[rclass, member] : ranges::views::zip(rstats, elements)) {
+  for (auto &&[rclass, member] : views::zip(rstats, elements)) {
     auto *arr = dyn_cast<ArrayType>(member);
     assert(arr);
     auto *elem = dyn_cast<IntegerType>(arr->getElementType());
@@ -553,8 +557,8 @@ auto generate_branch(const MachineInstr &minst, BasicBlock &bb,
     return operand_to_value(mop, bb, target_machine, rmap, reg_stats);
   };
   auto values = minst.uses() |
-                ranges::views::filter([](auto &&mop) { return !mop.isMBB(); }) |
-                ranges::views::transform(op_to_val);
+                views::filter([](auto &&mop) { return !mop.isMBB(); }) |
+                views::transform(op_to_val);
   std::vector<Value *> args(values.begin(), values.end());
   auto *cond = builder.CreateCall(func->getFunctionType(), func, args);
   auto *if_true = get_if_true_block(minst, m2b);
@@ -799,10 +803,9 @@ bool is_stack_manipulation(const MachineInstr &minst, const instr_impl &instrs,
                              instrs.get_stack_pointer().str() + "\"");
   auto sp_reg = *sp_reg_opt;
   auto operands = minst.uses();
-  auto regops = operands |
-                ranges::views::filter([](auto &mop) { return mop.isReg(); }) |
-                ranges::views::transform(
-                    [](auto &mop) -> unsigned { return mop.getReg(); });
+  auto regops =
+      operands | views::filter([](auto &mop) { return mop.isReg(); }) |
+      views::transform([](auto &mop) -> unsigned { return mop.getReg(); });
   auto used_reg = ranges::find(regops, sp_reg);
   return used_reg != regops.end();
 }
@@ -850,7 +853,7 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
   auto op_to_val = [&](auto &mop) {
     return operand_to_value(mop, bb, target_machine, rmap, reg_stats);
   };
-  auto values = minst.uses() | ranges::views::transform(op_to_val);
+  auto values = minst.uses() | views::transform(op_to_val);
   std::vector<Value *> args(values.begin(), values.end());
   auto *call = builder.CreateCall(func->getFunctionType(), func, args);
   for (auto &def : minst.defs()) {

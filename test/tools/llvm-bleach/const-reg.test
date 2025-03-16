@@ -6,7 +6,7 @@
 # CHECK: define void @foo(ptr %0) {
 # CHECK: {{%[0-9]+}} = call i64 @ADDW(i64 {{%[0-9]+}}, i64 {{%[0-9]+}})
 # CHECK:   {{%[0-9]+}} = call i64 @SUBW(i64 {{%[0-9]+}}, i64 {{%[0-9]+}})
-# CHECK: [[X0ADDR:%[0-9]+]] = getelementptr inbounds [32 x i64], ptr %GPRS1, i64 0, i64 0
+# CHECK: [[X0ADDR:%[0-9]+]] = getelementptr inbounds [32 x i64], ptr %GPR1, i64 0, i64 0
 # CHECK-NEXT: store i64 0, ptr [[X0ADDR]]
 # CHECK:   ret void
 # CHECK-NEXT: }

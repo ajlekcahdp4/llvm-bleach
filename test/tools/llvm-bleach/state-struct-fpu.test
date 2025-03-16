@@ -5,6 +5,17 @@
 # RUN: FileCheck %s --check-prefix HEADER --input-file %t.h
 
 # IR:  %register_state = type { [32 x i64], [32 x i64], [1000 x i64] }
+# IR: define i64 @foo(ptr %0)
+# IR:   %GPR = getelementptr %register_state, ptr %0, i64 0
+# IR-32:     {{%[0-9]+}} = load i64, ptr {{%[0-9]+}}, align 8
+# IR:   %FPR = getelementptr %register_state, ptr %0, i64 1
+# IR-32:     {{%[0-9]+}} = load i64, ptr {{%[0-9]+}}, align 8
+# IR:   %GPR{{[0-9]}} = getelementptr %register_state, ptr %0, i64 0
+# IR-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+# IR:   %FPR{{[0-9]}} = getelementptr %register_state, ptr %0, i64 1
+# IR-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+
+
 # HEADER: struct register_state {
 # HEADER-NEXT: int64_t GPR[32];
 # HEADER-NEXT: int64_t FPR[32];
