@@ -3,7 +3,44 @@ constant-registers:
   X0: 0x0000000000000000
 register-classes:
   GPR: "X[0-9][0-9]?"
+  FPR: "F[0-9][0-9]?_D"
 instructions:
+  FADD_D:
+    func: |
+      define i64 @FADD_D(i64 %0, i64 %1, i10 %rm) {
+         %4 = bitcast i64 %0 to double
+         %5 = bitcast i64 %1 to double
+         %6 = fadd double %4, %5
+         %7 = bitcast double %6 to i64
+         ret i64 %7
+      }
+  FMUL_D:
+    func: |
+      define i64 @FMUL_D(i64 %0, i64 %1, i10 %rm) {
+         %4 = bitcast i64 %0 to double
+         %5 = bitcast i64 %1 to double
+         %6 = fmul double %4, %5
+         %7 = bitcast double %6 to i64
+         ret i64 %7
+      }
+  FCVT_D_LU:
+    func: |
+      define i64 @FCVT_D_LU(i64 %0, i10 %rm) {
+         %3 = sitofp i64 %0 to double
+         %4 = bitcast double %3 to i64
+         ret i64 %4
+      }
+  FMADD_D:
+    func: |
+      define i64 @FMADD_D(i64 %0, i64 %1, i64 %2, i10 %rm) {
+         %4 = bitcast i64 %0 to double
+         %5 = bitcast i64 %1 to double
+         %6 = bitcast i64 %2 to double
+         %7 = fmul double %4, %5
+         %8 = fadd double %6, %7
+         %9 = bitcast double %8 to i64
+         ret i64 %9
+      }
   SLT:
     func: |
       define i\xlen\ @SLT(i\xlen\ noundef %0, i\xlen\ noundef %1) {

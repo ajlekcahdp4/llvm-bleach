@@ -5,9 +5,12 @@ register-classes:
 instructions:
   - FADD_D:
       func: |
-        define double @FADD_D(double %0, double %1, i4 %r) {
-          %3 = fadd double %0, %1
-          ret double %3
+        define i64 @FADD_D(i64 %0, i64 %1, i4 %r) {
+          %3 = bitcast i64 %0 to double
+          %4 = bitcast i64 %1 to double
+          %5 = fadd double %3, %4
+          %6 = bitcast double %5 to i64
+          ret i64 %6
         }
   - ADD:
       func: |

@@ -10,5 +10,8 @@ config.excludes = ["inputs", "CMakeLists.txt"]
 config.test_source_root = os.path.dirname(__file__)
 config.test_exec_root = config.obj_root
 
-substitutions = [("%bin", str((_Path(config.obj_root) / "bin").resolve()))]
+substitutions = [
+    ("%bin", str((_Path(config.obj_root) / "bin").resolve())),
+    ("%config-gen-src", config.src_root + "/tools/config-gen"),
+]
 config.substitutions.extend(substitutions)

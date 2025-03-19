@@ -150,17 +150,18 @@ void materialize_registers(MachineFunction &mf, Function &func, reg2vals &rmap,
   auto builder = IRBuilder(ctx);
   builder.SetInsertPoint(&first_block);
   // pointer to a single state
-  auto *const_zero = ConstantInt::get(ctx, APInt(64, 0));
+  auto *const_zero = ConstantInt::get(ctx, APInt(32, 0));
   auto *state_arg = get_current_state(func);
   for (auto &&[idx, rclass] : reg_stats | views::enumerate) {
     auto *array_type = state.getElementType(idx);
-    auto *arr_idx = ConstantInt::get(ctx, APInt(64, idx));
-    auto *array_ptr = builder.CreateGEP(
-        &state, state_arg, ArrayRef<Value *>{arr_idx}, rclass.get_name());
+    auto *arr_idx = ConstantInt::get(ctx, APInt(32, idx));
+    auto *array_ptr = builder.CreateGEP(&state, state_arg,
+                                        ArrayRef<Value *>{const_zero, arr_idx},
+                                        rclass.get_name());
     auto sorted_regs = std::set<unsigned>();
     ranges::copy(rclass, std::inserter(sorted_regs, sorted_regs.end()));
     for (auto &&[reg_idx, reg] : sorted_regs | views::enumerate) {
-      auto *array_reg_idx = ConstantInt::get(ctx, APInt(64, reg_idx));
+      auto *array_reg_idx = ConstantInt::get(ctx, APInt(32, reg_idx));
       auto *reg_src_addr = builder.CreateInBoundsGEP(
           array_type, array_ptr, ArrayRef<Value *>{const_zero, array_reg_idx});
       auto *reg_dst_addr =
@@ -200,17 +201,18 @@ void save_registers(BasicBlock &block, BasicBlock::iterator pos, reg2vals &rmap,
     builder.SetInsertPoint(&block);
   else
     builder.SetInsertPoint(pos);
-  auto *const_zero = ConstantInt::get(ctx, APInt(64, 0));
+  auto *const_zero = ConstantInt::get(ctx, APInt(32, 0));
   auto *state_arg = get_current_state(*block.getParent());
   for (auto &&[idx, rclass] : reg_stats | views::enumerate) {
     auto *array_type = state.getElementType(idx);
-    auto *arr_idx = ConstantInt::get(ctx, APInt(64, idx));
-    auto *array_ptr = builder.CreateGEP(
-        &state, state_arg, ArrayRef<Value *>{arr_idx}, rclass.get_name());
+    auto *arr_idx = ConstantInt::get(ctx, APInt(32, idx));
+    auto *array_ptr = builder.CreateGEP(&state, state_arg,
+                                        ArrayRef<Value *>{const_zero, arr_idx},
+                                        rclass.get_name());
     for (auto &&[reg_idx, val] : rmap | views::filter([&rclass](auto r) {
                                    return rclass.contains(r.first);
                                  }) | views::enumerate) {
-      auto *array_idx = ConstantInt::get(ctx, APInt(64, reg_idx));
+      auto *array_idx = ConstantInt::get(ctx, APInt(32, reg_idx));
       auto &&[reg, addr] = val;
       auto *reg_dst_addr = builder.CreateInBoundsGEP(
           array_type, array_ptr, ArrayRef<Value *>{const_zero, array_idx});
@@ -234,17 +236,17 @@ void load_registers(BasicBlock &block, BasicBlock::iterator pos, reg2vals &rmap,
     builder.SetInsertPoint(&block);
   else
     builder.SetInsertPoint(pos);
-  auto *const_zero = ConstantInt::get(ctx, APInt(64, 0));
+  auto *const_zero = ConstantInt::get(ctx, APInt(32, 0));
   auto *state_arg = get_current_state(*block.getParent());
   for (auto &&[idx, rclass] : reg_stats | views::enumerate) {
     auto *array_type = state.getElementType(idx);
-    auto *arr_idx = ConstantInt::get(ctx, APInt(64, idx));
+    auto *arr_idx = ConstantInt::get(ctx, APInt(32, idx));
     auto *array_ptr = builder.CreateGEP(
         &state, state_arg, ArrayRef<Value *>{arr_idx}, rclass.get_name());
     for (auto &&[reg_idx, val] : rmap | views::filter([&rclass](auto r) {
                                    return rclass.contains(r.first);
                                  }) | views::enumerate) {
-      auto *array_idx = ConstantInt::get(ctx, APInt(64, reg_idx));
+      auto *array_idx = ConstantInt::get(ctx, APInt(32, reg_idx));
       auto &&[reg, addr] = val;
       auto *reg_src_addr = builder.CreateInBoundsGEP(
           array_type, array_ptr, ArrayRef<Value *>{const_zero, array_idx});
@@ -631,10 +633,12 @@ static auto read_register_value(MCRegister reg,
   return builder.CreateLoad(Type::getIntNTy(ctx, rclass.get_register_size()),
                             reg_addr);
 }
+
 static auto generate_return(const MachineInstr &minst,
                             const LLVMTargetMachine &tmachine,
                             IRBuilder<> &builder, reg2vals &rmap,
-                            const register_stats &reg_stats) -> Value * {
+                            const register_stats &reg_stats,
+                            const Function *func) -> Value * {
   assert(minst.getNumOperands() <= 1);
   // non-void case
   if (minst.getNumOperands() == 1) {
@@ -642,7 +646,9 @@ static auto generate_return(const MachineInstr &minst,
     assert(ret.isReg());
     auto *reg_val =
         read_register_value(ret.getReg(), tmachine, builder, rmap, reg_stats);
-    return builder.CreateRet(reg_val);
+    auto *res = builder.CreateBitCast(reg_val,
+                                      func->getFunctionType()->getReturnType());
+    return builder.CreateRet(res);
   }
   return builder.CreateRetVoid();
 }
@@ -826,7 +832,8 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
                            reg_stats);
   }
   if (minst.isReturn())
-    return generate_return(minst, target_machine, builder, rmap, reg_stats);
+    return generate_return(minst, target_machine, builder, rmap, reg_stats,
+                           bb.getParent());
   if (minst.isCall())
     return generate_call(minst, builder, bb, rmap, target_machine, state,
                          reg_stats);
