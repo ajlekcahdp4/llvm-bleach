@@ -58,10 +58,11 @@
           imports = [ ./nix/treefmt.nix ];
           packages = rec {
             llvm-bleach = pkgs.callPackage ./. {
-              inherit self;
+              inherit self llvm-snippy;
               llvmLib = llvmPkgs.llvm;
             };
             default = llvm-bleach;
+            llvm-snippy = pkgs.callPackage ./snippy.nix { stdenv = llvmPkgs.stdenv; };
             inherit llvmLibDebug;
             inherit llvmLib;
           };

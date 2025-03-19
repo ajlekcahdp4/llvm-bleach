@@ -113,6 +113,8 @@ foreach(target ${BLEACH_LLVM_TARGETS})
   )
 endforeach()
 
+include(GNUInstallDirs)
+
 add_subdirectory(include)
 add_subdirectory(lib)
 add_subdirectory(tools)

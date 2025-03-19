@@ -1,0 +1,55 @@
+options:
+  march: riscv64-unknown-elf
+  mattr: "+m,+f,+d"
+  honor-target-abi: on
+  model-plugin: None
+  init-regs-in-elf: on
+  last-instr: RET
+  external-stack: on
+  reserved-regs-list: [X0, X8, X9, X10, X14, X15, X16, X17, X18, X19, X20, X21, X22, X23, X24, X25, X26, X27, F0_D, F1_D, F2_D, F3_D, F4_D, F5_D, F6_D, F7_D, F8_D, F9_D, F10_D, F11_D, F12_D, F13_D, F14_D, F15_D, F16_D, F17_D, F18_D, F19_D, F20_D, F21_D, F22_D, F23_D, F24_D, F25_D, F26_D, F27_D, F28_D, F29_D, F30_D, F31_D]
+sections:
+  - no: 1
+    VMA: 0x1000
+    LMA: 0x1000
+    SIZE: 0x100000
+    ACCESS: rx
+  - no: 2
+    VMA: 0x200000
+    LMA: 0x200000
+    SIZE: 0x1000
+    ACCESS: r
+  - name: 3
+    VMA: 0x400000
+    LMA: 0x400000
+    SIZE: 0x1000
+    ACCESS: rw
+histogram:
+  - [ADD, 10.0]
+  - [SUB, 10.0]
+  - [MUL, 10.0]
+  - [OR, 10.0]
+  - [AND, 10.0]
+  - [XOR, 10.0]
+  - [SRL, 20.0]
+  - [SRLI, 20.0]
+  - [ADDI, 10.0]
+  - [BLT, 3.0]
+  - [BEQ, 3.0]
+  - [BNE, 3.0]
+  - [BGEU, 3.0]
+  - [JAL, 0.1]
+branches:
+  loop-ratio: 0.7
+  max-depth:
+    loop: 4
+  number-of-loop-iterations:
+    min: 2
+    max: 200
+call-graph:
+  entry-point: SnippyFunction
+  function-list:
+    - name: SnippyFunction
+      callees:
+        - print
+    - name: print
+      external: true
