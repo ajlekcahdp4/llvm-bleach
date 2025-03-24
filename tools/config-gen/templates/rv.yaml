@@ -7,39 +7,108 @@ register-classes:
 instructions:
   FADD_D:
     func: |
-      define i64 @FADD_D(i64 %0, i64 %1, i10 %rm) {
+      define i64 @FADD_D(i64 %0, i64 %1, i64 %rm) {
          %4 = bitcast i64 %0 to double
          %5 = bitcast i64 %1 to double
-         %6 = fadd double %4, %5
+         switch i64 %rm, label %after [
+           i64 0, label %rne
+           i64 1, label %rtz
+           i64 2, label %rdn
+           i64 3, label %rup
+           i64 4, label %rne
+           i64 7, label %rne
+         ]
+      rne:
+         %rne_res = call double @llvm.experimental.constrained.fadd(double %4, double %5, metadata !"round.tonearest", metadata !"fpexcept.ignore")
+         br label %after
+      rtz:
+         %rtz_res = call double @llvm.experimental.constrained.fadd(double %4, double %5, metadata !"round.towardzero", metadata !"fpexcept.ignore")
+         br label %after
+      rdn:
+         %rdn_res = call double @llvm.experimental.constrained.fadd(double %4, double %5, metadata !"round.downward", metadata !"fpexcept.ignore")
+         br label %after
+      rup:
+         %rup_res = call double @llvm.experimental.constrained.fadd(double %4, double %5, metadata !"round.upward", metadata !"fpexcept.ignore")
+         br label %after
+      after:
+         %6 = phi double [poison, %2], [%rne_res, %rne], [%rtz_res, %rtz], [%rdn_res, %rdn], [%rup_res, %rup]
          %7 = bitcast double %6 to i64
          ret i64 %7
       }
   FMUL_D:
     func: |
-      define i64 @FMUL_D(i64 %0, i64 %1, i10 %rm) {
+      define i64 @FMUL_D(i64 %0, i64 %1, i64 %rm) {
          %4 = bitcast i64 %0 to double
          %5 = bitcast i64 %1 to double
-         %6 = fmul double %4, %5
+         switch i64 %rm, label %after [
+           i64 0, label %rne
+           i64 1, label %rtz
+           i64 2, label %rdn
+           i64 3, label %rup
+           i64 4, label %rne
+           i64 7, label %rne
+         ]
+      rne:
+         %rne_res = call double @llvm.experimental.constrained.fmul(double %4, double %5, metadata !"round.tonearest", metadata !"fpexcept.ignore")
+         br label %after
+      rtz:
+         %rtz_res = call double @llvm.experimental.constrained.fmul(double %4, double %5, metadata !"round.towardzero", metadata !"fpexcept.ignore")
+         br label %after
+      rdn:
+         %rdn_res = call double @llvm.experimental.constrained.fmul(double %4, double %5, metadata !"round.downward", metadata !"fpexcept.ignore")
+         br label %after
+      rup:
+         %rup_res = call double @llvm.experimental.constrained.fmul(double %4, double %5, metadata !"round.upward", metadata !"fpexcept.ignore")
+         br label %after
+      after:
+         %6 = phi double [poison, %2], [%rne_res, %rne], [%rtz_res, %rtz], [%rdn_res, %rdn], [%rup_res, %rup]
          %7 = bitcast double %6 to i64
          ret i64 %7
       }
   FCVT_D_LU:
     func: |
-      define i64 @FCVT_D_LU(i64 %0, i10 %rm) {
-         %3 = sitofp i64 %0 to double
-         %4 = bitcast double %3 to i64
-         ret i64 %4
+      define i64 @FCVT_D_LU(i64 %0, i64 %rm) {
+         %2 = uitofp i64 %0 to double
+         %3 = bitcast double %2 to i64
+         ret i64 %3
       }
+
+
   FMADD_D:
     func: |
-      define i64 @FMADD_D(i64 %0, i64 %1, i64 %2, i10 %rm) {
+      define i64 @FMADD_D(i64 %0, i64 %1, i64 %2, i64 %rm) {
          %4 = bitcast i64 %0 to double
          %5 = bitcast i64 %1 to double
          %6 = bitcast i64 %2 to double
-         %7 = fmul double %4, %5
-         %8 = fadd double %6, %7
-         %9 = bitcast double %8 to i64
-         ret i64 %9
+         switch i64 %rm, label %after [
+           i64 0, label %rne
+           i64 1, label %rtz
+           i64 2, label %rdn
+           i64 3, label %rup
+           i64 4, label %rne
+           i64 7, label %rne
+         ]
+      rne:
+         %rne_res = call double @llvm.experimental.constrained.fma(double %4, double %5, double %6, metadata !"round.tonearest", metadata !"fpexcept.ignore")
+         br label %after
+      rtz:
+         %rtz_res = call double @llvm.experimental.constrained.fma(double %4, double %5, double %6, metadata !"round.towardzero", metadata !"fpexcept.ignore")
+         br label %after
+      rdn:
+         %rdn_res = call double @llvm.experimental.constrained.fma(double %4, double %5, double %6, metadata !"round.downward", metadata !"fpexcept.ignore")
+         br label %after
+      rup:
+         %rup_res = call double @llvm.experimental.constrained.fma(double %4, double %5, double %6, metadata !"round.upward", metadata !"fpexcept.ignore")
+         br label %after
+      after:
+         %7 = phi double [poison, %3], [%rne_res, %rne], [%rtz_res, %rtz], [%rdn_res, %rdn], [%rup_res, %rup]
+         %8 = bitcast double %7 to i64
+         ret i64 %8
+      }
+  FMV_D_X:
+    func: |
+      define i64 @FMV_D_X(i64 %0) {
+        ret i64 %0
       }
   SLT:
     func: |
