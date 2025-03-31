@@ -19,9 +19,15 @@ using namespace llvm;
 
 class block_ir_builder_pass : public PassInfoMixin<block_ir_builder_pass> {
   const instr_impl &instrs;
+  std::string state_struct_file;
+  unsigned stack_size;
+  bool assume_functions_nop;
 
 public:
-  block_ir_builder_pass(const instr_impl &insts) : instrs(insts) {}
+  block_ir_builder_pass(const instr_impl &insts, bool functions_nop,
+                        std::string_view state_file, unsigned stack_sz)
+      : instrs(insts), state_struct_file(state_file), stack_size(stack_sz),
+        assume_functions_nop(functions_nop) {}
 
   PreservedAnalyses run(Module &m, ModuleAnalysisManager &mam);
 };
@@ -122,7 +128,7 @@ public:
 void fill_ir_for_bb(MachineBasicBlock &mbb, reg2vals &rmap,
                     const instr_impl &instrs, const LLVMTargetMachine &tm,
                     const mbb2bb &m2b, StructType &state,
-                    const register_stats &reg_stats);
+                    const register_stats &reg_stats, bool functions_nop);
 
 struct basic_block {
   MachineBasicBlock *mbb;

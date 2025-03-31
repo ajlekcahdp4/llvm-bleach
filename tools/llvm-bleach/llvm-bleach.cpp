@@ -60,6 +60,17 @@ static cl::opt<bool>
     no_inline_opt("noinline-instr",
                   cl::desc("Do not inline call to instruction implementations"),
                   cl::cat(options));
+static cl::opt<bool>
+    assume_function_nop("assume-function-nop",
+                        cl::desc("Assume called functions don't change state"),
+                        cl::cat(options));
+static cl::opt<std::string>
+    dump_struct_def_option("state-struct-file",
+                           cl::desc("File to dump state struct definition to"));
+
+static cl::opt<unsigned>
+    stack_size_option("stack-size", cl::desc("Stack size for array (bytes)"),
+                      cl::init(8000));
 
 namespace {
 
@@ -165,7 +176,9 @@ auto main(int argc, char **argv) -> int try {
   mam.registerPass([&] { return MachineModuleAnalysis(*machine_module_info); });
   if (dump_input_mir)
     mpm.addPass(print_pass());
-  mpm.addPass(bleach::lifter::block_ir_builder_pass(instrs));
+  mpm.addPass(bleach::lifter::block_ir_builder_pass(
+      instrs, assume_function_nop.getValue(), dump_struct_def_option.getValue(),
+      stack_size_option.getValue()));
   mpm.addPass(createModuleToFunctionPassAdaptor(
       bleach::lifter::redundant_branch_eraser()));
   if (!no_inline_opt)

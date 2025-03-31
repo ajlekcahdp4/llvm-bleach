@@ -15,29 +15,15 @@
 #include <llvm/Transforms/Utils/Cloning.h>
 
 #include <expected>
+#include <format>
 #include <fstream>
 #include <iostream>
 #include <ranges>
 #include <set>
 
-namespace bleach {
-llvm::cl::OptionCategory options("llvm-bleach lifter options");
-} // namespace bleach
 namespace bleach::lifter {
 namespace ranges = std::ranges;
 namespace views = std::views;
-using namespace llvm;
-static cl::opt<bool>
-    assume_function_nop("assume-function-nop",
-                        cl::desc("Assume called functions don't change state"),
-                        cl::cat(options));
-static cl::opt<std::string>
-    dump_struct_def_option("state-struct-file",
-                           cl::desc("File to dump state struct definition to"));
-
-static cl::opt<unsigned>
-    stack_size_option("stack-size", cl::desc("Stack size for array (bytes)"),
-                      cl::init(8000));
 
 void copy_instructions(const MachineBasicBlock &src, MachineBasicBlock &dst) {
   auto *mf = dst.getParent();
@@ -277,13 +263,14 @@ struct clone_function_result final {
 
 auto generate_function(MachineFunction &mf, clone_function_result &dst_info,
                        const instr_impl &instrs, MachineModuleInfo &mmi,
-                       StructType &state, const register_stats &reg_stats) {
+                       StructType &state, const register_stats &reg_stats,
+                       bool functions_nop) {
   reg2vals rmap;
   auto &func = dst_info.mfunc->getFunction();
   materialize_registers(mf, func, rmap, mmi.getTarget(), state, reg_stats);
   for (auto &mbb : *dst_info.mfunc)
     fill_ir_for_bb(mbb, rmap, instrs, mmi.getTarget(), dst_info.blocks, state,
-                   reg_stats);
+                   reg_stats, functions_nop);
   save_registers_before_return(func, rmap, mmi.getTarget(), state, reg_stats);
 }
 
@@ -452,24 +439,23 @@ PreservedAnalyses block_ir_builder_pass::run(Module &m,
     }
   }
 
-  auto stack_size_bytes = stack_size_option.getValue();
-  auto &state = create_state_type(m.getContext(), mmi.getTarget(), reg_stats,
-                                  stack_size_bytes);
-  if (!dump_struct_def_option.empty()) {
+  auto &state =
+      create_state_type(m.getContext(), mmi.getTarget(), reg_stats, stack_size);
+  if (!state_struct_file.empty()) {
     auto struct_def_str = get_state_struct_definition(state, reg_stats);
-    if (dump_struct_def_option == "-") {
+    if (state_struct_file == "-") {
       std::cout << struct_def_str << std::endl;
     } else {
-      std::fstream fs(dump_struct_def_option.getValue(), std::fstream::out);
+      std::fstream fs(state_struct_file, std::fstream::out);
       if (!fs.is_open())
-        throw std::runtime_error("Could not open file \"" +
-                                 dump_struct_def_option.getValue() + "\"");
+        throw std::runtime_error("Could not open file \" \"");
       fs << struct_def_str << std::endl;
     }
   }
 
   for (auto &&[oldf, func_info] : funcs)
-    generate_function(*oldf, func_info, instrs, mmi, state, reg_stats);
+    generate_function(*oldf, func_info, instrs, mmi, state, reg_stats,
+                      assume_functions_nop);
 
   for (auto *f : target_functions)
     f->eraseFromParent();
@@ -656,7 +642,8 @@ static auto generate_return(const MachineInstr &minst,
 static auto generate_call(const MachineInstr &minst, IRBuilder<> &builder,
                           BasicBlock &bb, reg2vals &rmap,
                           const LLVMTargetMachine &tmachine, StructType &state,
-                          const register_stats &reg_stats) -> Value * {
+                          const register_stats &reg_stats,
+                          bool functions_nop) -> Value * {
   assert(minst.getNumOperands() >= 1);
   auto op = minst.getOperand(0);
   assert(op.isGlobal());
@@ -666,7 +653,7 @@ static auto generate_call(const MachineInstr &minst, IRBuilder<> &builder,
       builder.CreateCall(callee->getFunctionType(), callee,
                          ArrayRef<Value *>{get_current_state(*bb.getParent())});
   save_registers(bb, call->getIterator(), rmap, tmachine, state, reg_stats);
-  if (!assume_function_nop)
+  if (!functions_nop)
     load_registers(bb, std::next(call->getIterator()), rmap, tmachine, state,
                    reg_stats);
   return call;
@@ -821,7 +808,8 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
                           const instr_impl &instrs,
                           const LLVMTargetMachine &target_machine,
                           const mbb2bb &m2b, StructType &state,
-                          const register_stats &reg_stats) -> Value * {
+                          const register_stats &reg_stats,
+                          bool functions_nop) -> Value * {
   auto *iinfo = target_machine.getMCInstrInfo();
   auto name = get_instruction_name(minst, *iinfo);
   if (minst.isBranch()) {
@@ -836,7 +824,7 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
                            bb.getParent());
   if (minst.isCall())
     return generate_call(minst, builder, bb, rmap, target_machine, state,
-                         reg_stats);
+                         reg_stats, functions_nop);
   if (minst.mayLoadOrStore()) {
     // Instructions that are not considered stack manipulation are generated
     // just like any other instruction
@@ -876,7 +864,8 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
 void fill_ir_for_bb(MachineBasicBlock &mbb, reg2vals &rmap,
                     const instr_impl &instrs,
                     const LLVMTargetMachine &target_machine, const mbb2bb &m2b,
-                    StructType &state, const register_stats &reg_stats) {
+                    StructType &state, const register_stats &reg_stats,
+                    bool functions_nop) {
   assert(!mbb.empty());
   auto *bb = m2b[&mbb];
   IRBuilder builder(bb->getContext());
@@ -884,7 +873,7 @@ void fill_ir_for_bb(MachineBasicBlock &mbb, reg2vals &rmap,
   assert(bb);
   for (auto &minst : mbb) {
     generate_instruction(minst, *bb, builder, rmap, instrs, target_machine, m2b,
-                         state, reg_stats);
+                         state, reg_stats, functions_nop);
   }
   auto last = std::prev(mbb.end());
   if (!last->isBranch() && !last->isReturn()) {
