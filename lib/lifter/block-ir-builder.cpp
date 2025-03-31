@@ -448,7 +448,8 @@ PreservedAnalyses block_ir_builder_pass::run(Module &m,
     } else {
       std::fstream fs(state_struct_file, std::fstream::out);
       if (!fs.is_open())
-        throw std::runtime_error("Could not open file \" \"");
+        throw std::runtime_error(
+            std::format("Could not open file \"{}\"", state_struct_file));
       fs << struct_def_str << std::endl;
     }
   }

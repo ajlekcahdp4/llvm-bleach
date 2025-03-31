@@ -1,0 +1,8 @@
+# RUN: not %bin/llvm-bleach %S/inputs/foo64.mir \
+# RUN:   --instructions=%S/inputs/logical.yaml \
+# RUN:   --state-struct-file=/nopath/file.h >& %t
+# RUN: FileCheck %s --input-file %t
+
+# CHECK: Could not open file "/nopath/file.h"
+
+
