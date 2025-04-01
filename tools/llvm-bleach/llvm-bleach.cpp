@@ -1,6 +1,6 @@
-#include "bleach/lifter/block-ir-builder.hpp"
-#include "bleach/lifter/instr-impl.h"
-#include "bleach/lifter/redundant-branch-eraser.hpp"
+#include "bleach/lifter/instr-impl.hpp"
+#include "bleach/passes/block-ir-builder.hpp"
+#include "bleach/passes/redundant-branch-eraser.hpp"
 
 #include "bleach/version.inc"
 

@@ -1,4 +1,4 @@
-#include "bleach/lifter/redundant-branch-eraser.hpp"
+#include "bleach/passes/redundant-branch-eraser.hpp"
 
 #include <llvm/IR/Analysis.h>
 #include <llvm/IR/BasicBlock.h>

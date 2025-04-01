@@ -1,4 +1,4 @@
-#include "bleach/lifter/instr-impl.h"
+#include "bleach/lifter/instr-impl.hpp"
 
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Module.h>

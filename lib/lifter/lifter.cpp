@@ -1,4 +1,4 @@
-#include "bleach/lifter/block-ir-builder.hpp"
+#include "bleach/lifter/lifter.hpp"
 
 #include <llvm/CodeGen/MachineFunction.h>
 #include <llvm/CodeGen/MachineModuleInfo.h>
@@ -408,59 +408,6 @@ std::string get_state_struct_definition(const StructType &type,
                 arr->getNumElements());
   ss << "};";
   return strct;
-}
-
-PreservedAnalyses block_ir_builder_pass::run(Module &m,
-                                             ModuleAnalysisManager &mam) {
-  auto &mmi = mam.getResult<MachineModuleAnalysis>(m).getMMI();
-  auto reg_stats = collect_register_stats(instrs, m, mmi);
-  std::set<Function *> target_functions;
-  ranges::transform(m, std::inserter(target_functions, target_functions.end()),
-                    [](auto &f) { return &f; });
-  fill_module_with_instrs(m, instrs);
-  std::unordered_map<MachineFunction *, clone_function_result> funcs;
-  for (auto *f : target_functions) {
-    auto &mf = mmi.getOrCreateMachineFunction(*f);
-    funcs.try_emplace(&mf, clone_machine_function(m, mmi, mf));
-  }
-  for (auto &&[oldf, func_info] : funcs) {
-    for (auto &block : *func_info.mfunc) {
-      for (auto &inst : block) {
-        if (!inst.isCall())
-          continue;
-        auto &&callee_op = inst.getOperand(0);
-        assert(callee_op.isGlobal());
-        auto *callee_global = callee_op.getGlobal();
-        auto *callee = dyn_cast<Function>(callee_global);
-        assert(callee);
-        auto *new_callee = funcs.at(mmi.getMachineFunction(*callee)).mfunc;
-        callee_op.ChangeToGA(&new_callee->getFunction(), /*Offset=*/0);
-      }
-    }
-  }
-
-  auto &state =
-      create_state_type(m.getContext(), mmi.getTarget(), reg_stats, stack_size);
-  if (!state_struct_file.empty()) {
-    auto struct_def_str = get_state_struct_definition(state, reg_stats);
-    if (state_struct_file == "-") {
-      std::cout << struct_def_str << std::endl;
-    } else {
-      std::fstream fs(state_struct_file, std::fstream::out);
-      if (!fs.is_open())
-        throw std::runtime_error(
-            std::format("Could not open file \"{}\"", state_struct_file));
-      fs << struct_def_str << std::endl;
-    }
-  }
-
-  for (auto &&[oldf, func_info] : funcs)
-    generate_function(*oldf, func_info, instrs, mmi, state, reg_stats,
-                      assume_functions_nop);
-
-  for (auto *f : target_functions)
-    f->eraseFromParent();
-  return PreservedAnalyses::none();
 }
 
 auto generate_jump(const MachineInstr &minst, IRBuilder<> &builder,
@@ -883,4 +830,57 @@ void fill_ir_for_bb(MachineBasicBlock &mbb, reg2vals &rmap,
   }
 }
 
+Module &bleach_module(Module &m, MachineModuleInfo &mmi,
+                      const instr_impl &instrs,
+                      std::string_view state_struct_file, size_t stack_size,
+                      bool assume_functions_nop) {
+  auto reg_stats = collect_register_stats(instrs, m, mmi);
+  std::set<Function *> target_functions;
+  ranges::transform(m, std::inserter(target_functions, target_functions.end()),
+                    [](auto &f) { return &f; });
+  fill_module_with_instrs(m, instrs);
+  std::unordered_map<MachineFunction *, clone_function_result> funcs;
+  for (auto *f : target_functions) {
+    auto &mf = mmi.getOrCreateMachineFunction(*f);
+    funcs.try_emplace(&mf, clone_machine_function(m, mmi, mf));
+  }
+  for (auto &&[oldf, func_info] : funcs) {
+    for (auto &block : *func_info.mfunc) {
+      for (auto &inst : block) {
+        if (!inst.isCall())
+          continue;
+        auto &&callee_op = inst.getOperand(0);
+        assert(callee_op.isGlobal());
+        auto *callee_global = callee_op.getGlobal();
+        auto *callee = dyn_cast<Function>(callee_global);
+        assert(callee);
+        auto *new_callee = funcs.at(mmi.getMachineFunction(*callee)).mfunc;
+        callee_op.ChangeToGA(&new_callee->getFunction(), /*Offset=*/0);
+      }
+    }
+  }
+
+  auto &state =
+      create_state_type(m.getContext(), mmi.getTarget(), reg_stats, stack_size);
+  if (!state_struct_file.empty()) {
+    auto struct_def_str = get_state_struct_definition(state, reg_stats);
+    if (state_struct_file == "-") {
+      std::cout << struct_def_str << std::endl;
+    } else {
+      std::fstream fs(std::string(state_struct_file), std::fstream::out);
+      if (!fs.is_open())
+        throw std::runtime_error(
+            std::format("Could not open file \"{}\"", state_struct_file));
+      fs << struct_def_str << std::endl;
+    }
+  }
+
+  for (auto &&[oldf, func_info] : funcs)
+    generate_function(*oldf, func_info, instrs, mmi, state, reg_stats,
+                      assume_functions_nop);
+
+  for (auto *f : target_functions)
+    f->eraseFromParent();
+  return m;
+}
 } // namespace bleach::lifter

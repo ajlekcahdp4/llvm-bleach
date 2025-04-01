@@ -1,4 +1,4 @@
-#include "bleach/lifter/block-ir-builder.hpp"
+#include "bleach/lifter/lifter.hpp"
 
 #include <gtest/gtest.h>
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bleach/lifter/instr-impl.h"
+#include "bleach/lifter/instr-impl.hpp"
 
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/PassManager.h>
@@ -10,28 +10,16 @@
 #include <unordered_set>
 
 namespace llvm {
+class Module;
+class MachineModuleInfo;
+class MachineFunction;
 class MachineBasicBlock;
+class Function;
 class BasicBlock;
 } // namespace llvm
 
 namespace bleach::lifter {
 using namespace llvm;
-
-class block_ir_builder_pass : public PassInfoMixin<block_ir_builder_pass> {
-  const instr_impl &instrs;
-  std::string state_struct_file;
-  unsigned stack_size;
-  bool assume_functions_nop;
-
-public:
-  block_ir_builder_pass(const instr_impl &insts, bool functions_nop,
-                        std::string_view state_file, unsigned stack_sz)
-      : instrs(insts), state_struct_file(state_file), stack_size(stack_sz),
-        assume_functions_nop(functions_nop) {}
-
-  PreservedAnalyses run(Module &m, ModuleAnalysisManager &mam);
-};
-
 class reg2vals final : private std::map<unsigned, Value *> {
 public:
   using map::at;
@@ -140,5 +128,10 @@ void copy_instructions(const MachineBasicBlock &src, MachineBasicBlock &dst);
 basic_block clone_basic_block(MachineBasicBlock &src, MachineFunction &dst);
 
 StructType &create_state_type(LLVMContext &ctx);
+
+Module &bleach_module(Module &m, MachineModuleInfo &mmi,
+                      const instr_impl &instrs,
+                      std::string_view state_struct_file, size_t stack_size,
+                      bool assume_functions_nop);
 
 } // namespace bleach::lifter
