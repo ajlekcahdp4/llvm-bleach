@@ -1,5 +1,7 @@
 function(get_source_info path version)
-  set(pregenerated_version_file ${path}/version.json)
+  set(pregenerated_version_file ${CMAKE_CURRENT_BINARY_DIR}/version.json)
+  configure_file(${path}/version.json ${pregenerated_version_file})
+  set(pregenerated_version_file ${pregenerated_version_file})
   cmake_path(NORMAL_PATH pregenerated_version_file)
   if(EXISTS ${pregenerated_version_file})
     message(
