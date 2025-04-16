@@ -98,7 +98,6 @@ function(bleach_add_llvm_based_lib target_name)
   enable_warnings(${target_name})
   llvm_config(${target_name} ${ARGUMENTS_LLVM_COMPONENTS}
               ${BLEACH_LLVM_TARGETS})
-  # warnings for this project's targets.
   target_include_directories(${target_name} SYSTEM PUBLIC ${LLVM_INCLUDE_DIRS})
   target_compile_features(${target_name} PUBLIC cxx_std_23)
 endfunction()
