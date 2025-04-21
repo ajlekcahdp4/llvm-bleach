@@ -5,5 +5,5 @@ int foo() { return 42; }
 
 // CHECK: name: disassembled_function
 // CHECK: $x10 = ADDI $x0, 42
-// CHECK: C_JR
+// CHECK: PseudoRET
 // CHECK-SAME: $x1

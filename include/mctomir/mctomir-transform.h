@@ -1,6 +1,7 @@
 #pragma once
 
 #include "mctomir/elf-loader.h"
+#include "mctomir/target/target-selector.hpp"
 
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/CodeGen/MachineBasicBlock.h>
@@ -66,11 +67,14 @@ public:
 
   Error finalize();
 
-  Error write_mir(StringRef output_filename);
+  Error write_mir(StringRef output_filename) const;
 
-  void print_mir(raw_ostream &os);
+  void print_mir(raw_ostream &os) const;
+
+  void make_returns();
 
 private:
+  std::unique_ptr<target> tgt;
   std::unique_ptr<LLVMTargetMachine> tmachine;
   std::unique_ptr<MachineModuleInfo> mmi;
   std::unique_ptr<MCContext> mcctx;

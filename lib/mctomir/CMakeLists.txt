@@ -1,3 +1,4 @@
+add_subdirectory(target)
 bleach_add_llvm_based_lib(
   mctomir-lifter
   LLVM_COMPONENTS
@@ -12,3 +13,4 @@ bleach_add_llvm_based_lib(
 
 target_include_directories(
   mctomir-lifter PUBLIC ${LLVM_BLEACH_INCLUDE_DIR})
+target_link_libraries(mctomir-lifter PUBLIC mctomir-target-selector)

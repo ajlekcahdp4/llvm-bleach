@@ -59,7 +59,7 @@
           packages = rec {
             llvm-bleach = pkgs.callPackage ./. {
               inherit self;
-              llvmLib = llvmPkgs.llvm;
+              llvmLib = llvmLib;
             };
             default = llvm-bleach;
             inherit llvmLibDebug;
