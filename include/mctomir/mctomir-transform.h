@@ -93,6 +93,8 @@ private:
   std::vector<block_info> blocks;
   DenseMap<uint64_t, MachineBasicBlock *> address_to_mbb;
 
+  target &get_or_create_target();
+
   Error create_module_and_function(StringRef triple_name,
                                    SubtargetFeatures features);
   Error create_machine_function();
@@ -122,7 +124,7 @@ public:
   elf_to_mir_converter();
 
   Error process_file(StringRef file_path);
-  Error convert_section(StringRef section_name);
+  Error convert_section(StringRef section_name, bool match_returns);
   Error write_mir(StringRef output_path);
   void print_mir(raw_ostream &os);
 

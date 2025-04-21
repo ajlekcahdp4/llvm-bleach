@@ -23,12 +23,16 @@ static cl::opt<std::string>
 static cl::opt<std::string> output_filename("o", cl::desc("Output MIR file"),
                                             cl::value_desc("filename"),
                                             cl::init(""));
-static llvm::cl::opt<bool>
-    verbose_output("verbose", llvm::cl::desc("Enable verbose output"),
-                   llvm::cl::init(false));
-static llvm::cl::alias
-    verbose_output_alias("v", llvm::cl::desc("Alias for --verbose"),
-                         llvm::cl::aliasopt(verbose_output));
+static cl::opt<bool> verbose_output("verbose",
+                                    llvm::cl::desc("Enable verbose output"),
+                                    llvm::cl::init(false));
+static cl::alias verbose_output_alias("v",
+                                      llvm::cl::desc("Alias for --verbose"),
+                                      llvm::cl::aliasopt(verbose_output));
+
+static cl::opt<bool> match_returns(
+    "match-returns",
+    cl::desc("Match instructions to pseudo returns if necessary"));
 
 int main(int argc, char **argv) {
   InitLLVM x(argc, argv);
@@ -56,7 +60,7 @@ int main(int argc, char **argv) {
   if (verbose_output)
     outs() << "Converting section: " << section_name << "\n";
 
-  if (Error err = converter.convert_section(section_name)) {
+  if (Error err = converter.convert_section(section_name, match_returns)) {
     WithColor::error() << "Failed to convert section: "
                        << toString(std::move(err)) << "\n";
     return 1;

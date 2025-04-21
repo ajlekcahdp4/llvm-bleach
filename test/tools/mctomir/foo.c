@@ -1,5 +1,5 @@
 // RUN: riscv64-unknown-linux-gnu-clang -c %s -o %t.o
-// RUN: %bin/mctomir %t.o -o - | FileCheck %s
+// RUN: %bin/mctomir %t.o -o - --match-returns | FileCheck %s
 
 int foo() { return 42; }
 

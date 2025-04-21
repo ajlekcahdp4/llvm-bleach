@@ -68,7 +68,6 @@ Error translator_t::create_module_and_function(StringRef triple_name,
 
   tmachine.reset(static_cast<LLVMTargetMachine *>(generic_tmachine.release()));
 
-  tgt = select_target(tmachine->getTargetTriple());
   mod->setDataLayout(tmachine->createDataLayout());
   // TODO(Ilyagavrilin): add function name resolving, now just a template
   FunctionType *func_ty = FunctionType::get(Type::getVoidTy(*ctx), false);
@@ -412,15 +411,22 @@ translator_t::get_or_create_mbb_for_address(uint64_t address) {
   return mbb;
 }
 
+target &translator_t::get_or_create_target() {
+  if (!tgt)
+    tgt = select_target(tmachine->getTargetTriple());
+  return *tgt;
+}
+
 void translator_t::make_returns() {
   assert(mfunc);
+  auto &tgt = get_or_create_target();
   for (auto &mblock : drop_begin(*mfunc)) {
     auto &last = mblock.back();
     if (last.isReturn())
       continue;
-    if (tgt->is_return(last)) {
+    if (tgt.is_return(last)) {
       last.eraseFromParent();
-      tgt->insert_return(mblock, mblock.end(), *tmachine);
+      tgt.insert_return(mblock, mblock.end(), *tmachine);
     }
   }
 }
@@ -473,7 +479,8 @@ Error elf_to_mir_converter::process_file(StringRef file_path) {
   return Error::success();
 }
 
-Error elf_to_mir_converter::convert_section(StringRef section_name) {
+Error elf_to_mir_converter::convert_section(StringRef section_name,
+                                            bool match_returns) {
   if (!disassembler || !translator)
     return createStringError(inconvertibleErrorCode(),
                              "disassembler or translator not initialized");
@@ -497,7 +504,8 @@ Error elf_to_mir_converter::convert_section(StringRef section_name) {
 
   if (Error err = translator->finalize())
     return err;
-  translator->make_returns();
+  if (match_returns)
+    translator->make_returns();
 
   return Error::success();
 }
