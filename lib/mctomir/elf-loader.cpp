@@ -1,6 +1,7 @@
 #include "mctomir/elf-loader.h"
 
 #include <llvm/Object/Error.h>
+#include <llvm/Object/ObjectFile.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/WithColor.h>
 #include <llvm/TargetParser/SubtargetFeature.h>
@@ -45,22 +46,6 @@ Error elf_loader::load_file(StringRef file_path) {
                              "Failed to cast to ELFObjectFileBase");
 
   return Error::success();
-}
-
-bool elf_loader::is_elf_file(StringRef file_path) {
-  if (!sys::fs::exists(file_path))
-    return false;
-
-  ErrorOr<std::unique_ptr<MemoryBuffer>> buffer_or_err =
-      MemoryBuffer::getFile(file_path);
-  if (buffer_or_err.getError())
-    return false;
-
-  StringRef data = buffer_or_err.get()->getBuffer();
-  if (data.size() < 4)
-    return false;
-
-  return data[0] == 0x7f && data[1] == 'E' && data[2] == 'L' && data[3] == 'F';
 }
 
 Expected<ELFObjectFileBase *> elf_loader::get_elf_object() const {

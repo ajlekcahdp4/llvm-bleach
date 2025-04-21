@@ -30,8 +30,6 @@ public:
 
   Error load_file(StringRef file_path);
 
-  static bool is_elf_file(StringRef file_path);
-
   Expected<ELFObjectFileBase *> get_elf_object() const;
 
   Expected<Triple> get_triple() const;
