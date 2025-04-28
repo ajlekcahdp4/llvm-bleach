@@ -4,6 +4,8 @@
 int foo() { return 42; }
 
 // CHECK: name: disassembled_function
+// CHECK: body:
+// CHECK-NEXT: bb.0:
 // CHECK: $x10 = ADDI $x0, 42
 // CHECK: PseudoRET
 // CHECK-SAME: $x1

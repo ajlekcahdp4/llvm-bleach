@@ -87,7 +87,6 @@ private:
   std::unique_ptr<Module> mod;
   Function *func;
   MachineFunction *mfunc;
-  MachineBasicBlock *initial_mbb;
 
   std::vector<translated_inst> instructions;
   std::vector<block_info> blocks;
@@ -102,7 +101,6 @@ private:
   Error create_machine_basic_blocks();
   Error translate_instructions();
   Error link_machine_basic_blocks();
-  Error create_initial_basic_block();
 
   MachineInstr *convert_to_machine_instr(const MCInst &inst, uint64_t address);
   MachineOperand convert_operand(const MCOperand &op, const MCInst &inst);

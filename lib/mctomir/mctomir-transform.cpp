@@ -164,8 +164,6 @@ Error translator_t::finalize() {
                              "No instructions to translate");
 
   // TODO(Ilyagavrilin): Rewrite this chain
-  if (Error err = create_initial_basic_block())
-    return err;
   if (Error err = identify_basic_blocks())
     return err;
   if (Error err = create_machine_basic_blocks())
@@ -175,18 +173,6 @@ Error translator_t::finalize() {
   if (Error err = link_machine_basic_blocks())
     return err;
 
-  return Error::success();
-}
-
-Error translator_t::create_initial_basic_block() {
-  MachineBasicBlock *entry_mbb = mfunc->CreateMachineBasicBlock();
-  mfunc->push_back(entry_mbb);
-  // TODO(Ilyagavrilin): check cases when we really need to sort
-  llvm::stable_sort(instructions, [](auto &lhs, auto &rhs) {
-    return lhs.address < rhs.address;
-  });
-
-  initial_mbb = entry_mbb;
   return Error::success();
 }
 
@@ -420,7 +406,7 @@ target &translator_t::get_or_create_target() {
 void translator_t::make_returns() {
   assert(mfunc);
   auto &tgt = get_or_create_target();
-  for (auto &mblock : drop_begin(*mfunc)) {
+  for (auto &mblock : *mfunc) {
     auto &last = mblock.back();
     if (last.isReturn())
       continue;
