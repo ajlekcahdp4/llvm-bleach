@@ -22,7 +22,7 @@ static cl::opt<std::string>
     input_filename(cl::Positional, cl::desc("<input ELF file>"), cl::Required);
 static cl::opt<std::string> output_filename("o", cl::desc("Output MIR file"),
                                             cl::value_desc("filename"),
-                                            cl::init(""));
+                                            cl::init("-"));
 static cl::opt<bool> verbose_output("verbose",
                                     llvm::cl::desc("Enable verbose output"),
                                     llvm::cl::init(false));
