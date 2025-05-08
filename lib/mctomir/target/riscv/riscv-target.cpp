@@ -14,11 +14,10 @@ namespace mctomir {
 auto riscv_target::insert_return(MachineBasicBlock &mblock,
                                  MachineBasicBlock::iterator ins,
                                  LLVMTargetMachine &tmachine) const -> bool {
-
   auto &iinfo = *tmachine.getMCInstrInfo();
   auto &desc = iinfo.get(RISCV::PseudoRET);
-  MachineInstrBuilder mib =
-      BuildMI(mblock, mblock.end(), DebugLoc(), desc).addReg(RISCV::X10);
+  MachineInstrBuilder mib = BuildMI(mblock, mblock.end(), DebugLoc(), desc)
+                                .addReg(RISCV::X10, RegState::Implicit);
   return mib;
 }
 
