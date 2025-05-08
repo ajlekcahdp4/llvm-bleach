@@ -3,7 +3,7 @@
 
 int foo() { return 42; }
 
-// CHECK: name: disassembled_function
+// CHECK: name: foo
 // CHECK: body:
 // CHECK-NEXT: bb.0:
 // CHECK: $x10 = ADDI $x0, 42
