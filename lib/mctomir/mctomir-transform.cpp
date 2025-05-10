@@ -145,11 +145,6 @@ Error translator_t::process_disassembly(SectionRef section,
   uint64_t address = section_addr;
   uint64_t size;
   MCInst inst;
-  for (auto s : funcs) {
-    auto name = s.name;
-    errs() << "NAME: " << name << '\n';
-    errs() << "START: " << s.start << " END: " << s.end << '\n';
-  }
   for (auto &&finfo : funcs) {
     // FIXME: don't always return i64
     finfo.func =
@@ -163,8 +158,8 @@ Error translator_t::process_disassembly(SectionRef section,
                                   nulls())) {
         finfo.insts.emplace_back(addr, inst);
         addr += size;
-      }
-      outs() << "Illegal instruction!\n";
+      } else
+        outs() << "Illegal instruction!\n";
     }
   }
   return Error::success();
