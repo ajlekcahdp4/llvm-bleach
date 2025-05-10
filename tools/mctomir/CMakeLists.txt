@@ -14,7 +14,7 @@ bleach_add_llvm_based_tool(
   SOURCES
   mctomir.cpp)
 target_enable_linter(mctomir)
-target_link_libraries(mctomir PUBLIC mctomir-lifter)
+target_link_libraries(mctomir PUBLIC mctomir-lifter bleach-headers)
 target_include_directories(
   mctomir PUBLIC ${LLVM_BLEACH_INCLUDE_DIR})
 install(TARGETS mctomir DESTINATION ${CMAKE_INSTALL_BINDIR})

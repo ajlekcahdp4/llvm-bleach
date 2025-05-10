@@ -1,3 +1,4 @@
+#include "bleach/version.inc"
 #include "mctomir/mctomir-transform.h"
 
 #include <llvm/ADT/StringExtras.h>
@@ -35,6 +36,12 @@ static cl::opt<bool> match_returns(
     cl::desc("Match instructions to pseudo returns if necessary"));
 
 int main(int argc, char **argv) {
+  cl::AddExtraVersionPrinter([](raw_ostream &os) {
+    os << "Bleach version: " LLVM_BLEACH_VERSION_STRING "\n";
+  });
+  llvm::setBugReportMsg("PLEASE submit a bug report to "
+                        "https://github.com/ajlekcahdp4/llvm-bleach/issues and "
+                        "include the crash backtrace.\n");
   InitLLVM x(argc, argv);
   cl::ParseCommandLineOptions(argc, argv, "LLVM-based ELF-to-MIR converter\n");
 
