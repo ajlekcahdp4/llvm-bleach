@@ -42,6 +42,7 @@
               enablePolly = false;
             }).overrideAttrs
               (prev: {
+                patches = prev.patches ++ [ ./overlays/llvm-install-target-headers.patch ];
                 cmakeBuildType = "Debug";
                 dontStrip = true;
                 debug = true;
@@ -50,6 +51,7 @@
                 cmakeFlags = prev.cmakeFlags ++ [
                   "-DLLVM_USE_SANITIZER=Address"
                   "-DLLVM_BUILD_TOOLS=OFF"
+                  "-DLLVM_TARGETS_TO_BUILD=X86;RISCV;AArch64"
                 ];
               })
           );
