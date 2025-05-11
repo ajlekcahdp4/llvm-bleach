@@ -142,7 +142,6 @@ Error translator_t::process_disassembly(SectionRef section,
   }
   ranges::sort(funcs, {}, &function_info::start);
 
-  uint64_t address = section_addr;
   uint64_t size;
   MCInst inst;
   for (auto &&finfo : funcs) {
@@ -154,12 +153,16 @@ Error translator_t::process_disassembly(SectionRef section,
     finfo.mfunc->getProperties().reset(
         MachineFunctionProperties::Property::TracksLiveness);
     for (size_t addr = finfo.start; addr < finfo.end;) {
-      if (dis_asm->getInstruction(inst, size, bytes.slice(addr), address,
-                                  nulls())) {
+      auto diff = addr - section_addr;
+      if (dis_asm->getInstruction(inst, size, bytes.slice(diff), addr,
+                                  errs())) {
         finfo.insts.emplace_back(addr, inst);
         addr += size;
-      } else
-        outs() << "Illegal instruction!\n";
+      } else {
+        errs() << "Illegal instruction at address: 0x" << utohexstr(addr)
+               << '\n';
+        addr += 1;
+      }
     }
   }
   return Error::success();
