@@ -5,6 +5,7 @@ bleach_add_llvm_based_tool(
   codegen
   mcdisassembler
   mirparser
+  passes
   AllTargetsInfos
   AllTargetsAsmParsers
   AllTargetsCodeGens
