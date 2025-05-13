@@ -10,31 +10,25 @@ end
 options = {}
 OptionParser
   .new do |opts|
-    opts.banner = "Usage: config-gen.rb [options]"
-    opts.on("--march ARCH", "Architecture to generate config for") do |
-        a
-      |
-      options[:arch] = a
-    end
-
-    opts.on("-d", "--template-dir DIR", "Path to templates directory") do |
-        a
-      |
-      options[:templ_dir] = a
-    end
-
-    opts.on("-t", "--template FILE", "Path to template") do |a|
-      options[:templ] = a
-    end
-
-    opts.on("-o", "--output FILE", "Output config file") do |
-        a
-      |
-      options[:out] = a
-    end
-
-    options[:help] = opts.help
+  opts.banner = "Usage: config-gen.rb [options]"
+  opts.on("--march ARCH", "Architecture to generate config for") do |a|
+    options[:arch] = a
   end
+
+  opts.on("-d", "--template-dir DIR", "Path to templates directory") do |a|
+    options[:templ_dir] = a
+  end
+
+  opts.on("-t", "--template FILE", "Path to template") do |a|
+    options[:templ] = a
+  end
+
+  opts.on("-o", "--output FILE", "Output config file") do |a|
+    options[:out] = a
+  end
+
+  options[:help] = opts.help
+end
   .parse!
 
 class Arch
@@ -65,8 +59,8 @@ def parse_arch(arch_str = "rv64im")
   found = ArchNames
     .constants
     .select do |pre|
-      arch_str.start_with?(ArchNames.const_get(pre))
-    end
+    arch_str.start_with?(ArchNames.const_get(pre))
+  end
     .map { |c| ArchNames.const_get(c) }
   if found.length != 1
     raise(
@@ -134,13 +128,15 @@ def instantiate_for(templ, arch)
     config[k] = v
   end
 
-  config["instructions"] = templ["instructions"].map do |instr|
+  config["instructions"] = templ["instructions"].select { |i, v|
+    !v.key?("requires") || v["requires"] == arch.prefix
+  }.map do |instr|
     name = instr[0]
     next if instr[1].key?("requires") && instr[1]["requires"] != arch.prefix
     func = instr[1]["func"]
     func = replace_all_expressions(func, xlen)
     func = append_declarations_if_needed(config, func)
-    {name => {"func" => func}}
+    { name => { "func" => func } }
   end
 
   return config

@@ -237,8 +237,8 @@ instructions:
   LUI:
     func: |
       define signext i\xlen\ @LUI(i20 noundef signext %0) {
-        %3 = zext i20 %0 to i64
-        %4 = shl i64 %3, 12
+        %3 = zext i20 %0 to i\xlen\
+        %4 = shl i\xlen\ %3, 12
         ret i\xlen\ %4
       }
   ADDI:

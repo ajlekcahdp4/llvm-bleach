@@ -3,5 +3,5 @@
 # RUN:   | FileCheck %s
 
 # CHECK: foo
-# CHECK: load i32
-# CHECK: store i32
+# CHECK: load i64
+# CHECK: store i64
