@@ -18,22 +18,23 @@
 using namespace llvm;
 using namespace llvm::object;
 using namespace mctomir;
-//  Command-line options
+cl::OptionCategory options("mctomir options");
 static cl::opt<std::string>
     input_filename(cl::Positional, cl::desc("<input ELF file>"), cl::Required);
 static cl::opt<std::string> output_filename("o", cl::desc("Output MIR file"),
                                             cl::value_desc("filename"),
-                                            cl::init("-"));
+                                            cl::init("-"), cl::cat(options));
 static cl::opt<bool> verbose_output("verbose",
-                                    llvm::cl::desc("Enable verbose output"),
-                                    llvm::cl::init(false));
-static cl::alias verbose_output_alias("v",
-                                      llvm::cl::desc("Alias for --verbose"),
-                                      llvm::cl::aliasopt(verbose_output));
+                                    cl::desc("Enable verbose output"),
+                                    cl::init(false), cl::cat(options));
+static cl::alias verbose_output_alias("v", cl::desc("Alias for --verbose"),
+                                      cl::aliasopt(verbose_output),
+                                      cl::cat(options));
 
-static cl::opt<bool> match_returns(
-    "match-returns",
-    cl::desc("Match instructions to pseudo returns if necessary"));
+static cl::opt<bool>
+    match_returns("match-returns",
+                  cl::desc("Match instructions to pseudo returns if necessary"),
+                  cl::cat(options));
 
 int main(int argc, char **argv) {
   cl::AddExtraVersionPrinter([](raw_ostream &os) {

@@ -66,11 +66,12 @@ static cl::opt<bool>
                         cl::cat(options));
 static cl::opt<std::string>
     dump_struct_def_option("state-struct-file",
-                           cl::desc("File to dump state struct definition to"));
+                           cl::desc("File to dump state struct definition to"),
+                           cl::cat(options));
 
 static cl::opt<unsigned>
     stack_size_option("stack-size", cl::desc("Stack size for array (bytes)"),
-                      cl::init(8000));
+                      cl::init(8000), cl::cat(options));
 
 namespace {
 
