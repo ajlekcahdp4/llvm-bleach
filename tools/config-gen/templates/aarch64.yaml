@@ -1,0 +1,165 @@
+stack-pointer: SP
+constant-registers:
+  XZR: 0x000000000000000
+register-classes:
+  GPR64: "X[0-9][0-9]?|SP|FP|LR|XZR"
+extern-functions:
+  - "@NZCV = external global i64"
+  - "declare void @store_dw(i64 %val, i64 %addr)"
+  - "declare i64 @load_dw(i64 %addr)"
+instructions:
+  SUBXri:
+    func: |
+      define i64 @SUBXri(i64 %xn, i64 %i, i1 %sh) {
+        %shifted = shl i64 %i, 12
+        %imm = select i1 %sh, i64 %shifted, i64 %i
+        %diff = sub i64 %xn, %imm
+        ret i64 %diff
+      }
+  SUBXrs:
+    func: |
+      define i64 @SUBXrs(i64 %xn, i64 %i, i1 %sh) {
+        %shifted = shl i64 %i, 12
+        %imm = select i1 %sh, i64 %shifted, i64 %i
+        %diff = sub i64 %xn, %imm
+        ret i64 %diff
+      }
+  ADDXri:
+    func: |
+      define i64 @ADDXri(i64 %xn, i64 %i, i1 %sh) {
+        %shifted = shl i64 %i, 12
+        %imm = select i1 %sh, i64 %shifted, i64 %i
+        %sum = add i64 %xn, %imm
+        ret i64 %sum
+      }
+  ANDXri:
+    func: "define i64 @ANDXri(i64 %xn, i64 %imm) {\n  %res = and i64 %xn, %imm\n  ret i64 %res\n}\n  \n"
+  SUBSXri:
+    func: |
+      define i64 @SUBSXri(i64 %xn, i64 %i, i1 %sh) {
+        %shifted = shl i64 %i, 12
+        %imm = select i1 %sh, i64 %shifted, i64 %i
+        %res = call {i64, i1} @llvm.sadd.with.overflow.i64(i64 %xn, i64 %imm)
+        %val = extractvalue {i64, i1} %res, 0
+        %v = extractvalue {i64, i1} %res, 1
+        %n = icmp slt i64 %val, 0
+        %z = icmp eq i64 %val, 0
+        %v.zext = zext i1 %v to i64
+        %n.zext = zext i1 %n to i64
+        %z.zext = zext i1 %z to i64
+        %v.bit = shl i64 %v.zext, 28
+        %c.bit = shl i64 0, 29
+        %z.bit = shl i64 %z.zext, 30
+        %n.bit = shl i64 %n.zext, 31
+        %val.nz = or i64 %n.bit, %z.bit
+        %val.nzc = or i64 %val.nz, %c.bit
+        %val.nzcv = or i64 %val.nzc, %v.bit
+        store i64 %val.nzcv, ptr @NZCV
+        ret i64 %val
+      }
+  SUBSXrs:
+    func: |
+      define i64 @SUBSXrs(i64 %xn, i64 %i, i1 %sh) {
+        %shifted = shl i64 %i, 12
+        %imm = select i1 %sh, i64 %shifted, i64 %i
+        %res = call {i64, i1} @llvm.sadd.with.overflow.i64(i64 %xn, i64 %imm)
+        %val = extractvalue {i64, i1} %res, 0
+        %v = extractvalue {i64, i1} %res, 1
+        %n = icmp slt i64 %val, 0
+        %z = icmp eq i64 %val, 0
+        %v.zext = zext i1 %v to i64
+        %n.zext = zext i1 %n to i64
+        %z.zext = zext i1 %z to i64
+        %v.bit = shl i64 %v.zext, 28
+        %c.bit = shl i64 0, 29
+        %z.bit = shl i64 %z.zext, 30
+        %n.bit = shl i64 %n.zext, 31
+        %val.nz = or i64 %n.bit, %z.bit
+        %val.nzc = or i64 %val.nz, %c.bit
+        %val.nzcv = or i64 %val.nzc, %v.bit
+        store i64 %val.nzcv, ptr @NZCV
+        ret i64 %val
+      }
+  ORRXrs:
+    func: |
+      define i64 @ORRXrs(i64 %xn, i64 %xm, i1 %sh) {
+        %shifted = shl i64 %xm, 12
+        %op = select i1 %sh, i64 %shifted, i64 %xm
+        %res = or i64 %xn, %op
+        ret i64 %res
+      }
+  MOVZXi:
+    func: |
+      define i64 @MOVZXi(i64 %imm, i1 %sh) {
+        %shifted = shl i64 %imm, 12
+        %op = select i1 %sh, i64 %shifted, i64 %imm
+        ret i64 %op
+      }
+  MADDXrrr:
+    func: |
+      define i64 @MADDXrrr(i64 %xn, i64 %xm, i64 %xa) {
+        %m = mul i64 %xn, %xm
+        %res = add i64 %m, %xa
+        ret i64 %res
+      }
+  STRXui:
+    func: |
+      define void @STRXui(i64 %val, i64 %base, i64 %off) {
+        %addr = add i64 %base, %off
+        call void @store_dw(i64 %val, i64 %addr)
+        ret void
+      }
+  LDRXui:
+    func: |
+      define i64 @LDRXui(i64 %base, i64 %off) {
+        %addr = add i64 %base, %off
+        %val = call i64 @load_dw(i64 %val, i64 %addr)
+        ret i64 %val
+      }
+  CBNZX:
+    func: |
+      define i1 @CBNZX(i64 %reg) {
+        %c = icmp eq i64 %reg, 0
+        ret i1 %c
+      }
+  Bcc:
+    func: |
+      define i1 @Bcc(i32 %tgt, i32 %cond) {
+        %val = load i64, ptr @NZCV
+        %n = lshr i64 %val, 31
+        %z.bits = lshr i64 %val, 30
+        %z = and i64 %z.bits, 1
+        %c.bits = lshr i64 %val, 29
+        %c = and i64 %c.bits, 1
+        %v.bits = lshr i64 %val, 28
+        %v = and i64 %v.bits, 1
+        switch i32 %cond, label %error [ i32 0, label %eq
+                                          i32 1, label %ne
+                                          i32 2, label %cs
+                                          i32 3, label %cc
+                                          i32 4, label %mi
+                                          i32 5, label %pl ]
+      error:
+        unreachable
+      eq:
+        %eq.cond = icmp eq i64 %z, 1
+        br label %exit;
+      ne:
+        %ne.cond = icmp eq i64 %z, 0
+        br label %exit;
+      cs:
+        %cs.cond = icmp eq i64 %c, 1
+        br label %exit;
+      cc:
+        %cc.cond = icmp eq i64 %c, 1
+        br label %exit;
+      mi:
+        %mi.cond = icmp eq i64 %n, 1
+        br label %exit;
+      pl:
+        %pl.cond = icmp eq i64 %n, 0
+        br label %exit;
+      exit:
+        %res = phi i1 [%eq.cond, %eq], [%ne.cond, %ne],[%cs.cond, %cs],[%cc.cond, %cc],[%mi.cond, %mi],[%pl.cond, %pl]
+        ret i1 %res
+      }

@@ -38,6 +38,7 @@ stdenv.mkDerivation {
     clang
     pkgsCross.riscv64.buildPackages.clang
     pkgsCross.riscv64.buildPackages.llvmPackages.bintools
+    pkgsCross.aarch64-multiplatform.buildPackages.clang
   ];
   preCheck = ''
     patchShebangs ..

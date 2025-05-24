@@ -314,7 +314,7 @@ void translator_t::add_operand_to_mib(MachineInstrBuilder &mib,
 
     if (is_def) {
       // Add additional flags for better output
-      uint16_t flags = RegState::Define | RegState::Renamable;
+      uint16_t flags = RegState::Define;
 
       mib.addReg(reg, flags);
     } else {

@@ -1,14 +1,14 @@
 // RUN: gcc %s -o %t.out -O0
 // RUN: %bin/mctomir %t.out -o - | FileCheck %s
 
-int fact(int x) {
+long long fact(long long x) {
   if (x == 1)
     return 1;
   return x * fact(x - 1);
 }
 
 int main() {
-  int x = fact(1);
+  long long x = fact(1);
   x = fact(x);
   x = fact(x);
   x = fact(x);

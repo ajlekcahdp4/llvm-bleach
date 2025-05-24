@@ -5,6 +5,7 @@ require "optparse"
 module ArchNames
   RV32Prefix = "rv32"
   RV64Prefix = "rv64"
+  AArch64Prefix = "aarch64"
 end
 
 options = {}
@@ -35,7 +36,7 @@ class Arch
   def initialize(prefix = "rv64im", features = ["i", "m"])
     @prefix = prefix
     @features = features
-    if !features.include?("m")
+    if (prefix == ArchNames::RV32Prefix || prefix == ArchNames::RV64Prefix) && !features.include?("m")
       raise "Currently your arch must include M extesnion for RISC-V"
     end
   end
@@ -44,6 +45,8 @@ class Arch
     if prefix == ArchNames::RV32Prefix
       return 32
     elsif prefix == ArchNames::RV64Prefix
+      return 64
+    elsif prefix == ArchNames::AArch64Prefix
       return 64
     else
       raise "Unsupported arch"
@@ -78,6 +81,8 @@ def get_template_path(arch, templ_dir)
   case arch.prefix
   when ArchNames::RV32Prefix, ArchNames::RV64Prefix
     return File.join(templ_dir, "rv.yaml")
+  when ArchNames::AArch64Prefix
+    return File.join(templ_dir, "aarch64.yaml")
   else
     raise "Unsupported arch"
   end
@@ -111,10 +116,10 @@ def append_declarations_if_needed(config, func)
 
   func << "\n"
   extern_functions = config["extern-functions"].map do |f|
-    [/@[a-zA-Z_0-9]+\(/.match(f).to_s[1..-2], f]
+    [/@[a-zA-Z_0-9]+/.match(f).to_s[1..-1], f]
   end
 
-  extern_functions.select { |f| /call.*#{f[0]}/.match(func) }.each do |f|
+  extern_functions.select { |f| /@#{f[0]}/.match(func) }.each do |f|
     func << f[1] << "\n"
   end
 
