@@ -120,7 +120,7 @@ private:
                                                    MachineFunction &mfunc);
   void add_operand_to_mib(MachineInstrBuilder &mib, const MCOperand &mc_op,
                           unsigned op_idx, const MCInstrDesc &desc);
-  MachineInstr *create_machine_instr(const MCInst &inst,
+  MachineInstr *create_machine_instr(const translated_inst &tinst,
                                      MachineBasicBlock *mbb);
 };
 

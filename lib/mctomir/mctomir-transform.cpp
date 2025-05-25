@@ -260,7 +260,7 @@ Error translator_t::translate_instructions() {
   for (auto &finfo : funcs) {
     for (auto &block : finfo.blocks) {
       for (auto *tinst : block.instrs) {
-        MachineInstr *minst = create_machine_instr(tinst->inst, block.mbb);
+        MachineInstr *minst = create_machine_instr(*tinst, block.mbb);
         if (!minst)
           return createStringError(inconvertibleErrorCode(),
                                    "Failed to convert instruction at 0x%llx",
@@ -272,11 +272,12 @@ Error translator_t::translate_instructions() {
   return Error::success();
 }
 
-MachineInstr *translator_t::create_machine_instr(const MCInst &inst,
+MachineInstr *translator_t::create_machine_instr(const translated_inst &tinst,
                                                  MachineBasicBlock *mbb) {
   if (!tii || !mbb)
     return nullptr;
 
+  auto &inst = tinst.inst;
   unsigned opcode = inst.getOpcode();
   const MCInstrDesc &desc = tii->get(opcode);
 
@@ -293,7 +294,7 @@ MachineInstr *translator_t::create_machine_instr(const MCInst &inst,
         inst.getOperand(inst.getNumOperands() - 1).isImm()) {
       uint64_t target;
       if (mi_analysis->evaluateBranch(inst, 0, 4, target)) {
-        auto target_it = address_to_mbb.find(target);
+        auto target_it = address_to_mbb.find(target + tinst.address);
         if (target_it != address_to_mbb.end()) {
           mib.addMBB(target_it->second);
         }
