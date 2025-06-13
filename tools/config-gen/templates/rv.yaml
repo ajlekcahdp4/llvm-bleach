@@ -234,6 +234,100 @@ instructions:
         %3 = mul i\xlen\ %0, %1
         ret i\xlen\ %3
       }
+  MULH:
+    requires: rv64
+    func: |
+      define i64 @MULH(i64 %0, i64 %1) {
+        %3 = mul nsw i64 %0, %1
+        %4 = lshr i64 %3, 32
+        ret i64 %4
+      }
+  MULHU:
+    requires: rv64
+    func: |
+      define i64 @MULHU(i64 %0, i64 %1) {
+        %3 = mul i64 %0, %1
+        %4 = lshr i64 %3, 32
+        ret i64 %4
+      }
+  MULHSU:
+    requires: rv64
+    func: |
+      define i64 @MULHSU(i64 %0, i64 %1) {
+        %3 = mul i64 %0, %1
+        %4 = lshr i64 %3, 32
+        ret i64 %4
+      }
+
+  DIV:
+    func: |
+      define signext i\xlen\ @DIV(i\xlen\ noundef signext %0, i\xlen\ noundef signext %1) {
+        %3 = sdiv i\xlen\ %0, %1
+        ret i\xlen\ %3
+      }
+  DIVW:
+    requires: rv64
+    func: |
+      define i64 @DIVW(i64 %0, i64 %1) {
+        %3 = trunc i64 %0 to i32
+        %4 = trunc i64 %1 to i32
+        %5 = sdiv i32 %3, %4
+        %6 = sext i32 %5 to i64
+        ret i64 %6
+      }
+
+  DIVU:
+    requires: rv64
+    func: |
+      define i64 @DIVU(i64 %0, i64 %1) {
+        %3 = udiv i64 %0, %1
+        ret i64 %3
+      }
+  DIVUW:
+    requires: rv64
+    func: |
+      define i64 @DIVUW(i64 %0, i64 %1) {
+        %3 = trunc i64 %0 to i32
+        %4 = trunc i64 %1 to i32
+        %5 = udiv i32 %3, %4
+        %6 = sext i32 %5 to i64
+        ret i64 %6
+      }
+  REM:
+    func: |
+      define signext i\xlen\ @REM(i\xlen\ noundef signext %0, i\xlen\ noundef signext %1) {
+        %3 = srem i\xlen\ %0, %1
+        ret i\xlen\ %3
+      }
+  REMW:
+    requires: rv64
+    func: |
+      define i64 @REMW(i64 %0, i64 %1) {
+        %3 = trunc i64 %0 to i32
+        %4 = trunc i64 %1 to i32
+        %5 = srem i32 %3, %4
+        %6 = sext i32 %5 to i64
+        ret i64 %6
+      }
+
+  REMU:
+    requires: rv64
+    func: |
+      define i64 @REMU(i64 %0, i64 %1) {
+        %3 = urem i64 %0, %1
+        ret i64 %3
+      }
+  REMUW:
+    requires: rv64
+    func: |
+      define i64 @REMUW(i64 %0, i64 %1) {
+        %3 = trunc i64 %0 to i32
+        %4 = trunc i64 %1 to i32
+        %5 = urem i32 %3, %4
+        %6 = sext i32 %5 to i64
+        ret i64 %6
+      }
+
   LUI:
     func: |
       define signext i\xlen\ @LUI(i20 noundef signext %0) {
@@ -342,3 +436,23 @@ instructions:
         %3 = icmp uge i\xlen\ %0, %1
         ret i1 %3
       }
+  FENCE:
+    func: |
+      define void @FENCE(i\xlen\ noundef signext %pred, i\xlen\ noundef signext %succ) {
+        fence acq_rel
+        ret void
+      }
+  FENCE_TSO:
+    func: |
+      define void @FENCE_TSO(i\xlen\ noundef signext %pred, i\xlen\ noundef signext %succ) {
+        fence acq_rel
+        ret void
+      }
+
+  EBREAK:
+    func: |
+      define void @EBREAK() {
+        call void @llvm.debugtrap()
+        ret void
+      }
+
