@@ -258,7 +258,6 @@ instructions:
         %4 = lshr i64 %3, 32
         ret i64 %4
       }
-
   DIV:
     func: |
       define signext i\xlen\ @DIV(i\xlen\ noundef signext %0, i\xlen\ noundef signext %1) {
@@ -275,7 +274,6 @@ instructions:
         %6 = sext i32 %5 to i64
         ret i64 %6
       }
-
   DIVU:
     requires: rv64
     func: |
@@ -309,7 +307,6 @@ instructions:
         %6 = sext i32 %5 to i64
         ret i64 %6
       }
-
   REMU:
     requires: rv64
     func: |
@@ -327,7 +324,6 @@ instructions:
         %6 = sext i32 %5 to i64
         ret i64 %6
       }
-
   LUI:
     func: |
       define signext i\xlen\ @LUI(i20 noundef signext %0) {
@@ -448,11 +444,9 @@ instructions:
         fence acq_rel
         ret void
       }
-
   EBREAK:
     func: |
       define void @EBREAK() {
         call void @llvm.debugtrap()
         ret void
       }
-
