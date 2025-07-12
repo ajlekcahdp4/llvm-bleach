@@ -7,9 +7,9 @@
 # RUN:   --template-dir %config-gen-src/templates -o %t.yaml
 # RUN: %bin/llvm-bleach %t.sum.mir --instructions=%t.yaml \
 # RUN:   --state-struct-file=%T/state.h > %t.lifted.ll
-# RUN: gcc -c %S/main.c -I %T -o %t.main.o 
+# RUN: clang -c %S/main.c -I %T -o %t.main.o 
 # RUN: clang -c %t.lifted.ll -o %t.sum.o
-# RUN: gcc %t.main.o %t.sum.o -o %t.out
+# RUN: clang %t.main.o %t.sum.o -o %t.out
 # RUN: %t.out | FileCheck %s
 
 # CHECK-NOT: FAILED

@@ -13,10 +13,17 @@
   outputs =
     {
       self,
+      nixpkgs,
       flake-parts,
       treefmt-nix,
       ...
     }@inputs:
+    let
+      systemToMusl = {
+        "x86_64-linux" = "x86_64-unknown-linux-musl";
+        "aarch64-linux" = "aarch64-unknown-linux-musl";
+      };
+    in
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [ treefmt-nix.flakeModule ];
 
@@ -24,48 +31,45 @@
         "x86_64-linux"
         "aarch64-linux"
       ];
-      flake.overlays.default = _final: prev: {
-        llvmPackages_19.libllvm = prev.llvmPackages_19.libllvm.overrideAttrs {
-          patches = prev.patches ++ [ ./overlays/llvm-install-target-headers.patch ];
-        };
-      };
       perSystem =
-        { pkgs, ... }:
+        { pkgs, system, ... }:
         let
-          llvmPkgs = pkgs.llvmPackages_19;
-          llvmLib = llvmPkgs.llvm.overrideAttrs (prev: {
-            patches = prev.patches ++ [ ./overlays/llvm-install-target-headers.patch ];
-          });
-          llvmLibDebug = pkgs.enableDebugging (
-            (llvmPkgs.llvm.override {
-              debugVersion = true;
-              enablePolly = false;
-            }).overrideAttrs
-              (prev: {
-                patches = prev.patches ++ [ ./overlays/llvm-install-target-headers.patch ];
-                cmakeBuildType = "Debug";
-                dontStrip = true;
-                debug = true;
-                pname = "llvmLibDebug";
-                doCheck = false;
-                cmakeFlags = prev.cmakeFlags ++ [
-                  "-DLLVM_USE_SANITIZER=Address"
-                  "-DLLVM_BUILD_TOOLS=OFF"
-                  "-DLLVM_TARGETS_TO_BUILD=X86;RISCV;AArch64"
-                ];
-              })
-          );
+          mkLlvmLib =
+            llvmPkgs:
+            llvmPkgs.llvm.overrideAttrs (prev: {
+              patches = prev.patches ++ [ ./overlays/llvm-install-target-headers.patch ];
+              doCheck = false;
+              cmakeFlags = prev.cmakeFlags ++ [ "-DLLVM_TARGETS_TO_BUILD=X86;RISCV;AArch64" ];
+            });
         in
         rec {
           imports = [ ./nix/treefmt.nix ];
+
+          legacyPackages = {
+            bleachPkgsStatic = import nixpkgs {
+              localSystem = {
+                inherit system;
+              };
+              crossSystem = {
+                inherit system;
+                libc = "musl";
+                config = systemToMusl.${system};
+                isStatic = true;
+              };
+            };
+            bleachPkgs = import nixpkgs { inherit system; };
+          };
           packages = rec {
-            llvm-bleach = pkgs.callPackage ./. {
+            llvm-bleach = legacyPackages.bleachPkgs.callPackage ./. {
               inherit self;
-              llvmLib = llvmLib;
+              llvmLib = mkLlvmLib legacyPackages.bleachPkgs.llvmPackages_19;
+              clangCompiler = legacyPackages.bleachPkgs.clang;
+            };
+            llvm-bleach-static = legacyPackages.bleachPkgsStatic.callPackage ./. {
+              llvmLib = mkLlvmLib legacyPackages.bleachPkgsStatic.llvmPackages_19;
+              clangCompiler = legacyPackages.bleachPkgs.clang;
             };
             default = llvm-bleach;
-            inherit llvmLibDebug;
-            inherit llvmLib;
           };
           checks = {
             inherit (packages) llvm-bleach;

@@ -1,4 +1,5 @@
-// RUN: gcc %s -o %t.out -O0
+// RUN: which clang
+// RUN: clang %s -o %t.out -O0
 // RUN: %bin/mctomir %t.out -o - | FileCheck %s
 
 long long fact(long long x) {

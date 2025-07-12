@@ -2,6 +2,17 @@
   pkgs,
   lib,
   stdenv,
+  cmake,
+  which,
+  ninja,
+  clangCompiler,
+  yaml-cpp,
+  lit,
+  filecheck,
+  yq,
+  ruby,
+  gtest,
+  llvmPackages,
   llvmLib,
   ...
 }:
@@ -24,25 +35,34 @@ stdenv.mkDerivation {
       ./version.json
     ];
   };
-  nativeBuildInputs = with pkgs; [
+  nativeBuildInputs = [
     cmake
     ninja
+  ];
+  buildInputs = [
+    llvmLib
     yaml-cpp
   ];
-  buildInputs = [ llvmLib ];
-  nativeCheckInputs = with pkgs; [
-    lit
-    filecheck
-    yq
-    ruby
-    clang
-    pkgsCross.riscv64.buildPackages.clang
-    pkgsCross.riscv64.buildPackages.llvmPackages.bintools
-    pkgsCross.aarch64-multiplatform.buildPackages.clang
-  ];
+  strictDeps = false;
+  enableShared = false;
+  nativeCheckInputs =
+    [
+      lit
+      filecheck
+      llvmPackages.bintools
+      which
+      clangCompiler
+      yq
+      ruby
+    ]
+    ++ (with pkgs; [
+      pkgsCross.riscv64.buildPackages.clang
+      pkgsCross.riscv64.buildPackages.llvmPackages.bintools
+      pkgsCross.aarch64-multiplatform.buildPackages.clang
+    ]);
   preCheck = ''
     patchShebangs ..
   '';
-  checkInputs = with pkgs; [ gtest ];
+  checkInputs = [ gtest ];
   doCheck = true;
 }

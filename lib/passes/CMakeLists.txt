@@ -6,6 +6,7 @@ bleach_add_llvm_based_lib(
   target
   mirparser
   irreader
+  analysis
   SOURCES
   block-ir-builder.cpp
   redundant-branch-eraser.cpp)

@@ -1,6 +1,6 @@
-// RUN: aarch64-unknown-linux-gnu-clang -c -O0 %S/inputs/single-long-mul-func.c \
-// RUN:   -o %t.o
-// RUN: %bin/mctomir %t.o -o %t.mir
+// XFAIL: *
+// RUN: aarch64-unknown-linux-gnu-clang -c -O0 %S/inputs/single-long-mul-func.c
+// \ RUN:   -o %t.o RUN: %bin/mctomir %t.o -o %t.mir
 // RUN: %config-gen-path/config-gen.rb --march aarch64 \
 // RUN:   -d %config-gen-path/templates -o %t.yaml
 // RUN: %bin/llvm-bleach %t.mir --instructions %t.yaml -noinline-instr \

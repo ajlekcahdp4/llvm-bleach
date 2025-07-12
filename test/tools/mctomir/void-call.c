@@ -1,4 +1,4 @@
-// RUN: gcc -c %s -o %t.o -O0
+// RUN: clang -c %s -o %t.o -O0
 // RUN: %bin/mctomir %t.o -o - | FileCheck %s
 
 extern void foo(int x);

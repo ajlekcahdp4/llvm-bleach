@@ -1,3 +1,4 @@
 add_subdirectory(tools)
-add_subdirectory(lib)
 add_subdirectory(integration)
+
+add_subdirectory(lib)

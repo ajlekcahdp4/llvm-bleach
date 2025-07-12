@@ -1,5 +1,5 @@
-// RUN: gcc -fPIC -c %s -o %t.o
-// RUN: gcc -shared %t.o -o %t.so
+// RUN: clang -fPIC -c %s -o %t.o
+// RUN: clang -shared %t.o -o %t.so
 // RUN: %bin/mctomir %t.so -o - | FileCheck %s
 
 int foo(int);
