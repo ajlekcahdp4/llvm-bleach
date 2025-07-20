@@ -90,6 +90,7 @@
               ]);
             buildInputs = packages.llvm-bleach.buildInputs;
           };
+          devShells.withBleach = pkgs.mkShell { nativeBuildInputs = [ packages.llvm-bleach-static ]; };
         };
     };
 }

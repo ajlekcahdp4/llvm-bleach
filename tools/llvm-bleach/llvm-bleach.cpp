@@ -41,7 +41,8 @@ namespace bleach {
 
 static cl::opt<std::string> mir_file_name(cl::Positional,
                                           cl::desc("<mir file>"),
-                                          cl::cat(options), cl::init(""));
+                                          cl::cat(options), cl::init(""),
+                                          cl::Required);
 static cl::opt<std::string> instructions_file(
     "instructions",
     cl::desc("File with (YAML) descriptions of instructions in LLVM IR"),

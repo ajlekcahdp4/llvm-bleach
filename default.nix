@@ -12,6 +12,7 @@
   yq,
   ruby,
   gtest,
+  pandoc,
   llvmPackages,
   llvmLib,
   ...
@@ -32,12 +33,14 @@ stdenv.mkDerivation {
       ./cmake
       ./include
       ./test
+      ./docs
       ./version.json
     ];
   };
   nativeBuildInputs = [
     cmake
     ninja
+    pandoc
   ];
   buildInputs = [
     llvmLib

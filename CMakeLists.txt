@@ -116,6 +116,13 @@ add_subdirectory(include)
 add_subdirectory(lib)
 add_subdirectory(tools)
 
+find_program(PANDOC_PROGRAM pandoc HINTS ${PANDOC_PATH})
+if (PANDOC_PROGRAM)
+  add_subdirectory(docs)
+else()
+  message(WARNING "pandoc executable not found in PATH or PANDOC_PATH variable. Skipping documentation generation")
+endif()
+
 string(REGEX MATCH "^([0-9]+)\.([0-9]+)\.([0-9]+)"
   LLVM_BLEACH_SEMVER_PARSE_MATCH ${LLVM_BLEACH_VERSION})
 

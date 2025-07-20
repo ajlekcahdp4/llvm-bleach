@@ -42,8 +42,11 @@ cmake -S . -B build
 cmake --build build
 ```
 
-### Run:
+### Guides
 
-```sh
-build/bin/llvm-bleach test/tools/llvm-bleach/inputs/foo.mir --instructions test/tools/llvm-bleach/inputs/addsub.yaml
-```
+llvm-bleach currently comes with documentation for all of 3 distributed tools:
+
+- [llvm-bleach](./docs/bleach.md) - LLVM MIR to LLVM IR lifter
+- [mctomir](./docs/mctomir.md) - machine code to MIR lifter
+- [bleach-config-gen](./docs/bleach-config-gen.md) - helper tool to generate
+  architecture configs for llvm-bleach from available templates.
