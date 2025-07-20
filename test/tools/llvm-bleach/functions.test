@@ -1,74 +1,82 @@
 # RUN: %bin/llvm-bleach %S/inputs/functions.mir \
-# RUN:   --instructions=%S/inputs/logical.yaml | filecheck %s
+# RUN:   --instructions=%S/inputs/logical.yaml | FileCheck %s --check-prefix SF
+
+# RUN: %bin/llvm-bleach %S/inputs/functions.mir \
+# RUN:   --instructions=%S/inputs/logical.yaml | FileCheck %s --check-prefix FUN1
+
+# RUN: %bin/llvm-bleach %S/inputs/functions.mir \
+# RUN:   --instructions=%S/inputs/logical.yaml | FileCheck %s --check-prefix FUN2
 
 # SnippyFunction has 4 calls to fun2. Check that all calls are
 # embraced with storing registers to state and loading afterwards
 
-# CHECK: define void @SnippyFunction(ptr %0) {
+# SF: define void @SnippyFunction(ptr %0) {
 
-# CHECK-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
-# CHECK:   call void @fun2(ptr %0)
-# CHECK-32:   load i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+# SF-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+# SF:   call void @fun2(ptr %0)
+# SF-32:   load i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
 
-# CHECK-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
-# CHECK:   call void @fun2(ptr %0)
-# CHECK-32:   load i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+# SF-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+# SF:   call void @fun2(ptr %0)
+# SF-32:   load i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
 
-# CHECK-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
-# CHECK:   call void @fun2(ptr %0)
-# CHECK-32:   load i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+# SF-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+# SF:   call void @fun2(ptr %0)
+# SF-32:   load i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
 
-# CHECK-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
-# CHECK:   call void @fun2(ptr %0)
-# CHECK-32:   load i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+# SF-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+# SF:   call void @fun2(ptr %0)
+# SF-32:   load i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
 
-#CHECK-NOT: call
+# SF-NOT: call
+# SF: }
 
 # Now 6 calls from fun1
-# CHECK: define void @fun1(ptr %0) {
+# FUN1: define void @fun1(ptr %0) {
 
-# CHECK-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
-# CHECK:   call void @fun2(ptr %0)
-# CHECK-32:   load i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+# FUN1-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+# FUN1:   call void @fun2(ptr %0)
+# FUN1-32:   load i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
 
-# CHECK-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
-# CHECK:   call void @fun2(ptr %0)
-# CHECK-32:   load i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+# FUN1-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+# FUN1:   call void @fun2(ptr %0)
+# FUN1-32:   load i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
 
-# CHECK-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
-# CHECK:   call void @fun2(ptr %0)
-# CHECK-32:   load i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+# FUN1-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+# FUN1:   call void @fun2(ptr %0)
+# FUN1-32:   load i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
 
-# CHECK-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
-# CHECK:   call void @fun2(ptr %0)
-# CHECK-32:   load i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+# FUN1-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+# FUN1:   call void @fun2(ptr %0)
+# FUN1-32:   load i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
 
-# CHECK-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
-# CHECK:   call void @fun2(ptr %0)
-# CHECK-32:   load i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+# FUN1-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+# FUN1:   call void @fun2(ptr %0)
+# FUN1-32:   load i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
 
-# CHECK-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
-# CHECK:   call void @fun2(ptr %0)
-# CHECK-32:   load i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+# FUN1-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+# FUN1:   call void @fun2(ptr %0)
+# FUN1-32:   load i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
 
-# CHECK-NOT: call
+# FUN1-NOT: call
+# FUN1: }
 
 # 4 calls from fun2 to fun3
-# CHECK: define void @fun2(ptr %0) {
+# FUN2: define void @fun2(ptr %0) {
 
-# CHECK-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
-# CHECK:   call void @fun3(ptr %0)
-# CHECK-32:   load i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+# FUN2-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+# FUN2:   call void @fun3(ptr %0)
+# FUN2-32:   load i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
 
-# CHECK-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
-# CHECK:   call void @fun3(ptr %0)
-# CHECK-32:   load i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+# FUN2-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+# FUN2:   call void @fun3(ptr %0)
+# FUN2-32:   load i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
 
-# CHECK-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
-# CHECK:   call void @fun3(ptr %0)
-# CHECK-32:   load i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+# FUN2-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+# FUN2:   call void @fun3(ptr %0)
+# FUN2-32:   load i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
 
-# CHECK-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
-# CHECK:   call void @fun3(ptr %0)
-# CHECK-32:   load i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+# FUN2-32:   store i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
+# FUN2:   call void @fun3(ptr %0)
+# FUN2-32:   load i64 {{%[0-9]+}}, ptr {{%[0-9]+}}, align 8
 

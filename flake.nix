@@ -33,15 +33,6 @@
       ];
       perSystem =
         { pkgs, system, ... }:
-        let
-          mkLlvmLib =
-            llvmPkgs:
-            llvmPkgs.llvm.overrideAttrs (prev: {
-              patches = prev.patches ++ [ ./overlays/llvm-install-target-headers.patch ];
-              doCheck = false;
-              cmakeFlags = prev.cmakeFlags ++ [ "-DLLVM_TARGETS_TO_BUILD=X86;RISCV;AArch64" ];
-            });
-        in
         rec {
           imports = [ ./nix/treefmt.nix ];
 
@@ -62,11 +53,11 @@
           packages = rec {
             llvm-bleach = legacyPackages.bleachPkgs.callPackage ./. {
               inherit self;
-              llvmLib = mkLlvmLib legacyPackages.bleachPkgs.llvmPackages_19;
+              llvmLib = legacyPackages.bleachPkgs.llvmPackages_19.llvm;
               clangCompiler = legacyPackages.bleachPkgs.clang;
             };
             llvm-bleach-static = legacyPackages.bleachPkgsStatic.callPackage ./. {
-              llvmLib = mkLlvmLib legacyPackages.bleachPkgsStatic.llvmPackages_19;
+              llvmLib = legacyPackages.bleachPkgsStatic.llvmPackages_19.llvm;
               clangCompiler = legacyPackages.bleachPkgs.clang;
             };
             default = llvm-bleach;
