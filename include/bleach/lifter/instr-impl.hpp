@@ -9,9 +9,19 @@
 namespace bleach::lifter {
 using namespace llvm;
 
+struct return_info final : private std::vector<std::string> {
+  using vector::begin;
+  using vector::empty;
+  using vector::end;
+  using vector::size;
+
+  void add(const std::string &rx) { vector::push_back(rx); }
+};
+
 struct instruction final {
   std::string name;
   std::unique_ptr<Module> ir_module;
+  std::optional<return_info> retinfo;
 };
 
 struct constant_reg final {
@@ -52,14 +62,10 @@ public:
 
   void set_stack_pointer(std::string sp) { stack_pointer = std::move(sp); }
 
-  auto &get(std::string_view name) const & {
+  auto find(std::string_view name) const & {
     auto found = std::find_if(begin(), end(),
                               [name](auto &pair) { return pair.name == name; });
-    if (found == end())
-      throw std::runtime_error("Unknown instruction \"" + std::string(name) +
-                               "\"");
-    assert(found->ir_module);
-    return *found->ir_module;
+    return found;
   }
 };
 

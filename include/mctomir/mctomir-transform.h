@@ -1,7 +1,6 @@
 #pragma once
 
 #include "mctomir/elf-loader.h"
-#include "mctomir/target/target-selector.hpp"
 
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/CodeGen/MachineBasicBlock.h>
@@ -81,10 +80,7 @@ public:
 
   void print_mir(raw_ostream &os) const;
 
-  void make_returns();
-
 private:
-  std::unique_ptr<target> tgt;
   std::unique_ptr<LLVMTargetMachine> tmachine;
   std::unique_ptr<MachineModuleInfo> mmi;
   std::unique_ptr<MCContext> mcctx;
@@ -98,8 +94,6 @@ private:
 
   std::vector<function_info> funcs;
   DenseMap<uint64_t, MachineBasicBlock *> address_to_mbb;
-
-  target &get_or_create_target();
 
   Error create_module_and_function(StringRef triple_name,
                                    SubtargetFeatures features);
@@ -129,7 +123,7 @@ public:
   elf_to_mir_converter();
 
   Error process_file(StringRef file_path);
-  Error convert_section(StringRef section_name, bool match_returns);
+  Error convert_section(StringRef section_name);
   Error write_mir(StringRef output_path);
   void print_mir(raw_ostream &os);
 

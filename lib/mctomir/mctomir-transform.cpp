@@ -1,6 +1,4 @@
 #include "mctomir/mctomir-transform.h"
-#include "mctomir/target/target-selector.hpp"
-#include "mctomir/target/target.hpp"
 
 #include <cstdint>
 #include <llvm/ADT/STLExtras.h>
@@ -402,28 +400,6 @@ translator_t::get_or_create_mbb_for_address(uint64_t address,
   return mbb;
 }
 
-target &translator_t::get_or_create_target() {
-  if (!tgt)
-    tgt = select_target(tmachine->getTargetTriple());
-  return *tgt;
-}
-
-void translator_t::make_returns() {
-  for (auto &finfo : funcs) {
-    auto &mfunc = *finfo.mfunc;
-    auto &tgt = get_or_create_target();
-    for (auto &mblock : mfunc) {
-      auto &last = mblock.back();
-      if (last.isReturn())
-        continue;
-      if (tgt.is_return(last)) {
-        last.eraseFromParent();
-        tgt.insert_return(mblock, mblock.end(), *tmachine);
-      }
-    }
-  }
-}
-
 Error translator_t::write_mir(StringRef output_filename) const {
   std::error_code ec;
   raw_fd_ostream os(output_filename, ec);
@@ -470,8 +446,7 @@ Error elf_to_mir_converter::process_file(StringRef file_path) {
   return Error::success();
 }
 
-Error elf_to_mir_converter::convert_section(StringRef section_name,
-                                            bool match_returns) {
+Error elf_to_mir_converter::convert_section(StringRef section_name) {
   if (!disassembler || !translator)
     return createStringError(inconvertibleErrorCode(),
                              "disassembler or translator not initialized");
@@ -491,8 +466,6 @@ Error elf_to_mir_converter::convert_section(StringRef section_name,
 
   if (Error err = translator->finalize())
     return err;
-  if (match_returns)
-    translator->make_returns();
 
   return Error::success();
 }

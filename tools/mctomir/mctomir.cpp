@@ -31,11 +31,6 @@ static cl::alias verbose_output_alias("v", cl::desc("Alias for --verbose"),
                                       cl::aliasopt(verbose_output),
                                       cl::cat(options));
 
-static cl::opt<bool>
-    match_returns("match-returns",
-                  cl::desc("Match instructions to pseudo returns if necessary"),
-                  cl::cat(options));
-
 int main(int argc, char **argv) {
   cl::AddExtraVersionPrinter([](raw_ostream &os) {
     os << "Bleach version: " LLVM_BLEACH_VERSION_STRING "\n";
@@ -68,7 +63,7 @@ int main(int argc, char **argv) {
   if (verbose_output)
     outs() << "Converting section: " << section_name << "\n";
 
-  if (Error err = converter.convert_section(section_name, match_returns)) {
+  if (Error err = converter.convert_section(section_name)) {
     WithColor::error() << "Failed to convert section: "
                        << toString(std::move(err)) << "\n";
     return 1;

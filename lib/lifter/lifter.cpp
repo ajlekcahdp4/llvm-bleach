@@ -1,6 +1,7 @@
 #include "bleach/lifter/lifter.hpp"
 #include "bleach/lifter/instr-impl.hpp"
 
+#include <iterator>
 #include <llvm/CodeGen/MachineFunction.h>
 #include <llvm/CodeGen/MachineModuleInfo.h>
 #include <llvm/CodeGen/MachineRegisterInfo.h>
@@ -12,6 +13,7 @@
 #include <llvm/MC/MCInstrInfo.h>
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/FormatVariadic.h>
+#include <llvm/Support/raw_ostream.h>
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 
@@ -114,7 +116,8 @@ void fill_module_with_instrs(Module &m, const instr_impl &instrs) {
   assert(!instrs.empty());
   auto first = CloneModule(*instrs.begin()->ir_module);
   for (auto &&i : drop_begin(instrs)) {
-    assert(i.ir_module);
+    if (!i.ir_module)
+      continue;
     auto module_clone = CloneModule(*i.ir_module);
     Linker::linkModules(*first, std::move(module_clone));
   }
@@ -765,6 +768,45 @@ bool is_stack_manipulation(const MachineInstr &minst, const instr_impl &instrs,
   return used_reg != regops.end();
 }
 
+static bool match_return(const MachineInstr &minst, const instruction &instr,
+                         const LLVMTargetMachine &tmachine) {
+  if (!instr.retinfo)
+    return false;
+  std::vector<llvm::Regex> rxs;
+  ranges::transform(*instr.retinfo, std::back_inserter(rxs),
+                    [](StringRef rx) { return llvm::Regex(rx); });
+  auto *mfunc = minst.getParent()->getParent();
+  auto *stinfo = tmachine.getSubtargetImpl(mfunc->getFunction());
+  assert(stinfo);
+  auto *rinfo = stinfo->getRegisterInfo();
+  assert(rinfo);
+  auto ops = minst.operands();
+  return ranges::all_of(views::zip(ops, rxs), [rinfo](auto &&pair) {
+    auto &&[op, rx] = pair;
+    auto print = [](auto &mop) {
+      std::string res;
+      raw_string_ostream ss(res);
+      mop.print(ss);
+      return res;
+    };
+    std::string op_dump =
+        op.isReg() ? rinfo->getRegAsmName(op.getReg()).str() : print(op);
+    SmallVector<StringRef> matches;
+    bool match = rx.match(op_dump, &matches);
+    // match whole string
+    return match && matches.size() == 1 && matches[0].size() == op_dump.size();
+  });
+}
+
+static bool is_return(const MachineInstr &minst, const instr_impl &instrs,
+                      const LLVMTargetMachine &tmachine) {
+  auto *iinfo = tmachine.getMCInstrInfo();
+  auto name = get_instruction_name(minst, *iinfo);
+  auto instr = instrs.find(name);
+  return minst.isReturn() ||
+         (instr != instrs.end() && match_return(minst, *instr, tmachine));
+}
+
 auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
                           IRBuilder<> &builder, reg2vals &rmap,
                           const instr_impl &instrs,
@@ -781,7 +823,7 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
     return generate_branch(minst, bb, builder, rmap, target_machine, m2b,
                            reg_stats, instrs);
   }
-  if (minst.isReturn())
+  if (is_return(minst, instrs, target_machine))
     return generate_return(minst, target_machine, builder, rmap, reg_stats,
                            bb.getParent());
   if (minst.isCall())
@@ -841,7 +883,7 @@ void fill_ir_for_bb(MachineBasicBlock &mbb, reg2vals &rmap,
                          state, reg_stats, functions_nop);
   }
   auto last = std::prev(mbb.end());
-  if (!last->isBranch() && !last->isReturn()) {
+  if (!last->isBranch() && !is_return(*last, instrs, target_machine)) {
     auto succ = std::next(mbb.getIterator());
     builder.CreateBr(m2b[std::addressof(*succ)]);
   }

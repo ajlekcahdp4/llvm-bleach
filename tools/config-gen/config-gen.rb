@@ -138,10 +138,17 @@ def instantiate_for(templ, arch)
   }.map do |instr|
     name = instr[0]
     next if instr[1].key?("requires") && instr[1]["requires"] != arch.prefix
-    func = instr[1]["func"]
-    func = replace_all_expressions(func, xlen)
-    func = append_declarations_if_needed(config, func)
-    { name => { "func" => func } }
+    inst = {}
+    instr[1].select { |k, v| k != "func" }.each do |k, v|
+      inst[k] = v
+    end
+    if instr[1].key?("func")
+      func = instr[1]["func"]
+      func = replace_all_expressions(func, xlen)
+      func = append_declarations_if_needed(config, func)
+      inst["func"] = func
+    end
+    { name => inst }
   end
 
   return config

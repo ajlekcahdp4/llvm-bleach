@@ -14,9 +14,11 @@
 #include <iostream>
 
 namespace bleach::lifter {
+
 struct normalized_instruction final {
   std::string name;
   std::string function_str;
+  std::optional<return_info> retinfo;
   normalized_instruction() = default;
   normalized_instruction(const instruction &instr)
       : name(instr.name), function_str([&] {
@@ -26,7 +28,8 @@ struct normalized_instruction final {
             throw std::runtime_error("Attempt to serialize instr with no impl");
           instr.ir_module->print(os, /* AssemblyAnnotationWriter */ nullptr);
           return str;
-        }()) {}
+        }()),
+        retinfo(instr.retinfo) {}
 };
 
 } // namespace bleach::lifter
@@ -46,7 +49,15 @@ template <> struct convert<lifter::normalized_instruction> {
     // FIXME: There's only one. Change format
     for (auto &&inst : node) {
       instr.name = inst.first.as<std::string>();
-      instr.function_str = inst.second["func"].as<std::string>();
+      if (auto func = inst.second["func"]; func && !func.IsNull())
+        instr.function_str = func.as<std::string>();
+      if (auto retinfo = inst.second["is_return"]) {
+        if (!retinfo.IsSequence())
+          throw std::runtime_error("is_return should be a sequence");
+        instr.retinfo.emplace();
+        for (auto &&rx : retinfo)
+          instr.retinfo->add(rx.as<std::string>());
+      }
     }
     return true;
   }
@@ -69,6 +80,9 @@ instruction denormalize_instruction(const normalized_instruction &norm,
                                     llvm::LLVMContext &ctx) {
   instruction instr;
   instr.name = norm.name;
+  instr.retinfo = norm.retinfo;
+  if (norm.function_str.empty())
+    return instr;
   llvm::SmallVector<char> ir_buf(norm.function_str.begin(),
                                  norm.function_str.end());
   auto mem_buf = llvm::SmallVectorMemoryBuffer(std::move(ir_buf), "");

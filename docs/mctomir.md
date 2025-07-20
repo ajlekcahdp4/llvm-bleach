@@ -29,14 +29,6 @@ Display available options.
 Output file for LLVM IR code.
 ```
 
-**--match-returns**
-
-```
-Match returns from other instructions on architectures that don't have
-separate return instruction (RISC-V). This option replacess C_JR x1 with
-PseudoRET on RISC-V.
-```
-
 # EXAMPLES
 
 1. Lift ELF code from ./myfunc.elf and print lifted LLVM MIR on stdout.
