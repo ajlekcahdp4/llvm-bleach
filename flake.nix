@@ -54,10 +54,12 @@
             llvm-bleach = legacyPackages.bleachPkgs.callPackage ./. {
               inherit self;
               llvmLib = legacyPackages.bleachPkgs.llvmPackages_19.llvm;
+              libClang = legacyPackages.bleachPkgs.llvmPackages_19.clang-unwrapped.dev;
               clangCompiler = legacyPackages.bleachPkgs.clang;
             };
             llvm-bleach-static = legacyPackages.bleachPkgsStatic.callPackage ./. {
               llvmLib = legacyPackages.bleachPkgsStatic.llvmPackages_19.llvm;
+              libClang = legacyPackages.bleachPkgsStatic.llvmPackages_19.clang-unwrapped.dev;
               clangCompiler = legacyPackages.bleachPkgs.clang;
             };
             default = llvm-bleach;

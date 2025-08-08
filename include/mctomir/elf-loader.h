@@ -44,6 +44,8 @@ public:
 
   Expected<SubtargetFeatures> get_features() const;
 
+  ObjectFile &get_object() const { return *obj_file; }
+
 private:
   std::unique_ptr<MemoryBuffer> buffer;
   std::unique_ptr<ObjectFile> obj_file;

@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <llvm/ADT/STLExtras.h>
+#include <llvm/ADT/StringExtras.h>
 #include <llvm/CodeGen/MIRParser/MIRParser.h>
 #include <llvm/CodeGen/MIRPrinter.h>
 #include <llvm/CodeGen/MachineInstrBuilder.h>
@@ -128,17 +129,19 @@ Error translator_t::process_disassembly(SectionRef section,
     auto type = s.getType();
     auto addr = s.getValue();
     if (name && type && addr && !name->empty() &&
-        type.get() == SymbolRef::Type::ST_Function) {
+        (type.get() == SymbolRef::Type::ST_Function ||
+         type.get() == SymbolRef::Type::ST_Unknown)) {
       auto *obj = s.getObject();
       auto size = [&] {
         if (isa<ELFObjectFileBase>(obj))
           return ELFSymbolRef(s).getSize();
         throw std::runtime_error("Unsupported object size");
       }();
-      funcs.push_back(function_info{{}, {}, *addr, *addr + size, name->str()});
+      funcs.push_back(
+          translated_function{{}, {}, *addr, *addr + size, name->str()});
     }
   }
-  ranges::sort(funcs, {}, &function_info::start);
+  ranges::sort(funcs, {}, &translated_function::start);
 
   uint64_t size;
   MCInst inst;
@@ -210,7 +213,7 @@ Error translator_t::identify_basic_blocks() {
       }
     }
 
-    for (block_info *current_block = nullptr; auto &tinst : func.insts) {
+    for (translated_block *current_block = nullptr; auto &tinst : func.insts) {
       uint64_t current_addr = tinst.address;
       if (leaders.count(current_addr) > 0) {
         if (current_block)

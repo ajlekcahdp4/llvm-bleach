@@ -166,6 +166,33 @@ void materialize_registers(MachineFunction &mf, Function &func, reg2vals &rmap,
   }
 }
 
+static std::string bleach_symtab_lookup_name = "bleach_symtab_lookup";
+static std::string bleach_symtab_add_name = "bleach_symtab_add";
+
+auto *create_bleach_symtab_add_function_decl(Module &m) {
+  auto &ctx = m.getContext();
+  auto *ret_type = Type::getVoidTy(ctx);
+  auto *ptr_type = PointerType::getUnqual(ctx);
+  auto *addr_type = Type::getInt64Ty(ctx);
+  auto *ftype =
+      FunctionType::get(ret_type,
+                        // ptr to symtab, address and ptr to bb
+                        ArrayRef<Type *>{ptr_type, addr_type, ptr_type}, false);
+  return Function::Create(ftype, Function::ExternalLinkage, bleach_symtab_add_name,
+                          m);
+}
+
+auto *create_bleach_symtab_lookup_function_decl(Module &m) {
+  auto &ctx = m.getContext();
+  auto *ptr_type = PointerType::getUnqual(ctx);
+  auto *addr_type = Type::getInt64Ty(ctx);
+  auto *ftype =
+      FunctionType::get(ptr_type,
+                        // ptr to symtab and address
+                        ArrayRef<Type *>{ptr_type, addr_type}, false);
+  return Function::Create(ftype, Function::ExternalLinkage, bleach_symtab_lookup_name,
+                          m);
+}
 auto *generate_function_object(Module &m, MachineFunction &mf) {
   auto *ret_type = mf.getFunction().getFunctionType()->getReturnType();
   auto *func_type = FunctionType::get(
@@ -257,6 +284,19 @@ void save_registers_before_return(Function &func, reg2vals &rmap,
     if (ret == block.end())
       continue;
     save_registers(block, ret, rmap, tmachine, state, reg_stats);
+  }
+}
+
+void fill_symtab_at(Function *func, ArrayRef<Function*> funcs) {
+  auto *m = func->getParent();
+  auto *symtab_add = m->getFunction(bleach_symtab_add_name);
+  IRBuilder builder(func->getContext());
+  builder.SetInsertPoint(&func->front());
+  for (auto *callee : funcs) {
+    auto *blockaddr = BlockAddress::get(&callee->front());
+    // TODO: parse function addresses from YAML
+    std::vector<Value *> args = {/* Addr */ 0, blockaddr};
+    builder.CreateCall(symtab_add->getFunctionType(), symtab_add, args);
   }
 }
 
@@ -933,6 +973,17 @@ Module &bleach_module(Module &m, MachineModuleInfo &mmi,
       fs << struct_def_str << std::endl;
     }
   }
+
+  std::vector<Function *> translated;
+  ranges::transform(funcs, std::back_inserter(translated), [](auto &finfo){
+    auto &&[oldf, newf] = finfo;
+    return &newf.mfunc->getFunction();
+      });
+  create_bleach_symtab_add_function_decl(m);
+  create_bleach_symtab_lookup_function_decl(m);
+
+  for (auto *func : translated)
+    fill_symtab_at(func, translated);
 
   for (auto &&[oldf, func_info] : funcs)
     generate_function(*oldf, func_info, instrs, mmi, state, reg_stats,

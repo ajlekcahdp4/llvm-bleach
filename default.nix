@@ -6,6 +6,7 @@
   which,
   ninja,
   clangCompiler,
+  libClang,
   yaml-cpp,
   lit,
   filecheck,
@@ -43,6 +44,7 @@ stdenv.mkDerivation {
     pandoc
   ];
   buildInputs = [
+    libClang
     llvmLib
     yaml-cpp
   ];

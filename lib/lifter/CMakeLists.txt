@@ -1,5 +1,3 @@
-find_package(yaml-cpp REQUIRED CONFIG)
-
 bleach_add_llvm_based_lib(
   bleach-lifter
   LLVM_COMPONENTS
@@ -12,7 +10,7 @@ bleach_add_llvm_based_lib(
   instr-impl.cpp
   lifter.cpp)
 
-target_link_libraries(bleach-lifter PUBLIC yaml-cpp::yaml-cpp)
+target_link_libraries(bleach-lifter PUBLIC yaml-cpp::yaml-cpp mctomir-lifter)
 target_sources(
   bleach-lifter
   PUBLIC FILE_SET
