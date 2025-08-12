@@ -18,7 +18,7 @@ target_sources(
          ${LLVM_BLEACH_INCLUDE_DIR}
          FILES
          ${LLVM_BLEACH_INCLUDE_DIR}/bleach/compiler/compiler.hpp)
-target_link_libraries(bleach-compiler PRIVATE clangBasic)
+       target_link_libraries(bleach-compiler PRIVATE clangBasic clangDriver clangFrontend clangSupport clangLex clangCodeGen)
 target_include_directories(
   bleach-compiler PUBLIC $<BUILD_INTERFACE:${LLVM_BLEACH_INCLUDE_DIR}>
                        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)

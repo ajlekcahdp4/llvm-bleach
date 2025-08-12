@@ -2,6 +2,8 @@
 
 #include "bleach/lifter/instr-impl.hpp"
 
+#include "mctomir/symbols.h"
+
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/PassManager.h>
 #include <llvm/Support/Regex.h>
@@ -131,7 +133,7 @@ StructType &create_state_type(LLVMContext &ctx);
 
 Module &bleach_module(Module &m, MachineModuleInfo &mmi,
                       const instr_impl &instrs,
-                      std::string_view state_struct_file, size_t stack_size,
+                      std::string_view state_struct_file, size_t stack_size, const mctomir::file_info *finfo,
                       bool assume_functions_nop);
 
 } // namespace bleach::lifter

@@ -1,10 +1,12 @@
 #pragma once
 
-#include <llvm/Object/ObjectFile.h>
-
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <string_view>
+#include <ranges>
+
+namespace ranges = std::ranges;
 
 namespace mctomir {
 
@@ -26,6 +28,12 @@ public:
   using vector::end;
   using vector::front;
   using vector::size;
+  auto getStartOf(std::string_view func) const {
+    auto found = ranges::find_if(*this, [func](auto &fs){return fs.name == func;});
+    if (found == end())
+      throw std::runtime_error("Symbol info not found for: " + std::string(func));
+    return found->start;
+  }
 };
 
 file_info load_file_info_from_yaml(std::string yaml);

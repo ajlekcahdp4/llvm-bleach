@@ -1,5 +1,7 @@
 #include "bleach/lifter/lifter.hpp"
 #include "bleach/lifter/instr-impl.hpp"
+#include "bleach/compiler/compiler.hpp"
+#include "mctomir/symbols.h"
 
 #include <iterator>
 #include <llvm/CodeGen/MachineFunction.h>
@@ -287,15 +289,15 @@ void save_registers_before_return(Function &func, reg2vals &rmap,
   }
 }
 
-void fill_symtab_at(Function *func, ArrayRef<Function*> funcs) {
+void fill_symtab_at(Function *func, ArrayRef<Function*> funcs, const mctomir::file_info &finfo) {
   auto *m = func->getParent();
   auto *symtab_add = m->getFunction(bleach_symtab_add_name);
-  IRBuilder builder(func->getContext());
+  assert(symtab_add);
+  IRBuilder builder(m->getContext());
   builder.SetInsertPoint(&func->front());
   for (auto *callee : funcs) {
-    auto *blockaddr = BlockAddress::get(&callee->front());
-    // TODO: parse function addresses from YAML
-    std::vector<Value *> args = {/* Addr */ 0, blockaddr};
+    auto *blockaddr = BlockAddress::get(callee, &callee->front());
+    std::vector<Value *> args = {finfo.getStartOf(callee->getName().str()), blockaddr};
     builder.CreateCall(symtab_add->getFunctionType(), symtab_add, args);
   }
 }
@@ -545,6 +547,22 @@ auto operand_to_value(const MachineOperand &mop, BasicBlock &block,
   }
   throw std::runtime_error("Unsupported operand type");
 }
+
+auto generate_indirect_branch(Module &m, BasicBlock &bb, const MachineInstr &minst, IRBuilder<> &builder, const mbb2bb &m2b, const LLVMTargetMachine &tmachine, reg2vals &rmap, const register_stats &rstats, const instr_impl &insts) -> Instruction * {
+  auto *symtab_lookup = m.getFunction(bleach_symtab_lookup_name);
+  assert(symtab_lookup);
+  auto op_to_val = [&](auto &mop) {
+    return operand_to_value(mop, bb, tmachine, rmap, rstats, insts);
+  };
+  auto values = minst.uses() |
+                views::filter([](auto &&mop) { return !mop.isMBB(); }) |
+                views::transform(op_to_val);
+
+  std::vector<Value *> args(values.begin(), values.end());
+  auto *addr = builder.CreateCall(symtab_lookup->getFunctionType(), symtab_lookup, args);
+  return builder.CreateIndirectBr(addr);
+}
+
 
 auto generate_branch(const MachineInstr &minst, BasicBlock &bb,
                      IRBuilder<> &builder, reg2vals &rmap,
@@ -847,6 +865,15 @@ static bool is_return(const MachineInstr &minst, const instr_impl &instrs,
          (instr != instrs.end() && match_return(minst, *instr, tmachine));
 }
 
+static bool is_indirect_branch(const MachineInstr &minst, const instr_impl &instrs,
+                      const LLVMTargetMachine &tmachine) {
+  if (minst.isIndirectBranch()) return true;
+  auto *iinfo = tmachine.getMCInstrInfo();
+  auto name = get_instruction_name(minst, *iinfo);
+  auto instr = instrs.find(name);
+  return (instr != instrs.end()) && instr->is_indirect_branch;
+}
+
 auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
                           IRBuilder<> &builder, reg2vals &rmap,
                           const instr_impl &instrs,
@@ -856,6 +883,8 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
                           bool functions_nop) -> Value * {
   auto *iinfo = target_machine.getMCInstrInfo();
   auto name = get_instruction_name(minst, *iinfo);
+  if (is_indirect_branch(minst, instrs, target_machine))
+    return generate_indirect_branch(*bb.getParent()->getParent(), bb, minst, builder, m2b, target_machine, rmap, reg_stats, instrs);
   if (minst.isBranch()) {
     if (minst.isUnconditionalBranch())
       return generate_jump(minst, builder, m2b);
@@ -931,8 +960,12 @@ void fill_ir_for_bb(MachineBasicBlock &mbb, reg2vals &rmap,
 
 Module &bleach_module(Module &m, MachineModuleInfo &mmi,
                       const instr_impl &instrs,
-                      std::string_view state_struct_file, size_t stack_size,
+                      std::string_view state_struct_file, size_t stack_size, const mctomir::file_info *finfo,
                       bool assume_functions_nop) {
+  if (finfo) {
+    auto extra = cc::compile_to_llvm("symtab.cc");
+    Linker::linkModules(m, std::move(extra));
+  }
   auto reg_stats = collect_register_stats(instrs, m, mmi);
   std::set<Function *> target_functions;
   ranges::transform(m, std::inserter(target_functions, target_functions.end()),
@@ -982,12 +1015,13 @@ Module &bleach_module(Module &m, MachineModuleInfo &mmi,
   create_bleach_symtab_add_function_decl(m);
   create_bleach_symtab_lookup_function_decl(m);
 
-  for (auto *func : translated)
-    fill_symtab_at(func, translated);
-
   for (auto &&[oldf, func_info] : funcs)
     generate_function(*oldf, func_info, instrs, mmi, state, reg_stats,
                       assume_functions_nop);
+  if (finfo)
+    for (auto *func : translated)
+      fill_symtab_at(func, translated, *finfo);
+
 
   for (auto *f : target_functions)
     f->eraseFromParent();

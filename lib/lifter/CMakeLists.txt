@@ -10,7 +10,7 @@ bleach_add_llvm_based_lib(
   instr-impl.cpp
   lifter.cpp)
 
-target_link_libraries(bleach-lifter PUBLIC yaml-cpp::yaml-cpp mctomir-lifter)
+target_link_libraries(bleach-lifter PUBLIC yaml-cpp::yaml-cpp mctomir-lifter PRIVATE bleach-compiler)
 target_sources(
   bleach-lifter
   PUBLIC FILE_SET
