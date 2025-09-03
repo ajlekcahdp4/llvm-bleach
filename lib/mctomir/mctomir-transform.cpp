@@ -278,15 +278,18 @@ MachineInstr *translator_t::create_machine_instr(const translated_inst &tinst,
   auto &inst = tinst.inst;
   unsigned opcode = inst.getOpcode();
   const MCInstrDesc &desc = tii->get(opcode);
-
+  auto is_branch = mi_analysis->isBranch(inst);
   MachineInstrBuilder mib = BuildMI(*mbb, mbb->end(), DebugLoc(), desc);
 
   for (unsigned i = 0; i < inst.getNumOperands(); ++i) {
+    if (is_branch && (i == inst.getNumOperands() - 1) &&
+        inst.getOperand(i).isImm())
+      break;
     const MCOperand &mc_op = inst.getOperand(i);
     add_operand_to_mib(mib, mc_op, i, desc);
   }
 
-  if (mi_analysis->isBranch(inst)) {
+  if (is_branch) {
     // TODO(Ilyagavilin): deduce operands in other way
     if (inst.getNumOperands() > 0 &&
         inst.getOperand(inst.getNumOperands() - 1).isImm()) {
