@@ -61,7 +61,9 @@
               clangCompiler = legacyPackages.bleachPkgs.clang;
             };
             default = llvm-bleach;
-            llvm-snippy = pkgs.callPackage ./snippy.nix { stdenv = legacyPackages.bleachPkgs.llvmPackages_19.stdenv; };
+            llvm-snippy = pkgs.callPackage ./snippy.nix {
+              stdenv = legacyPackages.bleachPkgs.llvmPackages_19.stdenv;
+            };
           };
           checks = {
             inherit (packages) llvm-bleach llvm-bleach-static;
