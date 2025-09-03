@@ -11,6 +11,7 @@ int array_inc() {
   return acc;
 }
 
+// CHECK: bb.[[ENTRY:[0-9]+]]:
 // CHECK: bb.[[HEADER:[0-9]+]]:
 // CHECK: bb.[[BODY:[0-9]+]]:
 // CHECK: bb.[[EXIT:[0-9]+]]:
