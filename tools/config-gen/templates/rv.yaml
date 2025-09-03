@@ -386,6 +386,8 @@ instructions:
       }
   C_JR:
     is_return: [X1]
+  JALR:
+    is_return: [X0, X1, 0]
   BNE:
     func: |
       define i1 @BNE(i\xlen\ noundef signext %0, i\xlen\ noundef signext %1) {
