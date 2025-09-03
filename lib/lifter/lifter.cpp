@@ -590,9 +590,8 @@ static auto generate_return(const MachineInstr &minst,
                             IRBuilder<> &builder, reg2vals &rmap,
                             const register_stats &reg_stats,
                             const Function *func) -> Value * {
-  assert(minst.getNumOperands() <= 1);
   // non-void case
-  if (minst.getNumOperands() == 1) {
+  if (minst.getNumOperands() >= 1) {
     auto ret = minst.getOperand(0);
     assert(ret.isReg());
     auto *reg_val =
