@@ -10,7 +10,9 @@
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Module.h>
 #include <llvm/Linker/Linker.h>
+#include <llvm/MC/MCInstrAnalysis.h>
 #include <llvm/MC/MCInstrInfo.h>
+#include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/FormatVariadic.h>
 #include <llvm/Support/raw_ostream.h>
@@ -609,10 +611,12 @@ static auto generate_call(const MachineInstr &minst, IRBuilder<> &builder,
                           const register_stats &reg_stats,
                           bool functions_nop) -> Value * {
   assert(minst.getNumOperands() >= 1);
-  auto op = minst.getOperand(0);
-  assert(op.isGlobal());
-  auto *callee = const_cast<Function *>(dyn_cast<Function>(op.getGlobal()));
+  auto ops = minst.operands();
+  auto op = ranges::find_if(ops, [](auto &op) { return op.isGlobal(); });
+  assert(op != ops.end());
+  auto *callee = const_cast<Function *>(dyn_cast<Function>(op->getGlobal()));
   assert(callee);
+  callee->dump();
   auto *call =
       builder.CreateCall(callee->getFunctionType(), callee,
                          ArrayRef<Value *>{get_current_state(*bb.getParent())});
@@ -806,6 +810,20 @@ static bool is_return(const MachineInstr &minst, const instr_impl &instrs,
          (instr != instrs.end() && match_return(minst, *instr, tmachine));
 }
 
+static bool is_call(const MachineInstr &minst, const instr_impl &instrs,
+                    const LLVMTargetMachine &tmachine) {
+  if (minst.isCall())
+    return true;
+  if (minst.isPseudo())
+    return false;
+  // TODO: create mia only once
+  MCInst inst;
+  inst.setOpcode(minst.getOpcode());
+  std::unique_ptr<MCInstrAnalysis> mia(
+      tmachine.getTarget().createMCInstrAnalysis(tmachine.getMCInstrInfo()));
+  return mia->isCall(inst);
+}
+
 auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
                           IRBuilder<> &builder, reg2vals &rmap,
                           const instr_impl &instrs,
@@ -825,7 +843,7 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
   if (is_return(minst, instrs, target_machine))
     return generate_return(minst, target_machine, builder, rmap, reg_stats,
                            bb.getParent());
-  if (minst.isCall())
+  if (is_call(minst, instrs, target_machine))
     return generate_call(minst, builder, bb, rmap, target_machine, state,
                          reg_stats, functions_nop);
   if (minst.mayLoadOrStore()) {
@@ -905,15 +923,19 @@ Module &bleach_module(Module &m, MachineModuleInfo &mmi,
   for (auto &&[oldf, func_info] : funcs) {
     for (auto &block : *func_info.mfunc) {
       for (auto &inst : block) {
-        if (!inst.isCall())
+        if (!is_call(inst, instrs, mmi.getTarget()))
           continue;
-        auto &&callee_op = inst.getOperand(0);
-        assert(callee_op.isGlobal());
-        auto *callee_global = callee_op.getGlobal();
+        auto ops = inst.operands();
+        auto global_op =
+            ranges::find_if(ops, [](auto &op) { return op.isGlobal(); });
+        if (global_op == ops.end())
+          continue;
+        assert(global_op != ops.end());
+        auto *callee_global = global_op->getGlobal();
         auto *callee = dyn_cast<Function>(callee_global);
         assert(callee);
         auto *new_callee = funcs.at(mmi.getMachineFunction(*callee)).mfunc;
-        callee_op.ChangeToGA(&new_callee->getFunction(), /*Offset=*/0);
+        global_op->ChangeToGA(&new_callee->getFunction(), /*Offset=*/0);
       }
     }
   }
@@ -939,6 +961,11 @@ Module &bleach_module(Module &m, MachineModuleInfo &mmi,
 
   for (auto *f : target_functions)
     f->eraseFromParent();
+
+  auto *main_func = m.getFunction("main");
+  if (main_func)
+    main_func->setName("bleached_main");
+
   return m;
 }
 } // namespace bleach::lifter
