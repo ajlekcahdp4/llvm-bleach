@@ -278,7 +278,8 @@ MachineInstr *translator_t::create_machine_instr(const translated_inst &tinst,
   auto &inst = tinst.inst;
   unsigned opcode = inst.getOpcode();
   const MCInstrDesc &desc = tii->get(opcode);
-  auto is_branch = mi_analysis->isBranch(inst);
+  uint64_t target;
+  bool is_branch = mi_analysis->evaluateBranch(inst, 0, 4, target);
   MachineInstrBuilder mib = BuildMI(*mbb, mbb->end(), DebugLoc(), desc);
 
   for (unsigned i = 0; i < inst.getNumOperands(); ++i) {
@@ -293,12 +294,19 @@ MachineInstr *translator_t::create_machine_instr(const translated_inst &tinst,
     // TODO(Ilyagavilin): deduce operands in other way
     if (inst.getNumOperands() > 0 &&
         inst.getOperand(inst.getNumOperands() - 1).isImm()) {
-      uint64_t target;
-      if (mi_analysis->evaluateBranch(inst, 0, 4, target)) {
-        auto target_it = address_to_mbb.find(target + tinst.address);
-        if (target_it != address_to_mbb.end()) {
+      auto target_it = address_to_mbb.find(target + tinst.address);
+      if (target_it != address_to_mbb.end()) {
+        if (mi_analysis->isCall(inst))
+          mib.addGlobalAddress(&target_it->second->getParent()->getFunction(),
+                               0);
+        else
           mib.addMBB(target_it->second);
-        }
+      } else {
+        std::string instr;
+        raw_string_ostream ss(instr);
+        mib->print(ss);
+        std::cerr << "Warning: destination not found for instruction:\n\t"
+                  << instr << '\n';
       }
     }
   }
