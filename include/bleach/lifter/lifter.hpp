@@ -91,6 +91,7 @@ public:
   using vector::begin;
   using vector::empty;
   using vector::end;
+  using vector::erase;
   using vector::size;
   using vector::operator[];
 

@@ -383,6 +383,9 @@ register_stats collect_register_stats(const instr_impl &instr, Module &m,
   auto *stinfo = mmi.getTarget().getSubtargetImpl(*m.begin());
   assert(stinfo);
   assign_register_classes(*stinfo, stats);
+  stats.erase(std::remove_if(stats.begin(), stats.end(),
+                             [](auto &rclass) { return rclass.empty(); }),
+              stats.end());
   return stats;
 }
 
@@ -399,8 +402,10 @@ std::string get_state_struct_definition(const StructType &type,
     assert(arr);
     auto *elem = dyn_cast<IntegerType>(arr->getElementType());
     assert(elem);
+    auto n_elements = arr->getNumElements();
+    assert(n_elements > 0);
     ss << formatv("  int{0}_t {1}[{2}];\n", elem->getBitWidth(),
-                  rclass.get_name(), arr->getNumElements());
+                  rclass.get_name(), n_elements);
   }
   // Last member is stack;
   assert(!elements.empty());
@@ -616,7 +621,6 @@ static auto generate_call(const MachineInstr &minst, IRBuilder<> &builder,
   assert(op != ops.end());
   auto *callee = const_cast<Function *>(dyn_cast<Function>(op->getGlobal()));
   assert(callee);
-  callee->dump();
   auto *call =
       builder.CreateCall(callee->getFunctionType(), callee,
                          ArrayRef<Value *>{get_current_state(*bb.getParent())});
@@ -671,7 +675,7 @@ static auto generate_load_store_from_stack(
       get_stack_pointer_value(instrs, rmap, builder, target_machine, reg_stats);
   auto *idx = builder.CreateAdd(sp, offset);
   auto *state_arg = get_current_state(*bb.getParent());
-  auto *stack_type = *std::next(state.element_begin());
+  auto *stack_type = *std::prev(state.element_end());
   auto *stack_addr = builder.CreateGEP(
       &state, state_arg,
       ArrayRef<Value *>{ConstantInt::get(ctx, APInt(64, reg_stats.size()))});
