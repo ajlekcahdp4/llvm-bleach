@@ -132,7 +132,6 @@ auto get_current_state(Function &func) -> Value * {
 }
 
 void materialize_registers(MachineFunction &mf, Function &func, reg2vals &rmap,
-                           const LLVMTargetMachine &target_machine,
                            StructType &state, const register_stats &reg_stats) {
   if (mf.empty())
     return;
@@ -181,7 +180,7 @@ auto *generate_function_object(Module &m, MachineFunction &mf) {
 }
 
 void save_registers(BasicBlock &block, BasicBlock::iterator pos, reg2vals &rmap,
-                    const LLVMTargetMachine &tmachine, StructType &state,
+                    const TargetMachine &tmachine, StructType &state,
                     const register_stats &reg_stats) {
   auto &ctx = block.getContext();
   auto *stinfo = tmachine.getSubtargetImpl(*block.getParent());
@@ -216,7 +215,7 @@ void save_registers(BasicBlock &block, BasicBlock::iterator pos, reg2vals &rmap,
 }
 
 void load_registers(BasicBlock &block, BasicBlock::iterator pos, reg2vals &rmap,
-                    const LLVMTargetMachine &tmachine, StructType &state,
+                    const TargetMachine &tmachine, StructType &state,
                     const register_stats &reg_stats) {
   auto &ctx = block.getContext();
   auto *stinfo = tmachine.getSubtargetImpl(*block.getParent());
@@ -250,7 +249,7 @@ void load_registers(BasicBlock &block, BasicBlock::iterator pos, reg2vals &rmap,
 }
 
 void save_registers_before_return(Function &func, reg2vals &rmap,
-                                  const LLVMTargetMachine &tmachine,
+                                  const TargetMachine &tmachine,
                                   StructType &state,
                                   const register_stats &reg_stats) {
   for (auto &block : func) {
@@ -273,7 +272,7 @@ auto generate_function(MachineFunction &mf, clone_function_result &dst_info,
                        bool functions_nop) {
   reg2vals rmap;
   auto &func = dst_info.mfunc->getFunction();
-  materialize_registers(mf, func, rmap, mmi.getTarget(), state, reg_stats);
+  materialize_registers(mf, func, rmap, state, reg_stats);
   for (auto &mbb : *dst_info.mfunc)
     fill_ir_for_bb(mbb, rmap, instrs, mmi.getTarget(), dst_info.blocks, state,
                    reg_stats, functions_nop);
@@ -285,8 +284,7 @@ std::string get_instruction_name(const MachineInstr &minst,
   return instr_info.getName(minst.getOpcode()).str();
 }
 
-StructType &create_state_type(LLVMContext &ctx,
-                              const LLVMTargetMachine &tmachine,
+StructType &create_state_type(LLVMContext &ctx, const TargetMachine &tmachine,
                               const register_stats &stats,
                               size_t stack_size_bytes) {
 
@@ -322,7 +320,7 @@ auto clone_machine_function(Module &m, MachineModuleInfo &mmi,
 }
 
 void collect_register_stats_for(const MachineFunction &mf,
-                                const LLVMTargetMachine &tmachine,
+                                const TargetMachine &tmachine,
                                 register_stats &stats) {
   auto *stinfo = tmachine.getSubtargetImpl(mf.getFunction());
   assert(stinfo);
@@ -438,16 +436,16 @@ auto generate_jump(const MachineInstr &minst, IRBuilder<> &builder,
   return builder.CreateBr(target_bb);
 }
 
-auto get_if_true_block(const MachineInstr &minst,
-                       const mbb2bb &m2b) -> BasicBlock * {
+auto get_if_true_block(const MachineInstr &minst, const mbb2bb &m2b)
+    -> BasicBlock * {
   assert(minst.isConditionalBranch());
   auto &op = minst.getOperand(2);
   assert(op.isMBB());
   return m2b[op.getMBB()];
 }
 
-auto get_if_false_block(const MachineInstr &minst,
-                        const mbb2bb &m2b) -> BasicBlock * {
+auto get_if_false_block(const MachineInstr &minst, const mbb2bb &m2b)
+    -> BasicBlock * {
 
   assert(minst.isConditionalBranch());
   assert(minst.getNumOperands() >= 2);
@@ -476,9 +474,9 @@ std::optional<unsigned> find_register_by_name(const MCRegisterInfo *reg_info,
 }
 
 auto operand_to_value(const MachineOperand &mop, BasicBlock &block,
-                      const LLVMTargetMachine &tmachine, reg2vals &rmap,
-                      const register_stats &reg_stats,
-                      const instr_impl &insts) -> Value * {
+                      const TargetMachine &tmachine, reg2vals &rmap,
+                      const register_stats &reg_stats, const instr_impl &insts)
+    -> Value * {
   IRBuilder builder(block.getContext());
   builder.SetInsertPoint(&block);
   if (mop.isReg()) {
@@ -515,9 +513,9 @@ auto operand_to_value(const MachineOperand &mop, BasicBlock &block,
 
 auto generate_branch(const MachineInstr &minst, BasicBlock &bb,
                      IRBuilder<> &builder, reg2vals &rmap,
-                     const LLVMTargetMachine &target_machine, const mbb2bb &m2b,
-                     const register_stats &reg_stats,
-                     const instr_impl &insts) -> Instruction * {
+                     const TargetMachine &target_machine, const mbb2bb &m2b,
+                     const register_stats &reg_stats, const instr_impl &insts)
+    -> Instruction * {
   auto *iinfo = target_machine.getMCInstrInfo();
   auto name = get_instruction_name(minst, *iinfo);
   auto *m = bb.getParent()->getParent();
@@ -539,11 +537,12 @@ auto generate_branch(const MachineInstr &minst, BasicBlock &bb,
   return br;
 }
 
-static auto
-write_value_to_register(Value *val, MCRegister reg, IRBuilder<> &builder,
-                        reg2vals &rmap, const instr_impl &instrs,
-                        const LLVMTargetMachine &tmachine,
-                        const register_stats &reg_stats) -> Value * {
+static auto write_value_to_register(Value *val, MCRegister reg,
+                                    IRBuilder<> &builder, reg2vals &rmap,
+                                    const instr_impl &instrs,
+                                    const TargetMachine &tmachine,
+                                    const register_stats &reg_stats)
+    -> Value * {
   auto *reg_addr = rmap.at(reg);
   auto *reg_info = tmachine.getMCRegisterInfo();
   auto &const_regs = instrs.get_const_regs();
@@ -576,8 +575,7 @@ write_value_to_register(Value *val, MCRegister reg, IRBuilder<> &builder,
   return val;
 }
 
-static auto read_register_value(MCRegister reg,
-                                const LLVMTargetMachine &tmachine,
+static auto read_register_value(MCRegister reg, const TargetMachine &tmachine,
                                 IRBuilder<> &builder, reg2vals &rmap,
                                 const register_stats &reg_stats) -> Value * {
   auto *reg_addr = rmap.at(reg);
@@ -593,9 +591,8 @@ static auto read_register_value(MCRegister reg,
 }
 
 static auto generate_return(const MachineInstr &minst,
-                            const LLVMTargetMachine &tmachine,
-                            IRBuilder<> &builder, reg2vals &rmap,
-                            const register_stats &reg_stats,
+                            const TargetMachine &tmachine, IRBuilder<> &builder,
+                            reg2vals &rmap, const register_stats &reg_stats,
                             const Function *func) -> Value * {
   // non-void case
   if (minst.getNumOperands() >= 1) {
@@ -612,9 +609,9 @@ static auto generate_return(const MachineInstr &minst,
 
 static auto generate_call(const MachineInstr &minst, IRBuilder<> &builder,
                           BasicBlock &bb, reg2vals &rmap,
-                          const LLVMTargetMachine &tmachine, StructType &state,
-                          const register_stats &reg_stats,
-                          bool functions_nop) -> Value * {
+                          const TargetMachine &tmachine, StructType &state,
+                          const register_stats &reg_stats, bool functions_nop)
+    -> Value * {
   assert(minst.getNumOperands() >= 1);
   auto ops = minst.operands();
   auto op = ranges::find_if(ops, [](auto &op) { return op.isGlobal(); });
@@ -632,7 +629,7 @@ static auto generate_call(const MachineInstr &minst, IRBuilder<> &builder,
 }
 
 std::optional<unsigned> get_stack_pointer(const instr_impl &instrs,
-                                          const LLVMTargetMachine &tmachine) {
+                                          const TargetMachine &tmachine) {
   auto *reg_info = tmachine.getMCRegisterInfo();
   auto sp_reg = find_register_by_name(reg_info, instrs.get_stack_pointer());
   return sp_reg;
@@ -640,7 +637,7 @@ std::optional<unsigned> get_stack_pointer(const instr_impl &instrs,
 
 auto get_stack_pointer_value(const instr_impl &instrs, reg2vals &rmap,
                              IRBuilder<> &builder,
-                             const LLVMTargetMachine &tmachine,
+                             const TargetMachine &tmachine,
                              const register_stats &reg_stats) -> Value * {
   auto sp_reg = get_stack_pointer(instrs, tmachine);
   if (!sp_reg)
@@ -652,7 +649,7 @@ auto get_stack_pointer_value(const instr_impl &instrs, reg2vals &rmap,
 static auto generate_load_store_from_stack(
     const MachineInstr &minst, IRBuilder<> &builder, BasicBlock &bb,
     reg2vals &rmap, const instr_impl &instrs,
-    const LLVMTargetMachine &target_machine, StructType &state,
+    const TargetMachine &target_machine, StructType &state,
     const register_stats &reg_stats) -> Value * {
   auto &ctx = bb.getContext();
   auto uses = minst.uses();
@@ -715,7 +712,7 @@ static auto generate_load_store_from_stack(
 
 auto generate_stack_pointer_modification(
     const MachineInstr &minst, IRBuilder<> &builder, BasicBlock &bb,
-    const LLVMTargetMachine &tmachine, reg2vals &rmap, const instr_impl &instrs,
+    const TargetMachine &tmachine, reg2vals &rmap, const instr_impl &instrs,
     const register_stats &reg_stats) -> Value * {
   auto &ctx = bb.getContext();
   auto *reg_info = tmachine.getMCRegisterInfo();
@@ -759,7 +756,7 @@ auto generate_stack_pointer_modification(
 // Operation is considered a stack manipulation if it is a load or store and
 // its source register is stack pointer
 bool is_stack_manipulation(const MachineInstr &minst, const instr_impl &instrs,
-                           const LLVMTargetMachine &tmachine) {
+                           const TargetMachine &tmachine) {
   if (!minst.mayLoadOrStore())
     return false;
   auto sp_reg_opt = get_stack_pointer(instrs, tmachine);
@@ -776,7 +773,7 @@ bool is_stack_manipulation(const MachineInstr &minst, const instr_impl &instrs,
 }
 
 static bool match_return(const MachineInstr &minst, const instruction &instr,
-                         const LLVMTargetMachine &tmachine) {
+                         const TargetMachine &tmachine) {
   if (!instr.retinfo)
     return false;
   std::vector<llvm::Regex> rxs;
@@ -806,7 +803,7 @@ static bool match_return(const MachineInstr &minst, const instruction &instr,
 }
 
 static bool is_return(const MachineInstr &minst, const instr_impl &instrs,
-                      const LLVMTargetMachine &tmachine) {
+                      const TargetMachine &tmachine) {
   auto *iinfo = tmachine.getMCInstrInfo();
   auto name = get_instruction_name(minst, *iinfo);
   auto instr = instrs.find(name);
@@ -815,7 +812,7 @@ static bool is_return(const MachineInstr &minst, const instr_impl &instrs,
 }
 
 static bool is_call(const MachineInstr &minst, const instr_impl &instrs,
-                    const LLVMTargetMachine &tmachine) {
+                    const TargetMachine &tmachine) {
   if (minst.isCall())
     return true;
   if (minst.isPseudo())
@@ -831,10 +828,10 @@ static bool is_call(const MachineInstr &minst, const instr_impl &instrs,
 auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
                           IRBuilder<> &builder, reg2vals &rmap,
                           const instr_impl &instrs,
-                          const LLVMTargetMachine &target_machine,
+                          const TargetMachine &target_machine,
                           const mbb2bb &m2b, StructType &state,
-                          const register_stats &reg_stats,
-                          bool functions_nop) -> Value * {
+                          const register_stats &reg_stats, bool functions_nop)
+    -> Value * {
   auto *iinfo = target_machine.getMCInstrInfo();
   auto name = get_instruction_name(minst, *iinfo);
   if (minst.isBranch()) {
@@ -891,7 +888,7 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
 
 void fill_ir_for_bb(MachineBasicBlock &mbb, reg2vals &rmap,
                     const instr_impl &instrs,
-                    const LLVMTargetMachine &target_machine, const mbb2bb &m2b,
+                    const TargetMachine &target_machine, const mbb2bb &m2b,
                     StructType &state, const register_stats &reg_stats,
                     bool functions_nop) {
   assert(!mbb.empty());

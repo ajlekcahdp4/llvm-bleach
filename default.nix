@@ -48,21 +48,20 @@ stdenv.mkDerivation {
   ];
   strictDeps = false;
   enableShared = false;
-  nativeCheckInputs =
-    [
-      lit
-      filecheck
-      llvmPackages.bintools
-      which
-      clangCompiler
-      yq
-      ruby
-    ]
-    ++ (with pkgs; [
-      pkgsCross.riscv64.buildPackages.clang
-      pkgsCross.riscv64.buildPackages.llvmPackages.bintools
-      pkgsCross.aarch64-multiplatform.buildPackages.clang
-    ]);
+  nativeCheckInputs = [
+    lit
+    filecheck
+    llvmPackages.bintools
+    which
+    clangCompiler
+    yq
+    ruby
+  ]
+  ++ (with pkgs; [
+    pkgsCross.riscv64.buildPackages.clang
+    pkgsCross.riscv64.buildPackages.llvmPackages_21.bintools
+    pkgsCross.aarch64-multiplatform.buildPackages.llvmPackages_21.clang
+  ]);
   preCheck = ''
     patchShebangs ..
   '';

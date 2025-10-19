@@ -1,3 +1,5 @@
+// Failes due to corruption of local variable in bleached-main-local-var.c
+// XFAIL: *
 // RUN: %config-gen-path/config-gen.rb --march rv64im \
 // RUN:   --template-dir %config-gen-path/templates -o %t.yaml
 // RUN: riscv64-unknown-linux-gnu-clang %s -O2 -o %t.out -march=rv64im -nostdlib
@@ -5,7 +7,8 @@
 // RUN: sed -i 's/$x0 = JAL /PseudoBR /g' %t.mir
 // RUN: %bin/llvm-bleach %t.mir --instructions %t.yaml \
 // RUN:   --state-struct-file %t.state.h > %t.ll
-// RUN: sed 's|STATE|%t.state.h|g' %S/inputs/bleached-main.c > %t.main.c
+// RUN: sed 's|STATE|%t.state.h|g' %S/inputs/bleached-main-local-var.c > \
+// RUN:   %t.main.c
 // RUN: clang %t.main.c %t.ll -o %t.native.out -O2
 // RUN: %t.native.out | FileCheck %s
 

@@ -1,5 +1,5 @@
 // RUN: riscv64-unknown-linux-gnu-clang -c -O2 %S/inputs/single-mul-func.c \
-// RUN:   -o %t.o
+// RUN:   -march=rv64im -o %t.o
 // RUN: %bin/mctomir %t.o -o %t.mir
 // RUN: %config-gen-path/config-gen.rb --march rv64im \
 // RUN:   -d %config-gen-path/templates -o %t.yaml

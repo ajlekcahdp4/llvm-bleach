@@ -37,7 +37,6 @@ tracksRegLiveness: false
 hasWinCFI:       false
 callsEHReturn:   false
 callsUnwindInit: false
-hasEHCatchret:   false
 hasEHScopes:     false
 hasEHFunclets:   false
 isOutlined:      false
@@ -207,7 +206,6 @@ tracksRegLiveness: false
 hasWinCFI:       false
 callsEHReturn:   false
 callsUnwindInit: false
-hasEHCatchret:   false
 hasEHScopes:     false
 hasEHFunclets:   false
 isOutlined:      false
@@ -309,7 +307,6 @@ tracksRegLiveness: false
 hasWinCFI:       false
 callsEHReturn:   false
 callsUnwindInit: false
-hasEHCatchret:   false
 hasEHScopes:     false
 hasEHFunclets:   false
 isOutlined:      false
@@ -419,7 +416,6 @@ tracksRegLiveness: false
 hasWinCFI:       false
 callsEHReturn:   false
 callsUnwindInit: false
-hasEHCatchret:   false
 hasEHScopes:     false
 hasEHFunclets:   false
 isOutlined:      false

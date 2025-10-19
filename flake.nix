@@ -50,21 +50,26 @@
             };
             bleachPkgs = import nixpkgs { inherit system; };
           };
-          packages = rec {
-            llvm-bleach = legacyPackages.bleachPkgs.callPackage ./. {
-              inherit self;
-              llvmLib = legacyPackages.bleachPkgs.llvmPackages_19.llvm;
-              clangCompiler = legacyPackages.bleachPkgs.clang;
+          packages =
+            let
+              llvmPackages = legacyPackages.bleachPkgs.llvmPackages_21;
+            in
+            rec {
+              llvm-bleach = legacyPackages.bleachPkgs.callPackage ./. {
+                inherit self;
+                inherit llvmPackages;
+                llvmLib = llvmPackages.llvm;
+                clangCompiler = legacyPackages.bleachPkgs.clang;
+              };
+              llvm-bleach-static = legacyPackages.bleachPkgsStatic.callPackage ./. {
+                llvmLib = legacyPackages.bleachPkgsStatic.llvmPackages_21.llvm;
+                clangCompiler = legacyPackages.bleachPkgs.clang;
+              };
+              default = llvm-bleach;
+              llvm-snippy = pkgs.callPackage ./snippy.nix {
+                stdenv = llvmPackages.stdenv;
+              };
             };
-            llvm-bleach-static = legacyPackages.bleachPkgsStatic.callPackage ./. {
-              llvmLib = legacyPackages.bleachPkgsStatic.llvmPackages_19.llvm;
-              clangCompiler = legacyPackages.bleachPkgs.clang;
-            };
-            default = llvm-bleach;
-            llvm-snippy = pkgs.callPackage ./snippy.nix {
-              stdenv = legacyPackages.bleachPkgs.llvmPackages_19.stdenv;
-            };
-          };
           checks = {
             inherit (packages) llvm-bleach llvm-bleach-static;
           };

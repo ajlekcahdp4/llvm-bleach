@@ -3,6 +3,7 @@
 #include "mctomir/elf-loader.h"
 
 #include <llvm/ADT/DenseMap.h>
+#include <llvm/CodeGen/CodeGenTargetMachineImpl.h>
 #include <llvm/CodeGen/MachineBasicBlock.h>
 #include <llvm/CodeGen/MachineFunction.h>
 #include <llvm/CodeGen/MachineInstr.h>
@@ -12,7 +13,6 @@
 #include <llvm/CodeGen/TargetFrameLowering.h>
 #include <llvm/CodeGen/TargetInstrInfo.h>
 #include <llvm/CodeGen/TargetRegisterInfo.h>
-#include <llvm/CodeGen/TargetSubtargetInfo.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Module.h>
 #include <llvm/MC/MCAsmInfo.h>
@@ -81,7 +81,7 @@ public:
   void print_mir(raw_ostream &os) const;
 
 private:
-  std::unique_ptr<LLVMTargetMachine> tmachine;
+  std::unique_ptr<CodeGenTargetMachineImpl> tmachine;
   std::unique_ptr<MachineModuleInfo> mmi;
   std::unique_ptr<MCContext> mcctx;
   std::unique_ptr<MCInstrAnalysis> mi_analysis;

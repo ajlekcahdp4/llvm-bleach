@@ -5,6 +5,7 @@
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/PassManager.h>
 #include <llvm/Support/Regex.h>
+#include <llvm/Target/TargetMachine.h>
 
 #include <map>
 #include <unordered_set>
@@ -115,7 +116,7 @@ public:
 };
 
 void fill_ir_for_bb(MachineBasicBlock &mbb, reg2vals &rmap,
-                    const instr_impl &instrs, const LLVMTargetMachine &tm,
+                    const instr_impl &instrs, const TargetMachine &tm,
                     const mbb2bb &m2b, StructType &state,
                     const register_stats &reg_stats, bool functions_nop);
 

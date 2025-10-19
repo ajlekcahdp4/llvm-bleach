@@ -116,7 +116,7 @@ auto main(int argc, char **argv) -> int try {
   if (!mir_parser)
     throw std::runtime_error(err_mir_parser.getMessage().str());
   Triple triple;
-  std::unique_ptr<LLVMTargetMachine> target_machine;
+  std::unique_ptr<TargetMachine> target_machine;
   auto set_data_layout = [&](StringRef data_layout_target_triple,
                              StringRef) -> std::optional<std::string> {
     auto target_triple_str = data_layout_target_triple.str();
@@ -129,8 +129,8 @@ auto main(int argc, char **argv) -> int try {
     auto tm = codegen::createTargetMachineForTriple(triple.str());
     if (auto err = tm.takeError())
       throw std::runtime_error(toString(std::move(err)));
-    target_machine = std::unique_ptr<LLVMTargetMachine>(
-        static_cast<LLVMTargetMachine *>(tm->release()));
+    target_machine = std::unique_ptr<TargetMachine>(
+        static_cast<TargetMachine *>(tm->release()));
     return target_machine->createDataLayout().getStringRepresentation();
   };
   auto m = mir_parser->parseIRModule(set_data_layout);

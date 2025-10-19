@@ -74,7 +74,7 @@ Error translator_t::create_module_and_function(StringRef triple_name,
                              triple_name.data(), err_msg.c_str());
 
   mod = std::make_unique<Module>("DisassembledModule", *ctx);
-  mod->setTargetTriple(triple_name);
+  mod->setTargetTriple(the_triple);
 
   TargetOptions options;
   // TODO(Ilyagavrilin): make TargetMachine initialization simplier or add more
@@ -87,7 +87,8 @@ Error translator_t::create_module_and_function(StringRef triple_name,
                              "Cannot create target machine for %s",
                              triple_name.data());
 
-  tmachine.reset(static_cast<LLVMTargetMachine *>(generic_tmachine.release()));
+  tmachine.reset(
+      static_cast<CodeGenTargetMachineImpl *>(generic_tmachine.release()));
 
   mod->setDataLayout(tmachine->createDataLayout());
   return Error::success();
@@ -355,7 +356,6 @@ Error translator_t::link_machine_basic_blocks() {
 
       auto *last_t_inst = block.instrs.back();
       const MCInst &last_inst = last_t_inst->inst;
-
       if (mi_analysis->isBranch(last_inst)) {
         uint64_t target;
         if (mi_analysis->evaluateBranch(last_inst, last_t_inst->address, 0,
@@ -427,7 +427,7 @@ void translator_t::print_mir(raw_ostream &os) const {
     throw std::runtime_error("Module does not exist");
   llvm::printMIR(os, *mod);
   for (auto &finfo : funcs) {
-    llvm::printMIR(os, *finfo.mfunc);
+    llvm::printMIR(os, *mmi, *finfo.mfunc);
   }
 }
 

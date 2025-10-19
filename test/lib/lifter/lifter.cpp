@@ -60,7 +60,7 @@ auto parse_mir(LLVMContext &ctx) {
     throw std::runtime_error(err.getMessage().str());
 
   Triple triple;
-  std::unique_ptr<LLVMTargetMachine> target_machine;
+  std::unique_ptr<TargetMachine> target_machine;
   auto set_data_layout = [&](StringRef data_layout_target_triple,
                              StringRef) -> std::optional<std::string> {
     auto target_triple_str = data_layout_target_triple.str();
@@ -73,8 +73,8 @@ auto parse_mir(LLVMContext &ctx) {
     auto tm = codegen::createTargetMachineForTriple(triple.str());
     if (auto err_tm = tm.takeError())
       throw std::runtime_error(toString(std::move(err_tm)));
-    target_machine = std::unique_ptr<LLVMTargetMachine>(
-        static_cast<LLVMTargetMachine *>(tm->release()));
+    target_machine = std::unique_ptr<TargetMachine>(
+        static_cast<TargetMachine *>(tm->release()));
     return target_machine->createDataLayout().getStringRepresentation();
   };
   auto m = mir_parser->parseIRModule(set_data_layout);

@@ -1,1 +1,1 @@
-int foo(int x) { return x * 42; }
+long long foo(long long x) { return x * 42ll; }

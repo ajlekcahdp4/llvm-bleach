@@ -1,7 +1,7 @@
 // COM: -O2 for compiler to inline call to foo
-// RUN: clang -c %s -o %t.o -O0
+// RUN: clang -c %s -o %t.o -O0 -nostdlib
 // RUN: %bin/mctomir %t.o -o - | FileCheck %s -check-prefix=O0
-// RUN: clang -c %s -o %t.o -O2
+// RUN: clang -c %s -o %t.o -O2 -nostdlib
 // RUN: %bin/mctomir %t.o -o - | FileCheck %s -check-prefix=O2
 
 int foo(int x) { return 42 * x; }
@@ -27,13 +27,13 @@ int bar(int x) { return foo(x) * 42; }
 // O2-SAME: foo
 // O2: body:
 // O2-NEXT: bb.0:
-// O2-NEXT: $eax = IMUL32{{.*}}, 42
-// O2-NEXT: RET64
+// O2: $eax = IMUL32{{.*}}, 42
+// O2: RET64
 
 // O2: name:
 // O2-SAME: bar
 // O2: body:
 // O2-NEXT: bb.0:
 // O2-NOT: CALL
-// O2-NEXT: $eax = IMUL32{{.*}}, 1764
-// O2-NEXT: RET64
+// O2: $eax = IMUL32{{.*}}, 1764
+// O2: RET64

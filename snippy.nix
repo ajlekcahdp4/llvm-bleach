@@ -11,13 +11,13 @@
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "llvm-snippy";
-  version = "1.0.0";
+  version = "2.0.0";
 
   src = pkgs.fetchFromGitHub {
     owner = "syntacore";
     repo = "snippy";
-    rev = "9d0217534df1003a97a51ad46898fb2d860fb6b7";
-    hash = "sha256-tOiF1AINhAgNCJF48a489tohcEkV7+/3D4EMK7SpzyM";
+    rev = "268b59cd505531645651c3feff1143e599c5b7c2";
+    hash = "sha256-A6a8mReDDHdY8JLHSWlK0rwzmALBHohUv/q49UypMc8=";
   };
 
   sourceRoot = "${finalAttrs.src.name}/llvm";
