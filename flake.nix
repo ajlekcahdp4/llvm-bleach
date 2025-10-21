@@ -71,7 +71,7 @@
               };
             };
           checks = {
-            inherit (packages) llvm-bleach llvm-bleach-static;
+            inherit (packages) llvm-bleach;
           };
           devShells.default = pkgs.mkShell {
             nativeBuildInputs =
