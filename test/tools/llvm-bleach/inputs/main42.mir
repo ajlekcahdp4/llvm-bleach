@@ -1,36 +1,35 @@
 --- |
-  ; ModuleID = 'main'
-  source_filename = "main"
-  target datalayout = "e-m:e-p:64:64-i64:64-i128:128-n32:64-S128"
-  target triple = "riscv64-unknown-elf"
+  ; ModuleID = 'main42'
+  target triple = "riscv64-unknown-linux-gnu"
 
-  ; Materializable
-  ; Function Attrs: nounwind
-  define void @SnippyFunction() #0 {
-    ret void
+  define noundef signext i32 @main() {
+    ret i32 42
   }
-
-  attributes #0 = { nounwind }
 
 ...
 ---
-name:            SnippyFunction
-alignment:       4
+name:            main
+alignment:       2
 exposesReturnsTwice: false
 legalized:       false
 regBankSelected: false
 selected:        false
 failedISel:      false
-tracksRegLiveness: false
+tracksRegLiveness: true
 hasWinCFI:       false
+noPhis:          true
+isSSA:           false
+noVRegs:         true
+hasFakeUses:     false
 callsEHReturn:   false
 callsUnwindInit: false
+hasEHContTarget: false
 hasEHScopes:     false
 hasEHFunclets:   false
 isOutlined:      false
 debugInstrRef:   false
 failsVerification: false
-tracksDebugUserValues: false
+tracksDebugUserValues: true
 registers:       []
 liveins:         []
 frameInfo:
@@ -65,14 +64,7 @@ machineFunctionInfo:
   varArgsFrameIndex: 0
   varArgsSaveSize: 0
 body:             |
-  bb.0:
-    $x4 = LD $x23, 1352
-    SD $x24, $x7, 269
-    SW $x15, $x28, 1926
-    SD $x5, $x19, 1533
-    $x7 = LD $x4, -246
-    SD $x13, $x8, 384
-    $x26 = LW $x3, 1663
-    PseudoRET
-
+  bb.0 (%ir-block.0):
+    $x10 = ADDI $x0, 42
+    PseudoRET implicit killed $x10
 ...

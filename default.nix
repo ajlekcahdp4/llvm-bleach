@@ -10,6 +10,7 @@
   lit,
   filecheck,
   yq,
+  jq,
   ruby,
   gtest,
   pandoc,
@@ -40,11 +41,11 @@ stdenv.mkDerivation {
   nativeBuildInputs = [
     cmake
     ninja
-    pandoc
   ];
   buildInputs = [
     llvmLib
     yaml-cpp
+    pandoc
   ];
   strictDeps = false;
   enableShared = false;
@@ -55,6 +56,7 @@ stdenv.mkDerivation {
     which
     clangCompiler
     yq
+    jq
     ruby
   ]
   ++ (with pkgs; [

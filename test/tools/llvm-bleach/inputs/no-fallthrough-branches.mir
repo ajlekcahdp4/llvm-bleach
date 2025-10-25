@@ -103,14 +103,14 @@ body:             |
     $x17 = ADD $x28, $x24
     $x10 = MULW $x15, $x19
     $x26 = ADD $x26, $x0
-    $x19 = SRL $x26, $x2
+    $x19 = SRL $x26, $x21
     BEQ $x19, $x0, %bb.0
 
   bb.7:
     successors: %bb.1(0x80000000)
 
     $x4 = AND $x9, $x28
-    $x3 = XOR $x29, $x2
+    $x3 = XOR $x29, $x21
     $x9 = ADD $x0, $x0
     $x13 = ADD $x0, $x0
 
@@ -120,7 +120,7 @@ body:             |
     $x25 = SLT $x19, $x27
     $x1 = SLT $x7, $x8
     $x9 = ADD $x9, $x0
-    $x13 = SRL $x9, $x2
+    $x13 = SRL $x9, $x21
     BEQ $x13, $x0, %bb.1
 
   bb.2:
@@ -140,7 +140,7 @@ body:             |
     successors: %bb.5(0x80000000)
 
     $x30 = MULW $x13, $x23
-    $x30 = XOR $x25, $x2
+    $x30 = XOR $x25, $x21
     BEQ $x9, $x10, %bb.5
 
   bb.5:

@@ -1,5 +1,3 @@
-message("PANDOC: ${PANDOC_PROGRAM}")
-
 function(generate_docs input type)
   set(single_value_args OUTPUT)
   set(multi_value_args)

@@ -97,6 +97,6 @@ body:             |
     SD $x17, $x2, 24
     $x10 = MULW $x15, $x19
     $x26 = ADD $x26, $x0
-    $x19 = SRL $x26, $x2
+    $x19 = SRL $x26, $x3
     PseudoRET
 ...

@@ -2,6 +2,8 @@
 
 #include "bleach/lifter/instr-impl.hpp"
 
+#include "mctomir/symbols.h"
+
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/PassManager.h>
 #include <llvm/Support/Regex.h>
@@ -115,10 +117,29 @@ public:
   }
 };
 
+class stack_pointer_tracker final : private std::unordered_set<unsigned> {
+public:
+  stack_pointer_tracker(unsigned sp) { add(sp); }
+
+  void add(unsigned sp) { unordered_set::insert(sp); }
+
+  bool is_stack_pointer(unsigned reg) const {
+    return unordered_set::contains(reg);
+  }
+
+  using unordered_set::begin;
+  using unordered_set::contains;
+  using unordered_set::empty;
+  using unordered_set::end;
+  using unordered_set::erase;
+  using unordered_set::size;
+};
+
 void fill_ir_for_bb(MachineBasicBlock &mbb, reg2vals &rmap,
                     const instr_impl &instrs, const TargetMachine &tm,
                     const mbb2bb &m2b, StructType &state,
-                    const register_stats &reg_stats, bool functions_nop);
+                    const register_stats &reg_stats,
+                    stack_pointer_tracker &sptrack, bool functions_nop);
 
 struct basic_block {
   MachineBasicBlock *mbb;
@@ -134,6 +155,8 @@ StructType &create_state_type(LLVMContext &ctx);
 Module &bleach_module(Module &m, MachineModuleInfo &mmi,
                       const instr_impl &instrs,
                       std::string_view state_struct_file, size_t stack_size,
+                      const mctomir::file_info *finfo,
+                      std::string_view lifted_prefix,
                       bool assume_functions_nop);
 
 } // namespace bleach::lifter

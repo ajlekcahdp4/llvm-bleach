@@ -22,6 +22,7 @@ struct instruction final {
   std::string name;
   std::unique_ptr<Module> ir_module;
   std::optional<return_info> retinfo;
+  bool is_indirect_branch = false;
 };
 
 struct constant_reg final {

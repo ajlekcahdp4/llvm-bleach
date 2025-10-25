@@ -3,6 +3,7 @@
 #include "bleach/passes/redundant-branch-eraser.hpp"
 
 #include "bleach/version.inc"
+#include "mctomir/symbols.h"
 
 #include <llvm/CodeGen/CommandFlags.h>
 #include <llvm/CodeGen/MIRParser/MIRParser.h>
@@ -74,6 +75,16 @@ static cl::opt<unsigned>
     stack_size_option("stack-size", cl::desc("Stack size for array (bytes)"),
                       cl::init(8000), cl::cat(options));
 
+static cl::opt<std::string> symtab_file(
+    "symtab-file",
+    cl::desc("Optional symtab file. Needed for lifting indirecy branches."),
+    cl::cat(options));
+
+static cl::opt<std::string>
+    lifted_prefix("lifted-prefix", cl::init("bleached_"),
+                  cl::desc("Prefix to append to the name of a lifted function "
+                           "(e.g. 'main' -> 'bleached_main')"),
+                  cl::cat(options));
 namespace {
 
 class print_pass : public PassInfoMixin<print_pass> {
@@ -161,6 +172,14 @@ auto main(int argc, char **argv) -> int try {
     if (auto err = out->commit())
       throw std::runtime_error(toString(std::move(err)));
   }
+  std::unique_ptr<mctomir::file_info> finfo;
+  if (symtab_file.getNumOccurrences()) {
+    std::fstream fs(symtab_file.getValue(), std::ios::in);
+    std::istreambuf_iterator<char> begin(fs), end;
+    std::string symtab_contents(begin, end);
+    finfo = std::make_unique<mctomir::file_info>(
+        mctomir::load_file_info_from_yaml(symtab_contents));
+  }
   ModuleAnalysisManager mam;
   FunctionAnalysisManager fam;
   LoopAnalysisManager lam;
@@ -180,7 +199,7 @@ auto main(int argc, char **argv) -> int try {
     mpm.addPass(print_pass());
   mpm.addPass(bleach::lifter::block_ir_builder_pass(
       instrs, assume_function_nop.getValue(), dump_struct_def_option.getValue(),
-      stack_size_option.getValue()));
+      finfo.get(), stack_size_option.getValue(), lifted_prefix.getValue()));
   mpm.addPass(createModuleToFunctionPassAdaptor(
       bleach::lifter::redundant_branch_eraser()));
   if (!no_inline_opt)

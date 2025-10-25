@@ -107,12 +107,12 @@ constants:       []
 body:             |
   bb.6:
     successors: %bb.0(0x80000000)
-    liveins: $x2
+    liveins: $x3
   
     $x16 = ADD $x0, $x0
-    $x16 = ADD $x16, $x2
-    $x2 = ADDI $x0, 0
-    $x3 = ADD $x2, $x2
+    $x16 = ADD $x16, $x3
+    $x3 = ADDI $x0, 0
+    $x3 = ADD $x3, $x3
     $x30 = ADD $x18, $x29
     PseudoCALL target-flags(riscv-call) @fun2, implicit-def $x1
     $x8 = ADD $x0, $x4
@@ -146,7 +146,7 @@ body:             |
   bb.8:
     successors: %bb.2(0x80000000)
   
-    $x31 = MUL $x9, $x2
+    $x31 = MUL $x9, $x3
     $x6 = MUL $x26, $x17
     $x30 = ADD $x0, $x4
     $x3 = ADD $x0, $x0
@@ -186,7 +186,7 @@ body:             |
     PseudoBR %bb.5
   
   bb.5:
-    $x23 = MUL $x31, $x2
+    $x23 = MUL $x31, $x3
     PseudoCALL target-flags(riscv-call) @fun2, implicit-def $x1
     $x25 = ADD $x1, $x20
     $x25 = ADD $x25, $x16
@@ -363,7 +363,7 @@ body:             |
     SD $x8, $x2, 0
     $x12 = ADD $x28, $x8
     PseudoCALL target-flags(riscv-call) @fun3, implicit-def $x1
-    $x9 = ADD $x31, $x2
+    $x9 = ADD $x31, $x3
     PseudoCALL target-flags(riscv-call) @fun3, implicit-def $x1
     $x22 = ADDI $x0, 4
     $x8 = ADDI $x0, 0
@@ -381,7 +381,7 @@ body:             |
   bb.1:
     successors: %bb.2(0x80000000)
   
-    $x30 = MUL $x1, $x2
+    $x30 = MUL $x1, $x3
     BNE $x28, $x3, %bb.2
     PseudoBR %bb.2
   
@@ -489,7 +489,7 @@ body:             |
     successors: %bb.2(0x80000000)
   
     $x9 = ADD $x29, $x19
-    $x30 = MUL $x2, $x29
+    $x30 = MUL $x3, $x29
     BNE $x8, $x20, %bb.2
     PseudoBR %bb.2
   
