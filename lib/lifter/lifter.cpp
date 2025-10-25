@@ -1,5 +1,8 @@
 #include "bleach/lifter/lifter.hpp"
 #include "bleach/lifter/instr-impl.hpp"
+#include "mctomir/symbols.h"
+
+#include "symtab-ir.h"
 
 #include <iterator>
 #include <llvm/CodeGen/MachineFunction.h>
@@ -9,12 +12,15 @@
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Module.h>
+#include <llvm/IRReader/IRReader.h>
 #include <llvm/Linker/Linker.h>
 #include <llvm/MC/MCInstrAnalysis.h>
 #include <llvm/MC/MCInstrInfo.h>
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/FormatVariadic.h>
+#include <llvm/Support/SmallVectorMemoryBuffer.h>
+#include <llvm/Support/SourceMgr.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Transforms/Utils/Cloning.h>
@@ -167,6 +173,28 @@ void materialize_registers(MachineFunction &mf, Function &func, reg2vals &rmap,
   }
 }
 
+static std::string bleach_symtab_lookup_name = "bleach_symtab_lookup";
+static std::string bleach_symtab_add_name = "bleach_symtab_add";
+
+auto *create_bleach_symtab_add_function_decl(Module &m) {
+  auto &ctx = m.getContext();
+  auto *ret_type = Type::getVoidTy(ctx);
+  auto *ptr_type = PointerType::getUnqual(ctx);
+  auto *addr_type = Type::getInt64Ty(ctx);
+  auto *ftype =
+      FunctionType::get(ret_type, ArrayRef<Type *>{addr_type, ptr_type}, false);
+  return Function::Create(ftype, Function::ExternalLinkage,
+                          bleach_symtab_add_name, m);
+}
+
+auto *create_bleach_symtab_lookup_function_decl(Module &m) {
+  auto &ctx = m.getContext();
+  auto *ptr_type = PointerType::getUnqual(ctx);
+  auto *addr_type = Type::getInt64Ty(ctx);
+  auto *ftype = FunctionType::get(ptr_type, ArrayRef<Type *>{addr_type}, false);
+  return Function::Create(ftype, Function::ExternalLinkage,
+                          bleach_symtab_lookup_name, m);
+}
 auto *generate_function_object(Module &m, MachineFunction &mf) {
   auto *ret_type = mf.getFunction().getFunctionType()->getReturnType();
   auto *func_type = FunctionType::get(
@@ -261,6 +289,34 @@ void save_registers_before_return(Function &func, reg2vals &rmap,
   }
 }
 
+void fill_symtab_at(Function *func, ArrayRef<Function *> funcs,
+                    const mctomir::file_info &finfo) {
+  auto *m = func->getParent();
+  auto *symtab_add = m->getFunction(bleach_symtab_add_name);
+  assert(symtab_add);
+  for (auto *callee :
+       funcs | views::filter([](auto *f) { return !f->empty(); })) {
+    auto &front_bb = func->front();
+    auto &ctx = func->getContext();
+    IRBuilder builder(ctx);
+    builder.SetInsertPoint(front_bb.begin());
+    auto *addr = ConstantInt::get(
+        ctx, APInt(64, finfo.get_start_of(callee->getName().str())));
+    std::vector<Value *> args = {addr, callee};
+    builder.CreateCall(symtab_add->getFunctionType(), symtab_add, args);
+  }
+}
+
+std::optional<unsigned> find_register_by_name(const MCRegisterInfo *reg_info,
+                                              StringRef name) {
+  for (auto &&rclass : reg_info->regclasses()) {
+    auto reg_it = ranges::find_if(
+        rclass, [&](auto &reg) { return name == reg_info->getName(reg); });
+    if (reg_it != rclass.end())
+      return *reg_it;
+  }
+  return std::nullopt;
+}
 struct clone_function_result final {
   mbb2bb blocks;
   MachineFunction *mfunc = nullptr;
@@ -273,10 +329,17 @@ auto generate_function(MachineFunction &mf, clone_function_result &dst_info,
   reg2vals rmap;
   auto &func = dst_info.mfunc->getFunction();
   materialize_registers(mf, func, rmap, state, reg_stats);
+  auto &tmachine = mmi.getTarget();
+  auto *reg_info = tmachine.getMCRegisterInfo();
+  auto sp_reg = find_register_by_name(reg_info, instrs.get_stack_pointer());
+  if (!sp_reg)
+    throw std::runtime_error("Could not find stack pointer under the name \"" +
+                             instrs.get_stack_pointer().str() + "\"");
+  stack_pointer_tracker sptrack(*sp_reg);
   for (auto &mbb : *dst_info.mfunc)
-    fill_ir_for_bb(mbb, rmap, instrs, mmi.getTarget(), dst_info.blocks, state,
-                   reg_stats, functions_nop);
-  save_registers_before_return(func, rmap, mmi.getTarget(), state, reg_stats);
+    fill_ir_for_bb(mbb, rmap, instrs, tmachine, dst_info.blocks, state,
+                   reg_stats, sptrack, functions_nop);
+  save_registers_before_return(func, rmap, tmachine, state, reg_stats);
 }
 
 std::string get_instruction_name(const MachineInstr &minst,
@@ -462,17 +525,6 @@ auto get_if_false_block(const MachineInstr &minst, const mbb2bb &m2b)
   return m2b[std::addressof(*std::next(minst.getParent()->getIterator()))];
 }
 
-std::optional<unsigned> find_register_by_name(const MCRegisterInfo *reg_info,
-                                              StringRef name) {
-  for (auto &&rclass : reg_info->regclasses()) {
-    auto reg_it = ranges::find_if(
-        rclass, [&](auto &reg) { return name == reg_info->getName(reg); });
-    if (reg_it != rclass.end())
-      return *reg_it;
-  }
-  return std::nullopt;
-}
-
 auto operand_to_value(const MachineOperand &mop, BasicBlock &block,
                       const TargetMachine &tmachine, reg2vals &rmap,
                       const register_stats &reg_stats, const instr_impl &insts)
@@ -509,6 +561,39 @@ auto operand_to_value(const MachineOperand &mop, BasicBlock &block,
     return imm;
   }
   throw std::runtime_error("Unsupported operand type");
+}
+
+auto generate_indirect_branch(Module &m, BasicBlock &bb,
+                              const MachineInstr &minst, IRBuilder<> &builder,
+                              const mbb2bb &m2b, const TargetMachine &tmachine,
+                              reg2vals &rmap, StructType &state,
+                              const register_stats &rstats,
+                              const instr_impl &insts) -> Instruction * {
+  auto *symtab_lookup = m.getFunction(bleach_symtab_lookup_name);
+  assert(symtab_lookup);
+  auto op_to_val = [&](auto &mop) {
+    return operand_to_value(mop, bb, tmachine, rmap, rstats, insts);
+  };
+  auto values = minst.uses() |
+                views::filter([](auto &&mop) { return !mop.isMBB(); }) |
+                views::transform(op_to_val);
+
+  std::vector<Value *> args(values.begin(), values.end());
+  // FIXME: AAAA REMOVE THIS
+  args = {args[0]};
+  auto *addr =
+      builder.CreateCall(symtab_lookup->getFunctionType(), symtab_lookup, args);
+  // All lifted function have the same type. Might as well take the type of
+  // the current function.
+  auto *ftype = bb.getParent()->getFunctionType();
+  auto *call = builder.CreateCall(
+      ftype, addr, ArrayRef<Value *>{get_current_state(*bb.getParent())});
+  // mark as 'musttail' because we don't want RA to be updated
+  call->setTailCallKind(llvm::CallInst::TCK_MustTail);
+  save_registers(bb, call->getIterator(), rmap, tmachine, state, rstats);
+  load_registers(bb, std::next(call->getIterator()), rmap, tmachine, state,
+                 rstats);
+  return call;
 }
 
 auto generate_branch(const MachineInstr &minst, BasicBlock &bb,
@@ -594,6 +679,7 @@ static auto generate_return(const MachineInstr &minst,
                             const TargetMachine &tmachine, IRBuilder<> &builder,
                             reg2vals &rmap, const register_stats &reg_stats,
                             const Function *func) -> Value * {
+  // TODO: properly handle return operand
   // non-void case
   if (minst.getNumOperands() >= 1) {
     auto ret = minst.getOperand(0);
@@ -672,7 +758,7 @@ static auto generate_load_store_from_stack(
       get_stack_pointer_value(instrs, rmap, builder, target_machine, reg_stats);
   auto *idx = builder.CreateAdd(sp, offset);
   auto *state_arg = get_current_state(*bb.getParent());
-  auto *stack_type = *std::prev(state.element_end());
+  auto *stack_type = *std::next(state.element_begin(), reg_stats.size());
   auto *stack_addr = builder.CreateGEP(
       &state, state_arg,
       ArrayRef<Value *>{ConstantInt::get(ctx, APInt(64, reg_stats.size()))});
@@ -715,11 +801,6 @@ auto generate_stack_pointer_modification(
     const TargetMachine &tmachine, reg2vals &rmap, const instr_impl &instrs,
     const register_stats &reg_stats) -> Value * {
   auto &ctx = bb.getContext();
-  auto *reg_info = tmachine.getMCRegisterInfo();
-  auto sp_reg = find_register_by_name(reg_info, instrs.get_stack_pointer());
-  if (!sp_reg)
-    throw std::runtime_error("Could not find stack pointer under the name \"" +
-                             instrs.get_stack_pointer().str() + "\"");
   auto uses = minst.uses();
   auto imm = ranges::find_if(uses, [](auto &mop) { return mop.isImm(); });
   if (imm == uses.end()) {
@@ -755,21 +836,17 @@ auto generate_stack_pointer_modification(
 
 // Operation is considered a stack manipulation if it is a load or store and
 // its source register is stack pointer
-bool is_stack_manipulation(const MachineInstr &minst, const instr_impl &instrs,
-                           const TargetMachine &tmachine) {
+bool is_stack_manipulation(const MachineInstr &minst,
+                           stack_pointer_tracker &sptrack) {
   if (!minst.mayLoadOrStore())
     return false;
-  auto sp_reg_opt = get_stack_pointer(instrs, tmachine);
-  if (!sp_reg_opt)
-    throw std::runtime_error("Could not find stack pointer under the name \"" +
-                             instrs.get_stack_pointer().str() + "\"");
-  auto sp_reg = *sp_reg_opt;
   auto operands = minst.uses();
   auto regops =
       operands | views::filter([](auto &mop) { return mop.isReg(); }) |
       views::transform([](auto &mop) -> unsigned { return mop.getReg(); });
-  auto used_reg = ranges::find(regops, sp_reg);
-  return used_reg != regops.end();
+  auto used_sp = ranges::find_if(
+      regops, [&](auto reg) { return sptrack.is_stack_pointer(reg); });
+  return used_sp != regops.end();
 }
 
 static bool match_return(const MachineInstr &minst, const instruction &instr,
@@ -824,16 +901,34 @@ static bool is_call(const MachineInstr &minst, const instr_impl &instrs,
       tmachine.getTarget().createMCInstrAnalysis(tmachine.getMCInstrInfo()));
   return mia->isCall(inst);
 }
+static bool is_indirect_branch(const MachineInstr &minst,
+                               const instr_impl &instrs,
+                               const TargetMachine &tmachine) {
+  if (minst.isIndirectBranch())
+    return true;
+  auto *iinfo = tmachine.getMCInstrInfo();
+  auto name = get_instruction_name(minst, *iinfo);
+  auto instr = instrs.find(name);
+  return (instr != instrs.end()) && instr->is_indirect_branch;
+}
 
 auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
                           IRBuilder<> &builder, reg2vals &rmap,
                           const instr_impl &instrs,
                           const TargetMachine &target_machine,
                           const mbb2bb &m2b, StructType &state,
-                          const register_stats &reg_stats, bool functions_nop)
+                          const register_stats &reg_stats,
+                          stack_pointer_tracker &sptrack, bool functions_nop)
     -> Value * {
   auto *iinfo = target_machine.getMCInstrInfo();
   auto name = get_instruction_name(minst, *iinfo);
+  if (is_return(minst, instrs, target_machine))
+    return generate_return(minst, target_machine, builder, rmap, reg_stats,
+                           bb.getParent());
+  if (is_indirect_branch(minst, instrs, target_machine))
+    return generate_indirect_branch(*bb.getParent()->getParent(), bb, minst,
+                                    builder, m2b, target_machine, rmap, state,
+                                    reg_stats, instrs);
   if (minst.isBranch()) {
     if (minst.isUnconditionalBranch())
       return generate_jump(minst, builder, m2b);
@@ -850,23 +945,29 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
   if (minst.mayLoadOrStore()) {
     // Instructions that are not considered stack manipulation are generated
     // just like any other instruction
-    if (is_stack_manipulation(minst, instrs, target_machine))
+    if (is_stack_manipulation(minst, sptrack))
       return generate_load_store_from_stack(minst, builder, bb, rmap, instrs,
                                             target_machine, state, reg_stats);
   }
   auto *reg_info = target_machine.getMCRegisterInfo();
-  auto sp_reg = find_register_by_name(reg_info, instrs.get_stack_pointer());
-  if (!sp_reg)
-    throw std::runtime_error("Could not find stack pointer under the name \"" +
-                             instrs.get_stack_pointer().str() + "\"");
+  // TODO: track stack pointerS
   auto *m = bb.getParent()->getParent();
   auto *func = m->getFunction(name);
   if (!func)
     throw std::runtime_error("Could not find \"" + name + "\" in module");
-  if (!minst.defs().empty() && minst.defs().begin()->isReg() &&
-      minst.defs().begin()->getReg() == *sp_reg)
+  auto uses = minst.uses();
+  bool uses_sp = ranges::find_if(uses, [&](auto &u) {
+                   return u.isReg() && sptrack.is_stack_pointer(u.getReg());
+                 }) != uses.end();
+  bool is_stack_pointer_manipulation =
+      !minst.defs().empty() && minst.defs().begin()->isReg() && uses_sp;
+  if (is_stack_pointer_manipulation) {
+    auto dst = minst.defs().begin()->getReg();
+    if (sptrack.is_stack_pointer(dst))
+      sptrack.add(dst);
     return generate_stack_pointer_modification(
         minst, builder, bb, target_machine, rmap, instrs, reg_stats);
+  }
   auto op_to_val = [&](auto &mop) {
     return operand_to_value(mop, bb, target_machine, rmap, reg_stats, instrs);
   };
@@ -880,8 +981,10 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
     assert(def.isDef());
     if (!def.isReg())
       throw std::runtime_error("Only register operands are supported");
-    write_value_to_register(call, def.getReg(), builder, rmap, instrs,
-                            target_machine, reg_stats);
+    auto dst = def.getReg();
+    sptrack.erase(dst);
+    write_value_to_register(call, dst, builder, rmap, instrs, target_machine,
+                            reg_stats);
   }
   return call;
 }
@@ -890,7 +993,7 @@ void fill_ir_for_bb(MachineBasicBlock &mbb, reg2vals &rmap,
                     const instr_impl &instrs,
                     const TargetMachine &target_machine, const mbb2bb &m2b,
                     StructType &state, const register_stats &reg_stats,
-                    bool functions_nop) {
+                    stack_pointer_tracker &sptrack, bool functions_nop) {
   assert(!mbb.empty());
   auto *bb = m2b[&mbb];
   IRBuilder builder(bb->getContext());
@@ -898,7 +1001,7 @@ void fill_ir_for_bb(MachineBasicBlock &mbb, reg2vals &rmap,
   assert(bb);
   for (auto &minst : mbb) {
     generate_instruction(minst, *bb, builder, rmap, instrs, target_machine, m2b,
-                         state, reg_stats, functions_nop);
+                         state, reg_stats, sptrack, functions_nop);
   }
   auto last = std::prev(mbb.end());
   if (!last->isBranch() && !is_return(*last, instrs, target_machine)) {
@@ -910,7 +1013,10 @@ void fill_ir_for_bb(MachineBasicBlock &mbb, reg2vals &rmap,
 Module &bleach_module(Module &m, MachineModuleInfo &mmi,
                       const instr_impl &instrs,
                       std::string_view state_struct_file, size_t stack_size,
+                      const mctomir::file_info *finfo,
+                      std::string_view lifted_prefix,
                       bool assume_functions_nop) {
+
   auto reg_stats = collect_register_stats(instrs, m, mmi);
   std::set<Function *> target_functions;
   ranges::transform(m, std::inserter(target_functions, target_functions.end()),
@@ -956,17 +1062,41 @@ Module &bleach_module(Module &m, MachineModuleInfo &mmi,
     }
   }
 
+  std::vector<Function *> translated;
+  ranges::transform(funcs, std::back_inserter(translated), [](auto &finfo) {
+    auto &&[oldf, newf] = finfo;
+    return &newf.mfunc->getFunction();
+  });
+  create_bleach_symtab_add_function_decl(m);
+  create_bleach_symtab_lookup_function_decl(m);
+
   for (auto &&[oldf, func_info] : funcs)
     generate_function(*oldf, func_info, instrs, mmi, state, reg_stats,
                       assume_functions_nop);
-
+  if (finfo) {
+    for (auto *func :
+         translated | views::filter([](auto *f) { return !f->empty(); }))
+      fill_symtab_at(func, translated, *finfo);
+  }
+  if (finfo) {
+    SmallVector<char> ir_buf(symtab_ir_string.begin(), symtab_ir_string.end());
+    auto mem_buf = SmallVectorMemoryBuffer(std::move(ir_buf), "symtab-ir.ll");
+    SMDiagnostic err;
+    auto extra = parseIR(mem_buf, err, m.getContext());
+    if (!extra) {
+      std::string err_str;
+      raw_string_ostream ss(err_str);
+      err.print("symtab.ll", ss);
+      throw std::runtime_error("Failed to parse LLVM IR" + err_str);
+    }
+    Linker::linkModules(m, std::move(extra));
+  }
   for (auto *f : target_functions)
     f->eraseFromParent();
 
   auto *main_func = m.getFunction("main");
   if (main_func)
-    main_func->setName("bleached_main");
-
+    main_func->setName(std::format("{}main", lifted_prefix));
   return m;
 }
 } // namespace bleach::lifter

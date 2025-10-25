@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <llvm/ADT/STLExtras.h>
+#include <llvm/ADT/StringExtras.h>
 #include <llvm/CodeGen/MIRParser/MIRParser.h>
 #include <llvm/CodeGen/MIRPrinter.h>
 #include <llvm/CodeGen/MachineInstrBuilder.h>
@@ -79,16 +80,12 @@ Error translator_t::create_module_and_function(StringRef triple_name,
   TargetOptions options;
   // TODO(Ilyagavrilin): make TargetMachine initialization simplier or add more
   // features
-  std::unique_ptr<TargetMachine> generic_tmachine(
-      the_target->createTargetMachine(triple_name, "", features.getString(),
-                                      options, std::nullopt));
-  if (!generic_tmachine)
+  tmachine.reset(the_target->createTargetMachine(
+      the_triple, "", features.getString(), options, std::nullopt));
+  if (!tmachine)
     return createStringError(inconvertibleErrorCode(),
                              "Cannot create target machine for %s",
                              triple_name.data());
-
-  tmachine.reset(
-      static_cast<CodeGenTargetMachineImpl *>(generic_tmachine.release()));
 
   mod->setDataLayout(tmachine->createDataLayout());
   return Error::success();
@@ -129,17 +126,19 @@ Error translator_t::process_disassembly(SectionRef section,
     auto type = s.getType();
     auto addr = s.getValue();
     if (name && type && addr && !name->empty() &&
-        type.get() == SymbolRef::Type::ST_Function) {
+        (type.get() == SymbolRef::Type::ST_Function ||
+         type.get() == SymbolRef::Type::ST_Unknown)) {
       auto *obj = s.getObject();
       auto size = [&] {
         if (isa<ELFObjectFileBase>(obj))
           return ELFSymbolRef(s).getSize();
         throw std::runtime_error("Unsupported object size");
       }();
-      funcs.push_back(function_info{{}, {}, *addr, *addr + size, name->str()});
+      funcs.push_back(
+          translated_function{{}, {}, *addr, *addr + size, name->str()});
     }
   }
-  ranges::sort(funcs, {}, &function_info::start);
+  ranges::sort(funcs, {}, &translated_function::start);
 
   uint64_t size;
   MCInst inst;
@@ -211,7 +210,7 @@ Error translator_t::identify_basic_blocks() {
       }
     }
 
-    for (block_info *current_block = nullptr; auto &tinst : func.insts) {
+    for (translated_block *current_block = nullptr; auto &tinst : func.insts) {
       uint64_t current_addr = tinst.address;
       if (leaders.count(current_addr) > 0) {
         if (current_block)

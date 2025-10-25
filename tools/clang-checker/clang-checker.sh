@@ -35,11 +35,11 @@ riscv64-unknown-linux-gnu-llc $mir_file -o $rv_asm_file -march=riscv64 -mattr=+m
 riscv64-unknown-linux-musl-gcc -c $src_dir/main-rv64.c -o $bld_dir/main-rv64.o -march=rv64imfd
 riscv64-unknown-linux-gnu-clang -c $src_dir/print.S -o $bld_dir/print.o -march=rv64imfd
 riscv64-unknown-linux-musl-gcc $bld_dir/main-rv64.o $bld_dir/print.o $rv_asm_file -o $bld_dir/rv.out -march=rv64imfd --static -O0
-qemu-riscv64 $bld_dir/rv.out > $bld_dir/rv.log
+qemu-riscv64 $bld_dir/rv.out >$bld_dir/rv.log
 $BLEACH_PATH/llvm-bleach $mir_file --instructions=$bleach_cfg \
-  -march=riscv64 --assume-function-nop > $bld_dir/lifted.ll
+  -march=riscv64 --assume-function-nop >$bld_dir/lifted.ll
 sed -i 's/define void \@print/define weak void @print/g' $bld_dir/lifted.ll
 $target_clang $src_dir/main.c $bld_dir/lifted.ll -o $bld_dir/lifted.out -O3 --static -march=rv64imfd
-$runner $bld_dir/lifted.out > $bld_dir/lifted.log
+$runner $bld_dir/lifted.out >$bld_dir/lifted.log
 diff $bld_dir/rv.log $bld_dir/lifted.log
 rm -rd $bld_dir

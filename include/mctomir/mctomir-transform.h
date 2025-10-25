@@ -3,7 +3,6 @@
 #include "mctomir/elf-loader.h"
 
 #include <llvm/ADT/DenseMap.h>
-#include <llvm/CodeGen/CodeGenTargetMachineImpl.h>
 #include <llvm/CodeGen/MachineBasicBlock.h>
 #include <llvm/CodeGen/MachineFunction.h>
 #include <llvm/CodeGen/MachineInstr.h>
@@ -34,7 +33,7 @@ namespace mctomir {
 using namespace llvm;
 using namespace llvm::object;
 
-struct translated_inst {
+struct translated_inst final {
   uint64_t address;    // Original address
   MCInst inst;         // MC instruction
   MachineInstr *minst; // Machine instruction (owned by MachineFunction)
@@ -43,19 +42,19 @@ struct translated_inst {
       : address(addr), inst(i), minst(nullptr) {}
 };
 
-struct block_info {
+struct translated_block final {
   uint64_t start_address;
   uint64_t end_address;
   MachineBasicBlock *mbb;
   std::vector<translated_inst *> instrs;
 
-  block_info(uint64_t start)
+  translated_block(uint64_t start)
       : start_address(start), end_address(0), mbb(nullptr) {}
 };
 
-struct function_info {
+struct translated_function final {
   std::vector<translated_inst> insts;
-  std::vector<block_info> blocks;
+  std::vector<translated_block> blocks;
   uint64_t start = 0;
   uint64_t end = 0;
   std::string name;
@@ -63,7 +62,7 @@ struct function_info {
   MachineFunction *mfunc = nullptr;
 };
 
-class translator_t {
+class translator_t final {
 public:
   translator_t();
   ~translator_t();
@@ -80,8 +79,10 @@ public:
 
   void print_mir(raw_ostream &os) const;
 
+  const auto &get_funcs() const & { return funcs; }
+
 private:
-  std::unique_ptr<CodeGenTargetMachineImpl> tmachine;
+  std::unique_ptr<TargetMachine> tmachine;
   std::unique_ptr<MachineModuleInfo> mmi;
   std::unique_ptr<MCContext> mcctx;
   std::unique_ptr<MCInstrAnalysis> mi_analysis;
@@ -92,7 +93,7 @@ private:
   std::unique_ptr<LLVMContext> ctx;
   std::unique_ptr<Module> mod;
 
-  std::vector<function_info> funcs;
+  std::vector<translated_function> funcs;
   DenseMap<uint64_t, MachineBasicBlock *> address_to_mbb;
 
   Error create_module_and_function(StringRef triple_name,
@@ -126,6 +127,7 @@ public:
   Error convert_section(StringRef section_name);
   Error write_mir(StringRef output_path);
   void print_mir(raw_ostream &os);
+  auto &get_translator() const & { return *translator; }
 
 private:
   elf_loader loader;

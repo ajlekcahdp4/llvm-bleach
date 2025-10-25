@@ -1,5 +1,6 @@
 #include "mctomir/elf-loader.h"
 
+#include <llvm/Object/ELFObjectFile.h>
 #include <llvm/Object/Error.h>
 #include <llvm/Object/ObjectFile.h>
 #include <llvm/Support/FileSystem.h>
@@ -88,11 +89,7 @@ elf_loader::get_section_contents(const SectionRef &section) const {
     return createStringError(inconvertibleErrorCode(),
                              "No ELF file has been loaded");
 
-  Expected<StringRef> contents_or_err = section.getContents();
-  if (!contents_or_err)
-    return contents_or_err.takeError();
-
-  return contents_or_err.get();
+  return section.getContents();
 }
 
 Expected<unsigned> elf_loader::get_file_type() const {

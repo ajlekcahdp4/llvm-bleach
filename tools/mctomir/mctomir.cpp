@@ -1,5 +1,6 @@
 #include "bleach/version.inc"
 #include "mctomir/mctomir-transform.h"
+#include "mctomir/symbols.h"
 
 #include <llvm/ADT/StringExtras.h>
 #include <llvm/CodeGen/Passes.h>
@@ -15,6 +16,7 @@
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/WithColor.h>
 
+#include <fstream>
 using namespace llvm;
 using namespace llvm::object;
 using namespace mctomir;
@@ -30,6 +32,10 @@ static cl::opt<bool> verbose_output("verbose",
 static cl::alias verbose_output_alias("v", cl::desc("Alias for --verbose"),
                                       cl::aliasopt(verbose_output),
                                       cl::cat(options));
+
+static cl::opt<std::string>
+    symbol_table_file("symtab-file", cl::desc("File to save symtab to."),
+                      cl::value_desc("filename"), cl::cat(options));
 
 int main(int argc, char **argv) {
   cl::AddExtraVersionPrinter([](raw_ostream &os) {
@@ -69,6 +75,22 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  if (symbol_table_file.getNumOccurrences()) {
+    auto &funcs = converter.get_translator().get_funcs();
+    file_info finfo;
+    for (auto &func : funcs)
+      finfo.add({func.name, func.start, func.end});
+    auto yaml = save_to_yaml(finfo);
+    if (symbol_table_file == "-")
+      outs() << yaml << '\n';
+    else {
+      std::fstream fs(symbol_table_file.getValue(), std::ios::out);
+      if (!fs.good())
+        throw std::runtime_error(
+            formatv("Cannot open file \"{}\"", symbol_table_file.getValue()));
+      fs << yaml << '\n';
+    }
+  }
   if (verbose_output)
     outs() << "Writing MIR to: " << output_filename << "\n";
   if (Error err = converter.write_mir(output_filename)) {

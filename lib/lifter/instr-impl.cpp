@@ -19,6 +19,7 @@ struct normalized_instruction final {
   std::string name;
   std::string function_str;
   std::optional<return_info> retinfo;
+  bool is_indirect_branch = false;
   normalized_instruction() = default;
   normalized_instruction(const instruction &instr)
       : name(instr.name), function_str([&] {
@@ -29,7 +30,7 @@ struct normalized_instruction final {
           instr.ir_module->print(os, /* AssemblyAnnotationWriter */ nullptr);
           return str;
         }()),
-        retinfo(instr.retinfo) {}
+        retinfo(instr.retinfo), is_indirect_branch(instr.is_indirect_branch) {}
 };
 
 } // namespace bleach::lifter
@@ -51,6 +52,8 @@ template <> struct convert<lifter::normalized_instruction> {
       instr.name = inst.first.as<std::string>();
       if (auto func = inst.second["func"]; func && !func.IsNull())
         instr.function_str = func.as<std::string>();
+      if (auto is_indbr = inst.second["is_indirect_branch"])
+        instr.is_indirect_branch = is_indbr.as<bool>();
       if (auto retinfo = inst.second["is_return"]) {
         if (!retinfo.IsSequence())
           throw std::runtime_error("is_return should be a sequence");
@@ -81,6 +84,7 @@ instruction denormalize_instruction(const normalized_instruction &norm,
   instruction instr;
   instr.name = norm.name;
   instr.retinfo = norm.retinfo;
+  instr.is_indirect_branch = norm.is_indirect_branch;
   if (norm.function_str.empty())
     return instr;
   llvm::SmallVector<char> ir_buf(norm.function_str.begin(),
