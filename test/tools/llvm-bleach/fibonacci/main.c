@@ -2,8 +2,6 @@
 // generated header
 #include <state.h>
 
-extern long long fibonacci(struct register_state *st);
-
 static struct register_state regs = {};
 
 static long long lifted_fibonacci(long long n) {

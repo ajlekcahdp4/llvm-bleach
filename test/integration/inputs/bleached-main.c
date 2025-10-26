@@ -2,8 +2,6 @@
 
 #include <stdio.h>
 
-extern int64_t bleached_main(struct register_state *s);
-
 struct register_state s = {};
 int main() {
   bleached_main(&s);

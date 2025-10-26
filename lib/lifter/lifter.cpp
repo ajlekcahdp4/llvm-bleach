@@ -31,6 +31,8 @@
 #include <iostream>
 #include <ranges>
 #include <set>
+#include <sstream>
+#include <stdexcept>
 
 namespace bleach::lifter {
 namespace ranges = std::ranges;
@@ -450,14 +452,13 @@ register_stats collect_register_stats(const instr_impl &instr, Module &m,
   return stats;
 }
 
-std::string get_state_struct_definition(const StructType &type,
-                                        const register_stats &rstats) {
+static void print_state_struct_definition(std::ostream &os,
+                                          const StructType &type,
+                                          const register_stats &rstats) {
   auto elements = type.elements();
   assert(rstats.size() == elements.size() - 1);
-  std::string strct;
-  raw_string_ostream ss(strct);
-  ss << "#include <stdint.h>\n";
-  ss << "struct register_state {\n";
+  os << "#include <stdint.h>\n";
+  os << "struct register_state {\n";
   for (auto &&[rclass, member] : views::zip(rstats, elements)) {
     auto *arr = dyn_cast<ArrayType>(member);
     assert(arr);
@@ -465,8 +466,8 @@ std::string get_state_struct_definition(const StructType &type,
     assert(elem);
     auto n_elements = arr->getNumElements();
     assert(n_elements > 0);
-    ss << formatv("  int{0}_t {1}[{2}];\n", elem->getBitWidth(),
-                  rclass.get_name(), n_elements);
+    os << std::format("  int{0}_t {1}[{2}];\n", elem->getBitWidth(),
+                      rclass.get_name(), n_elements);
   }
   // Last member is stack;
   assert(!elements.empty());
@@ -476,10 +477,9 @@ std::string get_state_struct_definition(const StructType &type,
   auto *stack_elem = arr->getElementType();
   auto *elem = dyn_cast<IntegerType>(stack_elem);
   assert(elem);
-  ss << formatv("  int{0}_t stack[{1}];\n", elem->getBitWidth(),
-                arr->getNumElements());
-  ss << "};";
-  return strct;
+  os << std::format("  int{0}_t stack[{1}];\n", elem->getBitWidth(),
+                    arr->getNumElements());
+  os << "};";
 }
 
 auto generate_jump(const MachineInstr &minst, IRBuilder<> &builder,
@@ -1010,6 +1010,43 @@ void fill_ir_for_bb(MachineBasicBlock &mbb, reg2vals &rmap,
   }
 }
 
+static std::string get_c_type_string(Type *ty) {
+  if (auto *intgr = dyn_cast<IntegerType>(ty))
+    return std::format("int{}_t", intgr->getBitWidth());
+  if (ty->getTypeID() == Type::TypeID::FloatTyID)
+    return "float";
+  if (ty->getTypeID() == Type::TypeID::DoubleTyID)
+    return "double";
+  if (ty->getTypeID() == Type::TypeID::VoidTyID)
+    return "void";
+  throw std::invalid_argument("Unsupported type encountered");
+}
+
+static bool has_special_chars(std::string_view str) {
+  std::array special_chars = {'$', '.', ','};
+  return std::ranges::any_of(special_chars,
+                             [str](auto ch) { return str.contains(ch); });
+}
+
+static void save_function_declarations(std::ostream &os,
+                                       std::span<Function *> funcs) {
+  os << '\n';
+  for (auto *f : funcs | views::filter([](auto *f) {
+                   return !has_special_chars(f->getName());
+                 })) {
+    auto *ret_type = f->getReturnType();
+    os << "extern " << get_c_type_string(ret_type) << ' ' << f->getName().str()
+       << "(struct register_state *state);\n\n";
+  }
+}
+
+static void print_state_header(std::ostream &os, std::span<Function *> funcs,
+                               const StructType &state,
+                               const register_stats &rstats) {
+  print_state_struct_definition(os, state, rstats);
+  save_function_declarations(os, funcs);
+}
+
 Module &bleach_module(Module &m, MachineModuleInfo &mmi,
                       const instr_impl &instrs,
                       std::string_view state_struct_file, size_t stack_size,
@@ -1047,28 +1084,32 @@ Module &bleach_module(Module &m, MachineModuleInfo &mmi,
     }
   }
 
-  auto &state =
-      create_state_type(m.getContext(), mmi.getTarget(), reg_stats, stack_size);
-  if (!state_struct_file.empty()) {
-    auto struct_def_str = get_state_struct_definition(state, reg_stats);
-    if (state_struct_file == "-") {
-      std::cout << struct_def_str << std::endl;
-    } else {
-      std::fstream fs(std::string(state_struct_file), std::fstream::out);
-      if (!fs.is_open())
-        throw std::runtime_error(
-            std::format("Could not open file \"{}\"", state_struct_file));
-      fs << struct_def_str << std::endl;
-    }
-  }
-
   std::vector<Function *> translated;
   ranges::transform(funcs, std::back_inserter(translated), [](auto &finfo) {
     auto &&[oldf, newf] = finfo;
     return &newf.mfunc->getFunction();
   });
+
   create_bleach_symtab_add_function_decl(m);
   create_bleach_symtab_lookup_function_decl(m);
+  // rename "main" function
+  auto *main_func = m.getFunction("main");
+  if (main_func)
+    main_func->setName(std::format("{}main", lifted_prefix));
+  // create state struct and generate header
+  auto &state =
+      create_state_type(m.getContext(), mmi.getTarget(), reg_stats, stack_size);
+  if (!state_struct_file.empty()) {
+    if (state_struct_file == "-") {
+      print_state_header(std::cout, translated, state, reg_stats);
+    } else {
+      std::fstream fs(std::string(state_struct_file), std::fstream::out);
+      if (!fs.is_open())
+        throw std::runtime_error(
+            std::format("Could not open file \"{}\"", state_struct_file));
+      print_state_header(fs, translated, state, reg_stats);
+    }
+  }
 
   for (auto &&[oldf, func_info] : funcs)
     generate_function(*oldf, func_info, instrs, mmi, state, reg_stats,
@@ -1094,9 +1135,6 @@ Module &bleach_module(Module &m, MachineModuleInfo &mmi,
   for (auto *f : target_functions)
     f->eraseFromParent();
 
-  auto *main_func = m.getFunction("main");
-  if (main_func)
-    main_func->setName(std::format("{}main", lifted_prefix));
   return m;
 }
 } // namespace bleach::lifter

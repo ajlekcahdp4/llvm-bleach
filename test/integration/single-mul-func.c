@@ -19,8 +19,6 @@
 // generated header
 #include <state.h>
 
-extern void foo(struct register_state *st);
-
 static struct register_state regs = {};
 
 static long long lifted_foo(long long n) {

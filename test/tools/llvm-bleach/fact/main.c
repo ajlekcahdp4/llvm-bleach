@@ -2,8 +2,6 @@
 // generated header
 #include <state.h>
 
-extern long long fact(struct register_state *st);
-
 static struct register_state regs = {};
 
 static long long lifted_factorial(long long n) {
