@@ -55,10 +55,6 @@ function(bleach_add_library target_name)
                RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 endfunction()
 
-set(BLEACH_LLVM_TARGETS
-    "RISCV"
-    CACHE STRING "List of LLVM targets to use")
-
 function(bleach_add_executable target_name)
   set(multi_value_args SOURCES)
   cmake_parse_arguments(ARGUMENTS "" "" "${multi_value_args}" ${ARGN})
@@ -80,8 +76,8 @@ function(bleach_add_llvm_based_tool target_name)
                         ${ARGN})
   bleach_add_executable(${target_name} SOURCES ${ARGUMENTS_SOURCES})
   enable_warnings(${target_name})
-  llvm_config(${target_name} ${ARGUMENTS_LLVM_COMPONENTS}
-              ${BLEACH_LLVM_TARGETS})
+  llvm_map_components_to_libnames(LLVM_LIBRARIES ${ARGUMENTS_LLVM_COMPONENTS})
+  target_link_libraries(${target_name} PUBLIC ${LLVM_LIBRARIES})
   target_compile_features(${target_name} PUBLIC cxx_std_23)
 endfunction()
 
@@ -96,21 +92,11 @@ function(bleach_add_llvm_based_lib target_name)
     bleach_add_library(${target_name} STATIC ${ARGUMENTS_SOURCES})
   endif()
   enable_warnings(${target_name})
-  llvm_config(${target_name} ${ARGUMENTS_LLVM_COMPONENTS}
-              ${BLEACH_LLVM_TARGETS})
-  target_include_directories(${target_name} SYSTEM PUBLIC ${LLVM_INCLUDE_DIRS})
+  llvm_map_components_to_libnames(LLVM_LIBRARIES ${ARGUMENTS_LLVM_COMPONENTS})
+  target_link_libraries(${target_name} PUBLIC ${LLVM_LIBRARIES})
+  target_include_directories(${target_name} SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
   target_compile_features(${target_name} PUBLIC cxx_std_23)
 endfunction()
-
-foreach(target ${BLEACH_LLVM_TARGETS})
-  set(TEMP_INCLUDE_DIRS_TARGET ${LLVM_INCLUDE_DIRS})
-  list(TRANSFORM TEMP_INCLUDE_DIRS_TARGET APPEND "/llvm/Target/${target}")
-  include_directories(SYSTEM ${TEMP_INCLUDE_DIRS_TARGET})
-  message(
-    STATUS
-      "Additional include directory for target ${target}: ${TEMP_INCLUDE_DIRS_TARGET}"
-  )
-endforeach()
 
 add_subdirectory(include)
 add_subdirectory(lib)

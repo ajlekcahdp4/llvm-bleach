@@ -20,7 +20,7 @@
 using namespace llvm;
 using namespace llvm::object;
 using namespace mctomir;
-cl::OptionCategory options("mctomir options");
+static cl::OptionCategory options("mctomir options");
 static cl::opt<std::string>
     input_filename(cl::Positional, cl::desc("<input ELF file>"), cl::Required);
 static cl::opt<std::string> output_filename("o", cl::desc("Output MIR file"),

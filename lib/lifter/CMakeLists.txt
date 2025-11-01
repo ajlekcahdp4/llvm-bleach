@@ -13,7 +13,7 @@ add_custom_command(
     ${CMAKE_CURRENT_BINARY_DIR}/symtab-ir.h
   COMMAND
     ${CLANG_COMPILER}
-    "-xc++" "-c" "-S" "-emit-llvm"
+    "-xc++" "-S" "-emit-llvm"
     "-o" "${CMAKE_CURRENT_BINARY_DIR}/symtab-ir.h.2"
     "${CMAKE_CURRENT_SOURCE_DIR}/symtab.cpp"
   COMMAND
@@ -45,6 +45,7 @@ bleach_add_llvm_based_lib(
   support
   mcdisassembler
   target
+  linker
   mirparser
   irreader
   SOURCES

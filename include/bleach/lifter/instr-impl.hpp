@@ -1,9 +1,20 @@
 #pragma once
 
-#include <llvm/CodeGen/MachineFunction.h>
-#include <llvm/IR/Instruction.h>
-
-#include <unordered_map>
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wnull-dereference"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnull-dereference"
+#else
+#endif
+#include <llvm/CodeGen/TargetRegisterInfo.h>
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
+#else
+#endif
 #include <vector>
 
 namespace bleach::lifter {

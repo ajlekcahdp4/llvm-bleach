@@ -349,8 +349,7 @@ std::string get_instruction_name(const MachineInstr &minst,
   return instr_info.getName(minst.getOpcode()).str();
 }
 
-StructType &create_state_type(LLVMContext &ctx, const TargetMachine &tmachine,
-                              const register_stats &stats,
+StructType &create_state_type(LLVMContext &ctx, const register_stats &stats,
                               size_t stack_size_bytes) {
 
   std::vector<Type *> members;
@@ -565,9 +564,8 @@ auto operand_to_value(const MachineOperand &mop, BasicBlock &block,
 
 auto generate_indirect_branch(Module &m, BasicBlock &bb,
                               const MachineInstr &minst, IRBuilder<> &builder,
-                              const mbb2bb &m2b, const TargetMachine &tmachine,
-                              reg2vals &rmap, StructType &state,
-                              const register_stats &rstats,
+                              const TargetMachine &tmachine, reg2vals &rmap,
+                              StructType &state, const register_stats &rstats,
                               const instr_impl &insts) -> Instruction * {
   auto *symtab_lookup = m.getFunction(bleach_symtab_lookup_name);
   assert(symtab_lookup);
@@ -700,7 +698,7 @@ static auto generate_call(const MachineInstr &minst, IRBuilder<> &builder,
     -> Value * {
   assert(minst.getNumOperands() >= 1);
   auto ops = minst.operands();
-  auto op = ranges::find_if(ops, [](auto &op) { return op.isGlobal(); });
+  auto op = ranges::find_if(ops, [](auto &o) { return o.isGlobal(); });
   assert(op != ops.end());
   auto *callee = const_cast<Function *>(dyn_cast<Function>(op->getGlobal()));
   assert(callee);
@@ -888,8 +886,7 @@ static bool is_return(const MachineInstr &minst, const instr_impl &instrs,
          (instr != instrs.end() && match_return(minst, *instr, tmachine));
 }
 
-static bool is_call(const MachineInstr &minst, const instr_impl &instrs,
-                    const TargetMachine &tmachine) {
+static bool is_call(const MachineInstr &minst, const TargetMachine &tmachine) {
   if (minst.isCall())
     return true;
   if (minst.isPseudo())
@@ -899,6 +896,7 @@ static bool is_call(const MachineInstr &minst, const instr_impl &instrs,
   inst.setOpcode(minst.getOpcode());
   std::unique_ptr<MCInstrAnalysis> mia(
       tmachine.getTarget().createMCInstrAnalysis(tmachine.getMCInstrInfo()));
+  assert(mia);
   return mia->isCall(inst);
 }
 static bool is_indirect_branch(const MachineInstr &minst,
@@ -927,7 +925,7 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
                            bb.getParent());
   if (is_indirect_branch(minst, instrs, target_machine))
     return generate_indirect_branch(*bb.getParent()->getParent(), bb, minst,
-                                    builder, m2b, target_machine, rmap, state,
+                                    builder, target_machine, rmap, state,
                                     reg_stats, instrs);
   if (minst.isBranch()) {
     if (minst.isUnconditionalBranch())
@@ -939,7 +937,7 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
   if (is_return(minst, instrs, target_machine))
     return generate_return(minst, target_machine, builder, rmap, reg_stats,
                            bb.getParent());
-  if (is_call(minst, instrs, target_machine))
+  if (is_call(minst, target_machine))
     return generate_call(minst, builder, bb, rmap, target_machine, state,
                          reg_stats, functions_nop);
   if (minst.mayLoadOrStore()) {
@@ -949,7 +947,6 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
       return generate_load_store_from_stack(minst, builder, bb, rmap, instrs,
                                             target_machine, state, reg_stats);
   }
-  auto *reg_info = target_machine.getMCRegisterInfo();
   // TODO: track stack pointerS
   auto *m = bb.getParent()->getParent();
   auto *func = m->getFunction(name);
@@ -1067,7 +1064,7 @@ Module &bleach_module(Module &m, MachineModuleInfo &mmi,
   for (auto &&[oldf, func_info] : funcs) {
     for (auto &block : *func_info.mfunc) {
       for (auto &inst : block) {
-        if (!is_call(inst, instrs, mmi.getTarget()))
+        if (!is_call(inst, mmi.getTarget()))
           continue;
         auto ops = inst.operands();
         auto global_op =
@@ -1085,8 +1082,8 @@ Module &bleach_module(Module &m, MachineModuleInfo &mmi,
   }
 
   std::vector<Function *> translated;
-  ranges::transform(funcs, std::back_inserter(translated), [](auto &finfo) {
-    auto &&[oldf, newf] = finfo;
+  ranges::transform(funcs, std::back_inserter(translated), [](auto &f) {
+    auto &&[oldf, newf] = f;
     return &newf.mfunc->getFunction();
   });
 
@@ -1097,8 +1094,7 @@ Module &bleach_module(Module &m, MachineModuleInfo &mmi,
   if (main_func)
     main_func->setName(std::format("{}main", lifted_prefix));
   // create state struct and generate header
-  auto &state =
-      create_state_type(m.getContext(), mmi.getTarget(), reg_stats, stack_size);
+  auto &state = create_state_type(m.getContext(), reg_stats, stack_size);
   if (!state_struct_file.empty()) {
     if (state_struct_file == "-") {
       print_state_header(std::cout, translated, state, reg_stats);

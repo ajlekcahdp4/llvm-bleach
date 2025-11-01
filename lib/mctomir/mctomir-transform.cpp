@@ -166,7 +166,7 @@ Error translator_t::process_disassembly(SectionRef section,
   return Error::success();
 }
 
-Error translator_t::add_instruction(uint64_t address, const MCInst &inst) {
+Error translator_t::add_instruction(uint64_t, const MCInst &) {
   return Error::success();
 }
 

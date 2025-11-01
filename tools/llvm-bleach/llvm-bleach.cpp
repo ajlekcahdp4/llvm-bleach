@@ -37,7 +37,7 @@
 #include <utility>
 
 using namespace llvm;
-cl::OptionCategory options("llvm-bleach options");
+static cl::OptionCategory options("llvm-bleach options");
 namespace bleach {
 
 static cl::opt<std::string> mir_file_name(cl::Positional,

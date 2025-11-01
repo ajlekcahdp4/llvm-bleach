@@ -2,7 +2,6 @@
 
 #include "mctomir/elf-loader.h"
 
-#include <llvm/ADT/DenseMap.h>
 #include <llvm/CodeGen/MachineBasicBlock.h>
 #include <llvm/CodeGen/MachineFunction.h>
 #include <llvm/CodeGen/MachineInstr.h>
@@ -94,7 +93,7 @@ private:
   std::unique_ptr<Module> mod;
 
   std::vector<translated_function> funcs;
-  DenseMap<uint64_t, MachineBasicBlock *> address_to_mbb;
+  std::map<uint64_t, MachineBasicBlock *> address_to_mbb;
 
   Error create_module_and_function(StringRef triple_name,
                                    SubtargetFeatures features);

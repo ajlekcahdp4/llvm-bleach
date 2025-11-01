@@ -2,6 +2,7 @@ bleach_add_llvm_based_lib(
   bleach-passes
   LLVM_COMPONENTS
   support
+  core
   mcdisassembler
   target
   mirparser

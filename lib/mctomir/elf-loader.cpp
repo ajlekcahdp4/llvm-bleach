@@ -137,7 +137,8 @@ Expected<SubtargetFeatures> elf_loader::get_features() const {
   return elf_obj->getFeatures();
 }
 
-elf_disassembler::elf_disassembler(const elf_loader &loader) : loader(loader) {}
+elf_disassembler::elf_disassembler(const elf_loader &p_loader)
+    : loader(p_loader) {}
 
 Error elf_disassembler::initialize() {
   if (initialized)
