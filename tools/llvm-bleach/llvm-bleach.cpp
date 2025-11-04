@@ -42,18 +42,19 @@ using namespace llvm;
 static cl::OptionCategory options("llvm-bleach options");
 namespace bleach {
 
-static cl::opt<std::string> mir_file_name(cl::Positional,
-                                          cl::desc("<mir file>"),
-                                          cl::cat(options), cl::init(""),
-                                          cl::Required);
+static cl::opt<std::string> input_file_name(cl::Positional,
+                                            cl::desc("<mir/ELF file>"),
+                                            cl::cat(options), cl::init(""),
+                                            cl::Required);
 static cl::opt<std::string> instructions_file(
     "instructions",
     cl::desc("File with (YAML) descriptions of instructions in LLVM IR"),
     cl::cat(options), cl::init(""));
 
-static cl::opt<bool> dump_input_mir("dump-input-mir",
-                                    cl::desc("Dump input MIR"),
-                                    cl::cat(options));
+static cl::opt<bool>
+    dump_input_mir("dump-input-mir",
+                   cl::desc("Dump input MIR (or MIR of input ELF file)"),
+                   cl::cat(options));
 
 static cl::opt<std::string>
     dump_input_instructions("dump-input-instructions",
@@ -87,6 +88,12 @@ static cl::opt<std::string>
                   cl::desc("Prefix to append to the name of a lifted function "
                            "(e.g. 'main' -> 'bleached_main')"),
                   cl::cat(options));
+
+static cl::opt<std::string> output_filename("o",
+                                            cl::desc("Output LLVM IR file"),
+                                            cl::value_desc("filename"),
+                                            cl::init("-"), cl::cat(options));
+
 namespace {
 
 class print_pass : public PassInfoMixin<print_pass> {
@@ -122,9 +129,8 @@ input_mir read_or_translate_mir(const std::filesystem::path &input_file,
             .mmi = std::move(translated.mmi)};
   }
   SMDiagnostic err_mir_parser;
-  auto file_copy = mir_file_name.getValue();
   auto mir_parser =
-      createMIRParserFromFile(std::move(file_copy), err_mir_parser, ctx);
+      createMIRParserFromFile(input_file.native(), err_mir_parser, ctx);
   if (!mir_parser)
     throw std::runtime_error(err_mir_parser.getMessage().str());
   Triple triple;
@@ -178,7 +184,7 @@ auto main(int argc, char **argv) -> int try {
   InitializeAllAsmPrinters();
   InitializeAllDisassemblers();
   LLVMContext ctx;
-  auto input_mir = read_or_translate_mir(mir_file_name.getValue(), ctx);
+  auto input_mir = read_or_translate_mir(input_file_name.getValue(), ctx);
   auto &[m, target_machine, machine_module_info] = input_mir;
   assert(machine_module_info);
   if (!instructions_file.getNumOccurrences()) {
@@ -239,7 +245,15 @@ auto main(int argc, char **argv) -> int try {
       createModuleToFunctionPassAdaptor(SROAPass(SROAOptions::PreserveCFG)));
   mpm.addPass(VerifierPass(false));
   mpm.run(*m, mam);
-  m->print(outs(), nullptr);
+  if (output_filename == "-")
+    m->print(outs(), nullptr);
+  else {
+    std::error_code errc = {};
+    llvm::raw_fd_ostream fs(output_filename, errc);
+    if (errc)
+      throw std::runtime_error(errc.message());
+    m->print(fs, nullptr);
+  }
   mam.clear();
   fam.clear();
   cgam.clear();

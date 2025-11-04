@@ -82,6 +82,8 @@ int main(int argc, char **argv) try {
     outs() << "Writing MIR to: " << output_filename << '\n';
   std::error_code errc;
   llvm::raw_fd_ostream os(output_filename, errc);
+  if (errc)
+    throw std::runtime_error(errc.message());
   print_mir(os, res);
   return EXIT_SUCCESS;
 } catch (std::exception &e) {

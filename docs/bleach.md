@@ -5,16 +5,17 @@ Highly configurable lifter to LLVM IR.
 # SYNOPSIS
 
 ```sh
-llvm-bleach MIR_FILE --instructions=YAML_PATH [OTHER OPTIONS]
+llvm-bleach INPUT_FILE --instructions=YAML_PATH [OTHER OPTIONS]
 ```
 
 # DESCRIPTION
 
-llvm-bleach is a tool to lift LLVM MIR code to target-independent LLVM IR to analyze, modify or recompile to any other
-architecture. Input LLVM MIR can be lifted from ELF file with **mctomir** tool. llvm-bleach is written with the
-philosophy that lifter should be as generic as possible and contain no architecture-specific code as it highly increases
-cost of maintanence and makes supporting new source architectures more difficult. Instead bleach uses target-independent
-concepts and algorithms. Target description is received from LLVM backend as well as input architecture description.
+llvm-bleach is a tool to lift ELF (or LLVM MIR code) to target-independent LLVM IR to analyze, modify or recompile
+to any other architecture. Input LLVM MIR can be lifted from ELF file with **mctomir** tool. llvm-bleach is
+written with the philosophy that lifter should be as generic as possible and contain no architecture-specific
+code as it highly increases cost of maintanence and makes supporting new source architectures more difficult.
+Instead bleach uses target-independent concepts and algorithms. Target description is received from LLVM backend
+as well as input architecture description.
 
 # OPTIONS
 
@@ -84,6 +85,13 @@ that bleach currently cannot provide. Default value is "bleached\_".
 
    ```sh
    llvm-bleach ./myfunc.mir --instructions riscv.yaml -o -
+   ```
+
+1. Lift ELF code from ./a.out file to LLVM IR using instruction description from ./riscv.yaml file. Print lifted
+   LLVM IR on stdout
+
+   ```
+   llvm-bleach ./a.out --instructions riscv.yaml -o -
    ```
 
 1. Same but also save state struct definition to `./state.h`

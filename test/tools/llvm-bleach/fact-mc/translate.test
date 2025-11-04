@@ -1,6 +1,6 @@
 // RUN: riscv64-unknown-linux-gnu-clang %S/main.c -O2 -o %t.out -march=rv64im -nostdlib
 // RUN: %bin/llvm-bleach %t.out --instructions %S/riscv-fact-instructions.yaml \
-// RUN:   --state-struct-file %t.state.h -noinline-instr > %t.ll
+// RUN:   --state-struct-file %t.state.h -noinline-instr -o %t.ll
 // RUN: sed 's|STATE|%t.state.h|g' %S/bleached-main.c > %t.main.c
 // RUN: clang %t.main.c %t.ll -o %t.native.out
 // RUN: %t.native.out | FileCheck %s
