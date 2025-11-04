@@ -52,18 +52,29 @@
           };
           packages =
             let
-              llvmPackages = legacyPackages.bleachPkgs.llvmPackages_21;
+              normalPkgs = legacyPackages.bleachPkgs;
+              staticPkgs = legacyPackages.bleachPkgsStatic;
+              llvmPackages = normalPkgs.llvmPackages_21;
             in
             rec {
-              llvm-bleach = legacyPackages.bleachPkgs.callPackage ./. {
+              llvm-bleach = normalPkgs.callPackage ./. {
                 inherit self;
                 inherit llvmPackages;
                 llvmLib = llvmPackages.llvm;
-                clangCompiler = legacyPackages.bleachPkgs.clang;
+                clangCompiler = normalPkgs.clang;
               };
-              llvm-bleach-static = legacyPackages.bleachPkgsStatic.callPackage ./. {
-                llvmLib = legacyPackages.bleachPkgsStatic.llvmPackages_21.llvm;
-                clangCompiler = legacyPackages.bleachPkgs.clang;
+              llvm-bleach-static = staticPkgs.callPackage ./. {
+                inherit llvmPackages;
+                llvmLib = staticPkgs.llvmPackages_21.llvm;
+                clangCompiler = normalPkgs.clang;
+                inherit (normalPkgs)
+                  lit
+                  filecheck
+                  yq
+                  jq
+                  rubygtest
+                  pandoc
+                  ;
               };
               default = llvm-bleach;
               llvm-snippy = pkgs.callPackage ./snippy.nix {
