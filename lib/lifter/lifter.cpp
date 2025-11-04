@@ -81,6 +81,21 @@ basic_block clone_basic_block(MachineBasicBlock &src, MachineFunction &dst) {
   return {new_mblock, new_block};
 }
 
+// Cannot use MachineBasicBlock::ReplaceUsesOfBlockWith because it only replaces
+// the uses of block in Terminate instructions and for some reason
+// RISCV::JAL/RISCV::JALR are not marked as terminators
+static void replace_uses_of_block_with(MachineBasicBlock &mbb,
+                                       MachineBasicBlock &old_block,
+                                       MachineBasicBlock &new_block) {
+  for (auto &instr : mbb) {
+    for (auto &op : instr.operands()) {
+      if (op.isMBB() && op.getMBB() == &old_block)
+        op.setMBB(&new_block);
+    }
+  }
+  mbb.replaceSuccessor(&old_block, &new_block);
+}
+
 void create_basic_blocks_for_mfunc(MachineFunction &src, MachineFunction &dst,
                                    mbb2bb &m2b) {
   std::unordered_map<MachineBasicBlock *, MachineBasicBlock *> block_map;
@@ -92,7 +107,7 @@ void create_basic_blocks_for_mfunc(MachineFunction &src, MachineFunction &dst,
   }
   for (auto &mbb : dst) {
     for (auto *succ : mbb.successors())
-      mbb.ReplaceUsesOfBlockWith(succ, block_map.at(succ));
+      replace_uses_of_block_with(mbb, *succ, *block_map.at(succ));
   }
   for (auto &block : dst.getFunction()) {
     for (auto &inst : block)
@@ -483,7 +498,6 @@ static void print_state_struct_definition(std::ostream &os,
 
 auto generate_jump(const MachineInstr &minst, IRBuilder<> &builder,
                    const mbb2bb &m2b) -> Instruction * {
-  assert(minst.isBranch());
   auto mbb_op =
       llvm::find_if(minst.operands(), [](auto &op) { return op.isMBB(); });
   if (minst.getIterator() != minst.getParent()->begin()) {
@@ -578,7 +592,7 @@ auto generate_indirect_branch(Module &m, BasicBlock &bb,
 
   std::vector<Value *> args(values.begin(), values.end());
   // FIXME: AAAA REMOVE THIS
-  args = {args[0]};
+  args.erase(std::next(args.begin()), args.end());
   auto *addr =
       builder.CreateCall(symtab_lookup->getFunctionType(), symtab_lookup, args);
   // All lifted function have the same type. Might as well take the type of
@@ -897,7 +911,10 @@ static bool is_call(const MachineInstr &minst, const TargetMachine &tmachine) {
   std::unique_ptr<MCInstrAnalysis> mia(
       tmachine.getTarget().createMCInstrAnalysis(tmachine.getMCInstrInfo()));
   assert(mia);
-  return mia->isCall(inst);
+  return mia->isCall(inst) && std::find_if(minst.operands_begin(),
+                                           minst.operands_end(), [](auto &o) {
+                                             return o.isGlobal();
+                                           }) != minst.operands_end();
 }
 static bool is_indirect_branch(const MachineInstr &minst,
                                const instr_impl &instrs,
@@ -908,6 +925,22 @@ static bool is_indirect_branch(const MachineInstr &minst,
   auto name = get_instruction_name(minst, *iinfo);
   auto instr = instrs.find(name);
   return (instr != instrs.end()) && instr->is_indirect_branch;
+}
+
+static bool is_branch(const MachineInstr &minst,
+                      const TargetMachine &tmachine) {
+  if (minst.isBranch())
+    return true;
+  // TODO: create mia only once
+  MCInst inst;
+  inst.setOpcode(minst.getOpcode());
+  std::unique_ptr<MCInstrAnalysis> mia(
+      tmachine.getTarget().createMCInstrAnalysis(tmachine.getMCInstrInfo()));
+  assert(mia);
+  return mia->isCall(inst) && std::find_if(minst.operands_begin(),
+                                           minst.operands_end(), [](auto &o) {
+                                             return o.isMBB();
+                                           }) != minst.operands_end();
 }
 
 auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
@@ -927,8 +960,8 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
     return generate_indirect_branch(*bb.getParent()->getParent(), bb, minst,
                                     builder, target_machine, rmap, state,
                                     reg_stats, instrs);
-  if (minst.isBranch()) {
-    if (minst.isUnconditionalBranch())
+  if (is_branch(minst, target_machine)) {
+    if (!minst.isConditionalBranch())
       return generate_jump(minst, builder, m2b);
     assert(minst.isConditionalBranch());
     return generate_branch(minst, bb, builder, rmap, target_machine, m2b,
@@ -1001,7 +1034,8 @@ void fill_ir_for_bb(MachineBasicBlock &mbb, reg2vals &rmap,
                          state, reg_stats, sptrack, functions_nop);
   }
   auto last = std::prev(mbb.end());
-  if (!last->isBranch() && !is_return(*last, instrs, target_machine)) {
+  if (!is_branch(*last, target_machine) &&
+      !is_return(*last, instrs, target_machine)) {
     auto succ = std::next(mbb.getIterator());
     builder.CreateBr(m2b[std::addressof(*succ)]);
   }
