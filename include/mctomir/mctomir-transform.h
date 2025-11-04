@@ -18,6 +18,7 @@
 #include <llvm/MC/MCDisassembler/MCDisassembler.h>
 #include <llvm/MC/MCInst.h>
 #include <llvm/MC/MCInstPrinter.h>
+#include <llvm/MC/MCInstrAnalysis.h>
 #include <llvm/MC/MCSymbol.h>
 #include <llvm/Object/ObjectFile.h>
 #include <llvm/Support/Error.h>
@@ -61,10 +62,18 @@ struct translated_function final {
   MachineFunction *mfunc = nullptr;
 };
 
+struct translation_result final {
+  std::unique_ptr<Module> mod;
+  std::unique_ptr<MachineModuleInfo> mmi;
+  std::vector<translated_function> funcs;
+  std::unique_ptr<TargetMachine> tmachine;
+  std::unique_ptr<MCContext> mcctx;
+  std::unique_ptr<MCInstrAnalysis> mi_analysis;
+};
+
 class translator_t final {
 public:
-  translator_t();
-  ~translator_t();
+  translator_t(LLVMContext &p_ctx) : ctx(p_ctx) {}
 
   Error initialize(StringRef triple_name, SubtargetFeatures features);
 
@@ -78,21 +87,16 @@ public:
 
   void print_mir(raw_ostream &os) const;
 
-  const auto &get_funcs() const & { return funcs; }
+  const auto &get_funcs() const & { return res.funcs; }
+  auto &&get_result() && { return std::move(res); }
 
 private:
-  std::unique_ptr<TargetMachine> tmachine;
-  std::unique_ptr<MachineModuleInfo> mmi;
-  std::unique_ptr<MCContext> mcctx;
-  std::unique_ptr<MCInstrAnalysis> mi_analysis;
-  const TargetInstrInfo *tii;
-  const TargetRegisterInfo *tri;
-  const TargetSubtargetInfo *tsi;
+  const TargetInstrInfo *tii = nullptr;
+  const TargetRegisterInfo *tri = nullptr;
+  const TargetSubtargetInfo *tsi = nullptr;
 
-  std::unique_ptr<LLVMContext> ctx;
-  std::unique_ptr<Module> mod;
-
-  std::vector<translated_function> funcs;
+  LLVMContext &ctx;
+  translation_result res;
   std::map<uint64_t, MachineBasicBlock *> address_to_mbb;
 
   Error create_module_and_function(StringRef triple_name,
@@ -120,7 +124,9 @@ private:
 
 class elf_to_mir_converter {
 public:
-  elf_to_mir_converter();
+  elf_to_mir_converter(LLVMContext &ctx)
+      : disassembler(std::make_unique<elf_disassembler>(loader)),
+        translator(std::make_unique<translator_t>(ctx)) {}
 
   Error process_file(StringRef file_path);
   Error convert_section(StringRef section_name);
@@ -133,5 +139,10 @@ private:
   std::unique_ptr<elf_disassembler> disassembler;
   std::unique_ptr<translator_t> translator;
 };
+
+void print_mir(raw_ostream &os, const translation_result &res);
+
+translation_result lift_elf_file(LLVMContext &ctx,
+                                 std::string_view input_filename);
 
 } // namespace mctomir

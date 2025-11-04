@@ -2,6 +2,7 @@
 #include "mctomir/mctomir-transform.h"
 #include "mctomir/symbols.h"
 
+#include "llvm/Support/raw_ostream.h"
 #include <llvm/ADT/StringExtras.h>
 #include <llvm/CodeGen/Passes.h>
 #include <llvm/IR/LLVMContext.h>
@@ -37,7 +38,7 @@ static cl::opt<std::string>
     symbol_table_file("symtab-file", cl::desc("File to save symtab to."),
                       cl::value_desc("filename"), cl::cat(options));
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv) try {
   cl::AddExtraVersionPrinter([](raw_ostream &os) {
     os << "Bleach version: " LLVM_BLEACH_VERSION_STRING "\n";
   });
@@ -54,29 +55,15 @@ int main(int argc, char **argv) {
   InitializeAllAsmParsers();
   InitializeAllAsmPrinters();
   InitializeAllDisassemblers();
-  std::string section_name = ".text"; // For now hardcode text section
 
-  elf_to_mir_converter converter;
-  if (verbose_output)
-    outs() << "Processing file: " << input_filename << "\n";
+  LLVMContext ctx;
 
-  if (Error err = converter.process_file(input_filename)) {
-    WithColor::error() << "Failed to process file: " << toString(std::move(err))
-                       << "\n";
-    return 1;
-  }
-
-  if (verbose_output)
-    outs() << "Converting section: " << section_name << "\n";
-
-  if (Error err = converter.convert_section(section_name)) {
-    WithColor::error() << "Failed to convert section: "
-                       << toString(std::move(err)) << "\n";
-    return 1;
-  }
+  auto res = lift_elf_file(ctx, input_filename);
+  res.mcctx.reset();
+  res.mi_analysis.reset();
 
   if (symbol_table_file.getNumOccurrences()) {
-    auto &funcs = converter.get_translator().get_funcs();
+    auto &funcs = res.funcs;
     file_info finfo;
     for (auto &func : funcs)
       finfo.add({func.name, func.start, func.end});
@@ -92,15 +79,12 @@ int main(int argc, char **argv) {
     }
   }
   if (verbose_output)
-    outs() << "Writing MIR to: " << output_filename << "\n";
-  if (Error err = converter.write_mir(output_filename)) {
-    WithColor::error() << "Failed to write MIR: " << toString(std::move(err))
-                       << "\n";
-    return 1;
-  }
-
-  if (verbose_output)
-    outs() << "Conversion complete.\n";
-
-  return 0;
+    outs() << "Writing MIR to: " << output_filename << '\n';
+  std::error_code errc;
+  llvm::raw_fd_ostream os(output_filename, errc);
+  print_mir(os, res);
+  return EXIT_SUCCESS;
+} catch (std::exception &e) {
+  errs() << "ERROR: " << e.what() << '\n';
+  return EXIT_FAILURE;
 }

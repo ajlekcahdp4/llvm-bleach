@@ -7,10 +7,10 @@
 #include <llvm/CodeGen/MIRPrinter.h>
 #include <llvm/CodeGen/MachineInstrBuilder.h>
 #include <llvm/IR/LegacyPassManager.h>
-#include <llvm/MC/MCInstrAnalysis.h>
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Object/ELFObjectFile.h>
 #include <llvm/Object/ObjectFile.h>
+#include <llvm/Support/Error.h>
 #include <llvm/Support/ErrorHandling.h>
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Target/TargetOptions.h>
@@ -24,24 +24,19 @@ namespace mctomir {
 using namespace llvm;
 namespace ranges = std::ranges;
 namespace views = std::views;
-translator_t::translator_t() : tii(nullptr), tri(nullptr), tsi(nullptr) {
-  ctx = std::make_unique<LLVMContext>();
-}
-
-translator_t::~translator_t() {}
 
 Error translator_t::initialize(StringRef triple_name,
                                SubtargetFeatures features) {
   if (Error err = create_module_and_function(triple_name, features))
     return err;
 
-  if (!mod || !tmachine)
+  if (!res.mod || !res.tmachine)
     return createStringError(inconvertibleErrorCode(),
                              "Module or target machine not initialized");
-  FunctionType *func_ty = FunctionType::get(Type::getVoidTy(*ctx), false);
-  auto *dummy =
-      Function::Create(func_ty, Function::ExternalLinkage, "__dummy__", *mod);
-  tsi = tmachine->getSubtargetImpl(*dummy);
+  FunctionType *func_ty = FunctionType::get(Type::getVoidTy(ctx), false);
+  auto *dummy = Function::Create(func_ty, Function::ExternalLinkage,
+                                 "__dummy__", *res.mod);
+  tsi = res.tmachine->getSubtargetImpl(*dummy);
   dummy->eraseFromParent();
   if (!tsi)
     return createStringError(inconvertibleErrorCode(),
@@ -57,8 +52,8 @@ Error translator_t::initialize(StringRef triple_name,
     return createStringError(inconvertibleErrorCode(),
                              "Failed to get register info");
 
-  mmi = std::make_unique<MachineModuleInfo>(tmachine.get());
-  mmi->initialize();
+  res.mmi = std::make_unique<MachineModuleInfo>(res.tmachine.get());
+  res.mmi->initialize();
 
   return Error::success();
 }
@@ -74,26 +69,26 @@ Error translator_t::create_module_and_function(StringRef triple_name,
                              "Cannot find target for triple %s: %s",
                              triple_name.data(), err_msg.c_str());
 
-  mod = std::make_unique<Module>("DisassembledModule", *ctx);
-  mod->setTargetTriple(the_triple);
+  res.mod = std::make_unique<Module>("DisassembledModule", ctx);
+  res.mod->setTargetTriple(the_triple);
 
   TargetOptions options;
   // TODO(Ilyagavrilin): make TargetMachine initialization simplier or add more
   // features
-  tmachine.reset(the_target->createTargetMachine(
+  res.tmachine.reset(the_target->createTargetMachine(
       the_triple, "", features.getString(), options, std::nullopt));
-  if (!tmachine)
+  if (!res.tmachine)
     return createStringError(inconvertibleErrorCode(),
                              "Cannot create target machine for %s",
                              triple_name.data());
 
-  mod->setDataLayout(tmachine->createDataLayout());
+  res.mod->setDataLayout(res.tmachine->createDataLayout());
   return Error::success();
 }
 
 Error translator_t::process_disassembly(SectionRef section,
                                         StringRef contents) {
-  if (!tmachine || !tii || !tri || !tsi)
+  if (!res.tmachine || !tii || !tri || !tsi)
     return createStringError(inconvertibleErrorCode(),
                              "translator not properly initialized");
   uint64_t section_addr = section.getAddress();
@@ -103,20 +98,21 @@ Error translator_t::process_disassembly(SectionRef section,
 
   // mia used to identify branches, calls, etc.
   std::unique_ptr<MCInstrAnalysis> mia(
-      tmachine->getTarget().createMCInstrAnalysis(tmachine->getMCInstrInfo()));
+      res.tmachine->getTarget().createMCInstrAnalysis(
+          res.tmachine->getMCInstrInfo()));
   if (!mia)
     return createStringError(inconvertibleErrorCode(),
                              "Failed to create MCInstrAnalysis");
-  mi_analysis = std::move(mia);
+  res.mi_analysis = std::move(mia);
 
-  if (!mcctx) {
-    mcctx = std::make_unique<MCContext>(
-        Triple(tmachine->getTargetTriple()), tmachine->getMCAsmInfo(),
-        tmachine->getMCRegisterInfo(), tmachine->getMCSubtargetInfo());
+  if (!res.mcctx) {
+    res.mcctx = std::make_unique<MCContext>(
+        Triple(res.tmachine->getTargetTriple()), res.tmachine->getMCAsmInfo(),
+        res.tmachine->getMCRegisterInfo(), res.tmachine->getMCSubtargetInfo());
   }
 
   std::unique_ptr<const MCDisassembler> dis_asm(
-      tmachine->getTarget().createMCDisassembler(*tsi, *mcctx));
+      res.tmachine->getTarget().createMCDisassembler(*tsi, *res.mcctx));
   if (!dis_asm)
     return createStringError(inconvertibleErrorCode(),
                              "Failed to create disassembler");
@@ -134,20 +130,20 @@ Error translator_t::process_disassembly(SectionRef section,
           return ELFSymbolRef(s).getSize();
         throw std::runtime_error("Unsupported object size");
       }();
-      funcs.push_back(
+      res.funcs.push_back(
           translated_function{{}, {}, *addr, *addr + size, name->str()});
     }
   }
-  ranges::sort(funcs, {}, &translated_function::start);
+  ranges::sort(res.funcs, {}, &translated_function::start);
 
   uint64_t size;
   MCInst inst;
-  for (auto &&finfo : funcs) {
+  for (auto &&finfo : res.funcs) {
     // FIXME: don't always return i64
     finfo.func =
-        Function::Create(FunctionType::get(Type::getInt64Ty(*ctx), false),
-                         Function::ExternalLinkage, finfo.name, *mod);
-    finfo.mfunc = &mmi->getOrCreateMachineFunction(*finfo.func);
+        Function::Create(FunctionType::get(Type::getInt64Ty(ctx), false),
+                         Function::ExternalLinkage, finfo.name, *res.mod);
+    finfo.mfunc = &res.mmi->getOrCreateMachineFunction(*finfo.func);
     finfo.mfunc->getProperties().reset(
         MachineFunctionProperties::Property::TracksLiveness);
     for (size_t addr = finfo.start; addr < finfo.end;) {
@@ -187,7 +183,7 @@ Error translator_t::finalize() {
 Error translator_t::identify_basic_blocks() {
   address_to_mbb.clear();
   std::set<uint64_t> leaders;
-  for (auto &func : funcs) {
+  for (auto &func : res.funcs) {
     leaders.clear();
     if (!func.insts.empty())
       leaders.insert(func.insts.front().address);
@@ -195,12 +191,12 @@ Error translator_t::identify_basic_blocks() {
       const translated_inst &tinst = func.insts[i];
       uint64_t current_addr = tinst.address;
       const MCInst &inst = tinst.inst;
-      if (mi_analysis->isBranch(inst) || mi_analysis->isReturn(inst)) {
-        if (mi_analysis->isBranch(inst)) {
+      if (res.mi_analysis->isBranch(inst) || res.mi_analysis->isReturn(inst)) {
+        if (res.mi_analysis->isBranch(inst)) {
           uint64_t target;
           // TODO(Ilyagavrilin): it breaks on some corner cases, need to
           // redesign
-          if (mi_analysis->evaluateBranch(inst, current_addr, 0, target)) {
+          if (res.mi_analysis->evaluateBranch(inst, current_addr, 0, target)) {
             leaders.insert(target);
           }
         }
@@ -238,7 +234,7 @@ Error translator_t::identify_basic_blocks() {
 }
 
 Error translator_t::create_machine_basic_blocks() {
-  for (auto &func : funcs) {
+  for (auto &func : res.funcs) {
     for (auto &block : func.blocks) {
       MachineBasicBlock *mbb = func.mfunc->CreateMachineBasicBlock();
       func.mfunc->push_back(mbb);
@@ -255,7 +251,7 @@ Error translator_t::translate_instructions() {
     return createStringError(inconvertibleErrorCode(),
                              "target instruction info is not initialized");
 
-  for (auto &finfo : funcs) {
+  for (auto &finfo : res.funcs) {
     for (auto &block : finfo.blocks) {
       for (auto *tinst : block.instrs) {
         MachineInstr *minst = create_machine_instr(*tinst, block.mbb);
@@ -279,7 +275,7 @@ MachineInstr *translator_t::create_machine_instr(const translated_inst &tinst,
   unsigned opcode = inst.getOpcode();
   const MCInstrDesc &desc = tii->get(opcode);
   uint64_t target;
-  bool is_branch = mi_analysis->evaluateBranch(inst, 0, 4, target);
+  bool is_branch = res.mi_analysis->evaluateBranch(inst, 0, 4, target);
   MachineInstrBuilder mib = BuildMI(*mbb, mbb->end(), DebugLoc(), desc);
 
   for (unsigned i = 0; i < inst.getNumOperands(); ++i) {
@@ -296,7 +292,7 @@ MachineInstr *translator_t::create_machine_instr(const translated_inst &tinst,
         inst.getOperand(inst.getNumOperands() - 1).isImm()) {
       auto target_it = address_to_mbb.find(target + tinst.address);
       if (target_it != address_to_mbb.end()) {
-        if (mi_analysis->isCall(inst))
+        if (res.mi_analysis->isCall(inst))
           mib.addGlobalAddress(&target_it->second->getParent()->getFunction(),
                                0);
         else
@@ -345,7 +341,7 @@ void translator_t::add_operand_to_mib(MachineInstrBuilder &mib,
 
 // TODO(Ilyagavrilin): Change linkage logic
 Error translator_t::link_machine_basic_blocks() {
-  for (auto &finfo : funcs) {
+  for (auto &finfo : res.funcs) {
     for (size_t i = 0; i < finfo.blocks.size(); ++i) {
       auto &block = finfo.blocks[i];
       MachineBasicBlock *mbb = block.mbb;
@@ -355,10 +351,10 @@ Error translator_t::link_machine_basic_blocks() {
 
       auto *last_t_inst = block.instrs.back();
       const MCInst &last_inst = last_t_inst->inst;
-      if (mi_analysis->isBranch(last_inst)) {
+      if (res.mi_analysis->isBranch(last_inst)) {
         uint64_t target;
-        if (mi_analysis->evaluateBranch(last_inst, last_t_inst->address, 0,
-                                        target)) {
+        if (res.mi_analysis->evaluateBranch(last_inst, last_t_inst->address, 0,
+                                            target)) {
           auto target_it = address_to_mbb.find(target);
           if (target_it != address_to_mbb.end()) {
             mbb->addSuccessor(target_it->second);
@@ -368,7 +364,7 @@ Error translator_t::link_machine_basic_blocks() {
             mbb->addSuccessor(target_mbb);
           }
         }
-        if (!mi_analysis->isUnconditionalBranch(last_inst) &&
+        if (!res.mi_analysis->isUnconditionalBranch(last_inst) &&
             i + 1 < finfo.blocks.size()) {
           MachineBasicBlock *next_mbb = finfo.blocks[i + 1].mbb;
           if (next_mbb) {
@@ -384,7 +380,7 @@ Error translator_t::link_machine_basic_blocks() {
             }
           }
         }
-      } else if (mi_analysis->isReturn(last_inst)) {
+      } else if (res.mi_analysis->isReturn(last_inst)) {
       } else if (i + 1 < finfo.blocks.size()) {
         MachineBasicBlock *next_mbb = finfo.blocks[i + 1].mbb;
         if (next_mbb) {
@@ -422,17 +418,14 @@ Error translator_t::write_mir(StringRef output_filename) const {
 }
 
 void translator_t::print_mir(raw_ostream &os) const {
-  if (!mod)
+  if (!res.mod)
     throw std::runtime_error("Module does not exist");
-  llvm::printMIR(os, *mod);
-  for (auto &finfo : funcs) {
-    llvm::printMIR(os, *mmi, *finfo.mfunc);
+  llvm::printMIR(os, *res.mod);
+  for (auto &finfo : res.funcs) {
+    llvm::printMIR(os, *res.mmi, *finfo.mfunc);
   }
 }
 
-elf_to_mir_converter::elf_to_mir_converter() {
-  translator = std::make_unique<translator_t>();
-}
 // Hide main for now
 Error elf_to_mir_converter::process_file(StringRef file_path) {
   if (Error err = loader.load_file(file_path))
@@ -491,5 +484,29 @@ Error elf_to_mir_converter::write_mir(StringRef output_path) {
 void elf_to_mir_converter::print_mir(raw_ostream &os) {
   if (translator)
     translator->print_mir(os);
+}
+
+translation_result lift_elf_file(LLVMContext &ctx,
+                                 std::string_view input_filename) {
+  std::string section_name = ".text"; // For now hardcode text section
+  elf_to_mir_converter converter(ctx);
+
+  if (Error err = converter.process_file(input_filename))
+    throw std::runtime_error("Failed to process file: " +
+                             toString(std::move(err)));
+
+  if (Error err = converter.convert_section(section_name))
+    throw std::runtime_error("Failed to convert section: " +
+                             toString(std::move(err)));
+  return std::move(converter.get_translator()).get_result();
+}
+
+void print_mir(raw_ostream &os, const translation_result &res) {
+  if (!res.mod)
+    throw std::runtime_error("Module does not exist");
+  llvm::printMIR(os, *res.mod);
+  for (auto &finfo : res.funcs) {
+    llvm::printMIR(os, *res.mmi, *finfo.mfunc);
+  }
 }
 } // namespace mctomir

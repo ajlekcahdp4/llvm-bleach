@@ -1,0 +1,461 @@
+stack-pointer: X2
+constant-registers:
+  X0: 0
+register-classes:
+  GPR: X[0-9][0-9]?
+  FPR: F[0-9][0-9]?_D
+instructions:
+  - FADD_D:
+      func: |
+        define i64 @FADD_D(i64 %0, i64 %1, i10 %rm) {
+           %4 = bitcast i64 %0 to double
+           %5 = bitcast i64 %1 to double
+           %6 = fadd double %4, %5
+           %7 = bitcast double %6 to i64
+           ret i64 %7
+        }
+  - FMUL_D:
+      func: |
+        define i64 @FMUL_D(i64 %0, i64 %1, i10 %rm) {
+           %4 = bitcast i64 %0 to double
+           %5 = bitcast i64 %1 to double
+           %6 = fmul double %4, %5
+           %7 = bitcast double %6 to i64
+           ret i64 %7
+        }
+  - FCVT_D_LU:
+      func: |
+        define i64 @FCVT_D_LU(i64 %0, i10 %rm) {
+           %3 = sitofp i64 %0 to double
+           %4 = bitcast double %3 to i64
+           ret i64 %4
+        }
+  - FMADD_D:
+      func: |
+        define i64 @FMADD_D(i64 %0, i64 %1, i64 %2, i10 %rm) {
+           %4 = bitcast i64 %0 to double
+           %5 = bitcast i64 %1 to double
+           %6 = bitcast i64 %2 to double
+           %7 = fmul double %4, %5
+           %8 = fadd double %6, %7
+           %9 = bitcast double %8 to i64
+           ret i64 %9
+        }
+  - SLT:
+      func: |
+        define i64 @SLT(i64 noundef %0, i64 noundef %1) {
+          %3 = icmp slt i64 %0, %1
+          %4 = zext i1 %3 to i64
+          ret i64 %4
+        }
+  - SLTU:
+      func: |
+        define i64 @SLTU(i64 noundef %0, i64 noundef %1) {
+          %3 = icmp ult i64 %0, %1
+          %4 = zext i1 %3 to i64
+          ret i64 %4
+        }
+  - AND:
+      func: |
+        define i64 @AND(i64 noundef %0, i64 noundef %1) {
+          %3 = and i64 %1, %0
+          ret i64 %3
+        }
+  - OR:
+      func: |
+        define i64 @OR(i64 noundef %0, i64 noundef %1) {
+          %3 = or i64 %1, %0
+          ret i64 %3
+        }
+  - XOR:
+      func: |
+        define i64 @XOR(i64 noundef %0, i64 noundef %1) {
+          %3 = xor i64 %1, %0
+          ret i64 %3
+        }
+  - SLL:
+      func: |
+        define i64 @SLL(i64 noundef %0, i64 noundef %1) {
+          %3 = and i64 %1, 63
+          %4 = shl i64 %0, %3
+          ret i64 %4
+        }
+  - SLLW:
+      requires: rv64
+      func: |
+        define i64 @SLLW(i64 noundef %0, i64 noundef %1) {
+          %3 = trunc i64 %1 to i32
+          %4 = trunc i64 %0 to i32
+          %5 = and i32 %4, 15
+          %6 = shl i32 %3, %5
+          %7 = sext i32 %6 to i64
+          ret i64 %7
+        }
+  - SRLW:
+      requires: rv64
+      func: |
+        define i64 @SRLW(i64 noundef %0, i64 noundef %1) {
+          %3 = trunc i64 %1 to i32
+          %4 = trunc i64 %0 to i32
+          %5 = and i32 %4, 15
+          %6 = lshr i32 %3, %5
+          %7 = sext i32 %6 to i64
+          ret i64 %7
+        }
+  - SRAW:
+      requires: rv64
+      func: |
+        define i64 @SRAW(i64 noundef %0, i64 noundef %1) {
+          %3 = trunc i64 %1 to i32
+          %4 = trunc i64 %0 to i32
+          %5 = and i32 %4, 15
+          %6 = ashr i32 %3, %5
+          %7 = sext i32 %6 to i64
+          ret i64 %7
+        }
+  - SLLI:
+      func: |
+        define i64 @SLLI(i64 noundef %0, i64 noundef %1) {
+          %3 = and i64 %1, 63
+          %4 = shl i64 %0, %3
+          ret i64 %4
+        }
+  - SRL:
+      func: |
+        define i64 @SRL(i64 noundef %0, i64 noundef %1) {
+          %3 = and i64 %1, 63
+          %4 = lshr i64 %0, %3
+          ret i64 %4
+        }
+  - SRA:
+      func: |
+        define i64 @SRA(i64 noundef %0, i64 noundef %1) {
+          %3 = and i64 %1, 63
+          %4 = ashr i64 %0, %3
+          ret i64 %4
+        }
+  - SRLI:
+      func: |
+        define i64 @SRLI(i64 noundef %0, i64 noundef %1) {
+          %3 = and i64 %1, 63
+          %4 = lshr i64 %0, %3
+          ret i64 %4
+        }
+  - SRAI:
+      func: |
+        define i64 @SRAI(i64 noundef %0, i64 noundef %1) {
+          %3 = and i64 %1, 63
+          %4 = ashr i64 %0, %3
+          ret i64 %4
+        }
+  - SLLIW:
+      requires: rv64
+      func: |
+        define i64 @SLLIW(i64 noundef %0, i64 noundef %1) {
+          %3 = trunc i64 %0 to i32
+          %4 = trunc i64 %1 to i32
+          %5 = and i32 %4, 63
+          %6 = shl i32 %3, %5
+          %7 = sext i32 %6 to i64
+          ret i64 %7
+        }
+  - SRLIW:
+      requires: rv64
+      func: |
+        define i64 @SRLIW(i64 noundef %0, i64 noundef %1) {
+          %3 = trunc i64 %0 to i32
+          %4 = trunc i64 %1 to i32
+          %5 = and i32 %4, 63
+          %6 = lshr i32 %3, %5
+          %7 = sext i32 %6 to i64
+          ret i64 %7
+        }
+  - SRAIW:
+      requires: rv64
+      func: |
+        define i64 @SRAIW(i64 noundef %0, i64 noundef %1) {
+          %3 = trunc i64 %0 to i32
+          %4 = trunc i64 %1 to i32
+          %5 = and i32 %4, 63
+          %6 = ashr i32 %3, %5
+          %7 = sext i32 %6 to i64
+          ret i64 %7
+        }
+  - ADD:
+      func: |
+        define i64 @ADD(i64 noundef signext %0, i64 noundef signext %1) {
+          %3 = add i64 %1, %0
+          ret i64 %3
+        }
+  - SUB:
+      func: |
+        define i64 @SUB(i64 noundef signext %0, i64 noundef signext %1) {
+          %3 = sub i64 %0, %1
+          ret i64 %3
+        }
+  - SUBW:
+      requires: rv64
+      func: |
+        define i64 @SUBW(i64 noundef signext %0, i64 noundef signext %1) {
+          %3 = trunc i64 %0 to i32
+          %4 = trunc i64 %1 to i32
+          %5 = sub i32 %3, %4
+          %6 = sext i32 %5 to i64
+          ret i64 %6
+        }
+  - ADDW:
+      requires: rv64
+      func: |
+        define i64 @ADDW(i64 noundef signext %0, i64 noundef signext %1) {
+          %3 = trunc i64 %0 to i32
+          %4 = trunc i64 %1 to i32
+          %5 = add i32 %3, %4
+          %6 = sext i32 %5 to i64
+          ret i64 %6
+        }
+  - COPY:
+      func: |
+        define i64 @COPY(i64 noundef signext %0) {
+          ret i64 %0
+        }
+  - MULW:
+      requires: rv64
+      func: |
+        define i64 @MULW(i64 %0, i64 %1) {
+          %3 = trunc i64 %0 to i32
+          %4 = trunc i64 %1 to i32
+          %5 = mul i32 %3, %4
+          %6 = sext i32 %5 to i64
+          ret i64 %6
+        }
+  - MUL:
+      func: |
+        define signext i64 @MUL(i64 noundef signext %0, i64 noundef signext %1) {
+          %3 = mul i64 %0, %1
+          ret i64 %3
+        }
+  - MULH:
+      requires: rv64
+      func: |
+        define i64 @MULH(i64 %0, i64 %1) {
+          %3 = mul nsw i64 %0, %1
+          %4 = lshr i64 %3, 32
+          ret i64 %4
+        }
+  - MULHU:
+      requires: rv64
+      func: |
+        define i64 @MULHU(i64 %0, i64 %1) {
+          %3 = mul i64 %0, %1
+          %4 = lshr i64 %3, 32
+          ret i64 %4
+        }
+  - MULHSU:
+      requires: rv64
+      func: |
+        define i64 @MULHSU(i64 %0, i64 %1) {
+          %3 = mul i64 %0, %1
+          %4 = lshr i64 %3, 32
+          ret i64 %4
+        }
+  - DIV:
+      func: |
+        define signext i64 @DIV(i64 noundef signext %0, i64 noundef signext %1) {
+          %3 = sdiv i64 %0, %1
+          ret i64 %3
+        }
+  - DIVW:
+      requires: rv64
+      func: |
+        define i64 @DIVW(i64 %0, i64 %1) {
+          %3 = trunc i64 %0 to i32
+          %4 = trunc i64 %1 to i32
+          %5 = sdiv i32 %3, %4
+          %6 = sext i32 %5 to i64
+          ret i64 %6
+        }
+  - DIVU:
+      requires: rv64
+      func: |
+        define i64 @DIVU(i64 %0, i64 %1) {
+          %3 = udiv i64 %0, %1
+          ret i64 %3
+        }
+  - DIVUW:
+      requires: rv64
+      func: |
+        define i64 @DIVUW(i64 %0, i64 %1) {
+          %3 = trunc i64 %0 to i32
+          %4 = trunc i64 %1 to i32
+          %5 = udiv i32 %3, %4
+          %6 = sext i32 %5 to i64
+          ret i64 %6
+        }
+  - REM:
+      func: |
+        define signext i64 @REM(i64 noundef signext %0, i64 noundef signext %1) {
+          %3 = srem i64 %0, %1
+          ret i64 %3
+        }
+  - REMW:
+      requires: rv64
+      func: |
+        define i64 @REMW(i64 %0, i64 %1) {
+          %3 = trunc i64 %0 to i32
+          %4 = trunc i64 %1 to i32
+          %5 = srem i32 %3, %4
+          %6 = sext i32 %5 to i64
+          ret i64 %6
+        }
+  - REMU:
+      requires: rv64
+      func: |
+        define i64 @REMU(i64 %0, i64 %1) {
+          %3 = urem i64 %0, %1
+          ret i64 %3
+        }
+  - REMUW:
+      requires: rv64
+      func: |
+        define i64 @REMUW(i64 %0, i64 %1) {
+          %3 = trunc i64 %0 to i32
+          %4 = trunc i64 %1 to i32
+          %5 = urem i32 %3, %4
+          %6 = sext i32 %5 to i64
+          ret i64 %6
+        }
+  - LUI:
+      func: |
+        define signext i64 @LUI(i20 noundef signext %0) {
+          %3 = zext i20 %0 to i64
+          %4 = shl i64 %3, 12
+          ret i64 %4
+        }
+  - ADDI:
+      func: |
+        define signext i64 @ADDI(i64 noundef signext %0, i64 noundef signext %1) {
+          %3 = add i64 %0, %1
+          ret i64 %3
+        }
+  - ADDIW:
+      requires: rv64
+      func: |
+        define signext i64 @ADDIW(i64 noundef signext %0, i64 noundef signext %1) {
+          %3 = trunc i64 %1 to i32
+          %4 = trunc i64 %0 to i32
+          %5 = add i32 %3, %4
+          %6 = sext i32 %5 to i64
+          ret i64 %6
+        }
+  - SD:
+      requires: rv64
+      func: |
+        define void @SD(i64 %val, i64 %rs1, i64 %offset) {
+          %3 = add i64 %rs1, %offset
+          %4 = inttoptr i64 %3 to ptr
+          store i64 %val, ptr %4, align 8
+          ret void
+        }
+  - LD:
+      requires: rv64
+      func: |
+        define i64 @LD(i64 %rs1, i64 %offset) {
+          %3 = add i64 %rs1, %offset
+          %4 = inttoptr i64 %3 to ptr
+          %5 = load i64, ptr %4
+          ret i64 %5
+        }
+  - SW:
+      func: |
+        define void @SW(i64 %val, i64 %rs1, i64 %offset) {
+          %v = zext i32 -1 to i64
+          %3 = and i64 %val, %v
+          %4 = trunc i64 %val to i32
+          %5 = add i64 %rs1, %offset
+          %6 = inttoptr i64 %5 to ptr
+          store i32 %4, ptr %6, align 4
+          ret void
+        }
+  - LW:
+      func: |
+        define i32 @LW(i64 %rs1, i64 %offset) {
+          %3 = add i64 %rs1, %offset
+          %4 = inttoptr i64 %3 to ptr
+          %5 = load i32, ptr %4
+          ret i32 %5
+        }
+  - C_JR:
+      is_return:
+        - X1
+  - JALR:
+      is_return:
+        - X0
+        - X1
+        - 0
+      is_indirect_branch: true
+  - BNE:
+      func: |
+        define i1 @BNE(i64 noundef signext %0, i64 noundef signext %1) {
+          %3 = icmp ne i64 %0, %1
+          ret i1 %3
+        }
+  - BEQ:
+      func: |
+        define i1 @BEQ(i64 noundef signext %0, i64 noundef signext %1) {
+          %3 = icmp eq i64 %0, %1
+          ret i1 %3
+        }
+  - BLT:
+      func: |
+        define i1 @BLT(i64 noundef signext %0, i64 noundef signext %1) {
+          %3 = icmp slt i64 %0, %1
+          ret i1 %3
+        }
+  - BGT:
+      func: |
+        define i1 @BGT(i64 noundef signext %0, i64 noundef signext %1) {
+          %3 = icmp sgt i64 %0, %1
+          ret i1 %3
+        }
+  - BLE:
+      func: |
+        define i1 @BLE(i64 noundef signext %0, i64 noundef signext %1) {
+          %3 = icmp sle i64 %0, %1
+          ret i1 %3
+        }
+  - BGE:
+      func: |
+        define i1 @BGE(i64 noundef signext %0, i64 noundef signext %1) {
+          %3 = icmp sge i64 %0, %1
+          ret i1 %3
+        }
+  - BLTU:
+      func: |
+        define i1 @BLTU(i64 noundef signext %0, i64 noundef signext %1) {
+          %3 = icmp ult i64 %0, %1
+          ret i1 %3
+        }
+  - BGEU:
+      func: |
+        define i1 @BGEU(i64 noundef signext %0, i64 noundef signext %1) {
+          %3 = icmp uge i64 %0, %1
+          ret i1 %3
+        }
+  - FENCE:
+      func: |
+        define void @FENCE(i64 noundef signext %pred, i64 noundef signext %succ) {
+          fence acq_rel
+          ret void
+        }
+  - FENCE_TSO:
+      func: |
+        define void @FENCE_TSO(i64 noundef signext %pred, i64 noundef signext %succ) {
+          fence acq_rel
+          ret void
+        }
+  - EBREAK:
+      func: |
+        define void @EBREAK() {
+          call void @llvm.debugtrap()
+          ret void
+        }

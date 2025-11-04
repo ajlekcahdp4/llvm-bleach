@@ -3,6 +3,7 @@
 #include "bleach/passes/redundant-branch-eraser.hpp"
 
 #include "bleach/version.inc"
+#include "mctomir/mctomir-transform.h"
 #include "mctomir/symbols.h"
 
 #include <llvm/CodeGen/CommandFlags.h>
@@ -32,6 +33,7 @@
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Scalar/SROA.h>
 
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <utility>
@@ -99,27 +101,26 @@ public:
   }
 };
 
-// remove to get read of unitialized global
-codegen::RegisterCodeGenFlags cfg;
+bool is_mir_file(const std::filesystem::path &filename) {
+  // TODO: implement a better way to determine file type
+  return filename.extension().native() == ".mir";
+}
 
-} // namespace
-} // namespace bleach
-using namespace bleach;
-auto main(int argc, char **argv) -> int try {
-  cl::AddExtraVersionPrinter([](raw_ostream &os) {
-    os << "Bleach version: " LLVM_BLEACH_VERSION_STRING "\n";
-  });
-  llvm::setBugReportMsg("PLEASE submit a bug report to "
-                        "https://github.com/ajlekcahdp4/llvm-bleach/issues and "
-                        "include the crash backtrace.\n");
-  cl::ParseCommandLineOptions(argc, argv, "llvm-bleach");
-  InitLLVM llvm_stacktrace(argc, argv);
-  InitializeAllTargetInfos();
-  InitializeAllTargets();
-  InitializeAllTargetMCs();
-  InitializeAllAsmPrinters();
-  // InitializeAllDisassemblers();
-  LLVMContext ctx;
+struct input_mir final {
+  std::unique_ptr<Module> mod;
+  std::unique_ptr<TargetMachine> tmachine;
+  std::unique_ptr<MachineModuleInfo> mmi;
+};
+
+input_mir read_or_translate_mir(const std::filesystem::path &input_file,
+                                LLVMContext &ctx) {
+  if (!is_mir_file(input_file)) {
+    // Treat all non-MIR files as ELFs
+    auto translated = mctomir::lift_elf_file(ctx, input_file.native());
+    return {.mod = std::move(translated.mod),
+            .tmachine = std::move(translated.tmachine),
+            .mmi = std::move(translated.mmi)};
+  }
   SMDiagnostic err_mir_parser;
   auto file_copy = mir_file_name.getValue();
   auto mir_parser =
@@ -145,11 +146,41 @@ auto main(int argc, char **argv) -> int try {
     return target_machine->createDataLayout().getStringRepresentation();
   };
   auto m = mir_parser->parseIRModule(set_data_layout);
+  assert(m);
   auto machine_module_info =
       std::make_unique<MachineModuleInfo>(target_machine.get());
-  assert(m);
+  assert(machine_module_info);
   if (mir_parser->parseMachineFunctions(*m, *machine_module_info))
     throw std::runtime_error("Failed to parse machine functions");
+  return {.mod = std::move(m),
+          .tmachine = std::move(target_machine),
+          .mmi = std::move(machine_module_info)};
+}
+
+// remove to get read of unitialized global
+codegen::RegisterCodeGenFlags cfg;
+
+} // namespace
+} // namespace bleach
+using namespace bleach;
+auto main(int argc, char **argv) -> int try {
+  cl::AddExtraVersionPrinter([](raw_ostream &os) {
+    os << "Bleach version: " LLVM_BLEACH_VERSION_STRING "\n";
+  });
+  llvm::setBugReportMsg("PLEASE submit a bug report to "
+                        "https://github.com/ajlekcahdp4/llvm-bleach/issues and "
+                        "include the crash backtrace.\n");
+  cl::ParseCommandLineOptions(argc, argv, "llvm-bleach");
+  InitLLVM llvm_stacktrace(argc, argv);
+  InitializeAllTargetInfos();
+  InitializeAllTargets();
+  InitializeAllTargetMCs();
+  InitializeAllAsmPrinters();
+  InitializeAllDisassemblers();
+  LLVMContext ctx;
+  auto input_mir = read_or_translate_mir(mir_file_name.getValue(), ctx);
+  auto &[m, target_machine, machine_module_info] = input_mir;
+  assert(machine_module_info);
   if (!instructions_file.getNumOccurrences()) {
     std::cerr << "Skipping instructions parsing since no file were provided\n";
     return EXIT_SUCCESS;
@@ -215,5 +246,5 @@ auto main(int argc, char **argv) -> int try {
   lam.clear();
 } catch (const std::exception &e) {
   std::cerr << "ERROR: " << e.what() << std::endl;
-  exit(EXIT_FAILURE);
+  return EXIT_FAILURE;
 }

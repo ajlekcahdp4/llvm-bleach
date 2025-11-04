@@ -11,6 +11,7 @@ bleach_add_llvm_based_tool(
   AllTargetsAsmParsers
   AllTargetsCodeGens
   AllTargetsDescs
+  AllTargetsDisassemblers
   target
   SOURCES
   llvm-bleach.cpp)
