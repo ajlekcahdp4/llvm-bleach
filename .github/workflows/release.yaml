@@ -33,7 +33,7 @@ jobs:
           release_commit_sha=$(git rev-list HEAD)
           echo "::notice ::Will create release from tag '$RELEASE_TAG' (https://github.com/$REPO_NAME/commit/$release_commit_sha)"
           nix build .#llvm-bleach-static
-          tar --xz -cvf "bleach-$RELEASE_TAG-static.tar.xz" -C result bin/ include/ lib/ share/
+          tar --owner=0 --group=0 --mode="755" -cf release.tar.gz -C result/ .
       - name: Create Release
         env:
           GH_TOKEN: ${{ github.token }}
