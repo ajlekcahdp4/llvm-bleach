@@ -5,8 +5,6 @@
 // generated header
 #include <state.h>
 
-extern double arith_seq_sum(struct register_state *st);
-
 static struct register_state regs = {};
 
 double uitod(int64_t n) {

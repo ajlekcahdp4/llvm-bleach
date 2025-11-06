@@ -5,7 +5,7 @@
 # RUN: FileCheck %s --check-prefix HEADER --input-file %t.h
 
 # IR:  %register_state = type { [32 x i64], [32 x i64], [1000 x i64] }
-# IR: define i64 @foo(ptr %0)
+# IR: define void @foo(ptr %0)
 # IR:   %GPR = getelementptr %register_state, ptr %0, i32 0, i32 0
 # IR-32:     {{%[0-9]+}} = load i64, ptr {{%[0-9]+}}, align 8
 # IR:   %FPR = getelementptr %register_state, ptr %0, i32 0, i32 1

@@ -214,6 +214,7 @@ auto *create_bleach_symtab_lookup_function_decl(Module &m) {
 }
 auto *generate_function_object(Module &m, MachineFunction &mf) {
   auto *ret_type = mf.getFunction().getFunctionType()->getReturnType();
+  ret_type = Type::getVoidTy(m.getContext());
   auto *func_type = FunctionType::get(
       ret_type, ArrayRef<Type *>{PointerType::getUnqual(m.getContext())},
       /* is var arg */ false);
@@ -693,7 +694,7 @@ static auto generate_return(const MachineInstr &minst,
                             const Function *func) -> Value * {
   // TODO: properly handle return operand
   // non-void case
-  if (minst.getNumOperands() >= 1) {
+  if (false && minst.getNumOperands() >= 1) {
     auto ret = minst.getOperand(0);
     assert(ret.isReg());
     auto *reg_val =
@@ -1144,6 +1145,7 @@ Module &bleach_module(Module &m, MachineModuleInfo &mmi,
   for (auto &&[oldf, func_info] : funcs)
     generate_function(*oldf, func_info, instrs, mmi, state, reg_stats,
                       assume_functions_nop);
+  m.print(errs(), nullptr);
   if (finfo) {
     for (auto *func :
          translated | views::filter([](auto *f) { return !f->empty(); }))

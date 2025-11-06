@@ -28,8 +28,8 @@ main:
   addi a0, a0, -5
   ret
 
-# CHECK: define i64 @count_to_5
+# CHECK: define void @count_to_5
 # CHECK-NEXT: call void @bleach_symtab_add(i64 0, ptr @count_to_5)
 # CHECK: [[FUNCADDR:%[0-9]+]] = call ptr @bleach_symtab_lookup
-# CHECK: musttail call i64 [[FUNCADDR]]
+# CHECK: musttail call void [[FUNCADDR]]
 

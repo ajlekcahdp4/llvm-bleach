@@ -1,4 +1,4 @@
 # RUN: %bin/llvm-bleach %S/inputs/main-ret-zero.mir \
 # RUN:   --instructions=%S/inputs/logical.yaml | FileCheck %s
 
-# CHECK: define i32 @bleached_main(ptr %0)
+# CHECK: define void @bleached_main(ptr %0)

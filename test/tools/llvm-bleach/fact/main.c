@@ -7,7 +7,8 @@ static struct register_state regs = {};
 static long long lifted_factorial(long long n) {
   // According to RISC-V calling convention X10 is the first argument
   regs.GPR[10] = n;
-  return fact(&regs);
+  fact(&regs);
+  return regs.GPR[10];
 }
 
 void test(long long n) {

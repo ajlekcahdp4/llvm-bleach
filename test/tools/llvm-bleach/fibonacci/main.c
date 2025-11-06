@@ -7,7 +7,8 @@ static struct register_state regs = {};
 static long long lifted_fibonacci(long long n) {
   // According to RISC-V calling convention X10 is the first argument
   regs.GPR[10] = n;
-  return fibonacci(&regs);
+  fibonacci(&regs);
+  return regs.GPR[10];
 }
 
 void test(long long n) {

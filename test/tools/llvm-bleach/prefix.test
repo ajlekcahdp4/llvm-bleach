@@ -1,4 +1,4 @@
 # RUN: %bin/llvm-bleach %S/inputs/main42.mir --instructions=%S/inputs/logical.yaml \
 # RUN:   -lifted-prefix=myprefix_ | FileCheck %s
 
-# CHECK: define i32 @myprefix_main
+# CHECK: define void @myprefix_main
