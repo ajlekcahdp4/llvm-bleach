@@ -944,6 +944,24 @@ static bool is_branch(const MachineInstr &minst,
                                            }) != minst.operands_end();
 }
 
+static Value *cast_value_to(IRBuilder<> &builder, Value *val, Type *ty) {
+  auto from_id = val->getType()->getTypeID();
+  auto to_id = ty->getTypeID();
+  if (from_id != Type::TypeID::IntegerTyID)
+    throw std::invalid_argument(
+        "currently casting is only supported for integral types");
+  if (to_id != Type::TypeID::IntegerTyID)
+    throw std::invalid_argument(
+        "currently casting is only supported for integral types");
+  auto *from_int = dyn_cast<IntegerType>(val->getType());
+  auto *to_int = dyn_cast<IntegerType>(ty);
+  auto from_width = from_int->getBitWidth();
+  auto to_width = to_int->getBitWidth();
+  if (from_width == to_width)
+    return val;
+  return builder.CreateSExtOrTrunc(val, ty);
+}
+
 auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
                           IRBuilder<> &builder, reg2vals &rmap,
                           const instr_impl &instrs,
@@ -999,15 +1017,26 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
     return generate_stack_pointer_modification(
         minst, builder, bb, target_machine, rmap, instrs, reg_stats);
   }
-  auto op_to_val = [&](auto &mop) {
-    return operand_to_value(mop, bb, target_machine, rmap, reg_stats, instrs);
-  };
-  auto values = minst.uses() | views::filter([](auto &mi) {
-                  return !mi.isReg() || (!mi.isDef() && !mi.isImplicit());
-                }) |
-                views::transform(op_to_val);
-  std::vector<Value *> args(values.begin(), values.end());
-  auto *call = builder.CreateCall(func->getFunctionType(), func, args);
+  auto *func_type = func->getFunctionType();
+  assert(func_type);
+  std::vector<Type *> param_types(func_type->param_begin(),
+                                  func_type->param_end());
+  auto args = minst.uses() | views::filter([](auto &mi) {
+                return !mi.isReg() || (!mi.isDef() && !mi.isImplicit());
+              }) |
+              views::transform([&](auto &mop) -> Value * {
+                return operand_to_value(mop, bb, target_machine, rmap,
+                                        reg_stats, instrs);
+              }) |
+              ranges::to<std::vector>();
+  auto casted_args = views::zip(args, param_types) |
+                     views::transform([&](auto &&arg) -> Value * {
+                       auto &&[val, ty] = arg;
+                       return cast_value_to(builder, val, ty);
+                     }) |
+                     ranges::to<std::vector>();
+
+  auto *call = builder.CreateCall(func->getFunctionType(), func, casted_args);
   for (auto &def : minst.defs()) {
     assert(def.isDef());
     if (!def.isReg())
