@@ -1,5 +1,3 @@
-// Failes due to corruption of local variable in bleached-main-local-var.c
-// XFAIL: *
 // RUN: %config-gen-path/config-gen.rb --march rv64im \
 // RUN:   --template-dir %config-gen-path/templates -o %t.yaml
 // RUN: riscv64-unknown-linux-gnu-clang %s -O2 -o %t.out -march=rv64im -nostdlib

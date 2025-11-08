@@ -772,12 +772,13 @@ static auto generate_load_store_from_stack(
   auto *idx = builder.CreateAdd(sp, offset);
   auto *state_arg = get_current_state(*bb.getParent());
   auto *stack_type = *std::next(state.element_begin(), reg_stats.size());
+  auto *const_zero = ConstantInt::get(ctx, APInt(32, 0));
   auto *stack_addr = builder.CreateGEP(
       &state, state_arg,
-      ArrayRef<Value *>{ConstantInt::get(ctx, APInt(64, reg_stats.size()))});
-  auto *addr = builder.CreateInBoundsGEP(
-      stack_type, stack_addr,
-      ArrayRef<Value *>{ConstantInt::get(ctx, APInt(64, 0)), idx});
+      ArrayRef<Value *>{const_zero,
+                        ConstantInt::get(ctx, APInt(32, reg_stats.size()))});
+  auto *addr = builder.CreateInBoundsGEP(stack_type, stack_addr,
+                                         ArrayRef<Value *>{const_zero, idx});
   auto *iinfo = target_machine.getMCInstrInfo();
   auto name = get_instruction_name(minst, *iinfo);
   auto *m = bb.getParent()->getParent();
@@ -1174,7 +1175,6 @@ Module &bleach_module(Module &m, MachineModuleInfo &mmi,
   for (auto &&[oldf, func_info] : funcs)
     generate_function(*oldf, func_info, instrs, mmi, state, reg_stats,
                       assume_functions_nop);
-  m.print(errs(), nullptr);
   if (finfo) {
     for (auto *func :
          translated | views::filter([](auto *f) { return !f->empty(); }))
