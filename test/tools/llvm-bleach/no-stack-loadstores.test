@@ -4,7 +4,8 @@
 
 # CHECK: %[[X4:[0-9]+]] = call i64 @LD(i64 %{{[0-9]+}}, i64 1352)
 # CHECK-NEXT: call void @SD(i64 %{{[0-9]+}}, i64 %{{[0-9]+}}, i64 269)
-# CHECK-NEXT: call void @SW(i64 %{{[0-9]+}}, i64 %{{[0-9]+}}, i64 1926)
+# CHECK-NEXT: %[[X15:[0-9]+]] = trunc
+# CHECK-NEXT: call void @SW(i32 %[[X15]], i64 %{{[0-9]+}}, i64 1926)
 # CHECK-NEXT: call void @SD(i64 %{{[0-9]+}}, i64 %{{[0-9]+}}, i64 1533)
 # CHECK-NEXT: %[[X7:[0-9]+]] = call i64 @LD(i64 %[[X4]], i64 -246)
 # CHECK-NEXT: call void @SD(i64 %{{[0-9]+}}, i64 %{{[0-9]+}}, i64 384)
