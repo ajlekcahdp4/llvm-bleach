@@ -5,6 +5,352 @@ register-classes:
   GPR: "X[0-9][0-9]?"
   FPR: "F[0-9][0-9]?_D"
 instructions:
+  # F extension
+  FADD_W:
+    func: |
+      define i64 @FADD_W(i64 %0, i64 %1, i10 %rm) {
+         %4 = trunc i64 %0 to i32
+         %5 = trunc i64 %1 to i32
+         %6 = bitcast i32 %4 to float
+         %7 = bitcast i32 %5 to float
+         %8 = fadd float %6, %7
+         %9 = bitcast float %8 to i32
+         %10 = zext i32 %9 to i64
+         %11 = xor i64 -1, 4294967295 ; 0xFFFFFFFF00000000
+         %12 = or i64 %10, %11
+         ret i64 %12
+      }
+  FSUB_W:
+    func: |
+      define i64 @FSUB_W(i64 %0, i64 %1, i10 %rm) {
+         %4 = trunc i64 %0 to i32
+         %5 = trunc i64 %1 to i32
+         %6 = bitcast i32 %4 to float
+         %7 = bitcast i32 %5 to float
+         %8 = fsub float %6, %7
+         %9 = bitcast float %8 to i32
+         %10 = zext i32 %9 to i64
+         %11 = xor i64 -1, 4294967295 ; 0xFFFFFFFF00000000
+         %12 = or i64 %10, %11
+         ret i64 %12
+      }
+  FMUL_W:
+    func: |
+      define i64 @FMUL_W(i64 %0, i64 %1, i10 %rm) {
+         %4 = trunc i64 %0 to i32
+         %5 = trunc i64 %1 to i32
+         %6 = bitcast i32 %4 to float
+         %7 = bitcast i32 %5 to float
+         %8 = fmul float %6, %7
+         %9 = bitcast float %8 to i32
+         %10 = zext i32 %9 to i64
+         %11 = xor i64 -1, 4294967295 ; 0xFFFFFFFF00000000
+         %12 = or i64 %10, %11
+         ret i64 %12
+      }
+  FDIV_W:
+    func: |
+      define i64 @FDIV_W(i64 %0, i64 %1, i10 %rm) {
+         %4 = trunc i64 %0 to i32
+         %5 = trunc i64 %1 to i32
+         %6 = bitcast i32 %4 to float
+         %7 = bitcast i32 %5 to float
+         %8 = fdiv float %6, %7
+         %9 = bitcast float %8 to i32
+         %10 = zext i32 %9 to i64
+         %11 = xor i64 -1, 4294967295 ; 0xFFFFFFFF00000000
+         %12 = or i64 %10, %11
+         ret i64 %12
+      }
+  FSQRT_W:
+    func: |
+      define i64 @FSQRT_W(i64 %0, i10 %rm) {
+         %3 = trunc i64 %0 to i32
+         %4 = bitcast i32 %3 to float
+         %5 = call float @llvm.sqrt.f32(float %4)
+         %6 = bitcast float %5 to i32
+         %7 = zext i32 %6 to i64
+         %8 = xor i64 -1, 4294967295 ; 0xFFFFFFFF00000000
+         %9 = or i64 %7, %8
+         ret i64 %9
+      }
+  FMIN_W:
+    func: |
+      define i64 @FMIN_W(i64 %0, i64 %1, i10 %rm) {
+         %4 = trunc i64 %0 to i32
+         %5 = trunc i64 %1 to i32
+         %6 = bitcast i32 %4 to float
+         %7 = bitcast i32 %5 to float
+         %8 = call float @llvm.minnum.f32(float %6, float %7)
+         %9 = bitcast float %6 to i32
+         %10 = zext i32 %9 to i64
+         %11 = xor i64 -1, 4294967295 ; 0xFFFFFFFF00000000
+         %12 = or i64 %10, %11
+         ret i64 %12
+      }
+  FMAX_W:
+    func: |
+      define i64 @FMAX_W(i64 %0, i64 %1, i10 %rm) {
+         %4 = trunc i64 %0 to i32
+         %5 = trunc i64 %1 to i32
+         %6 = bitcast i32 %4 to float
+         %7 = bitcast i32 %5 to float
+         %8 = call float @llvm.maxnum.f32(float %6, float %7)
+         %9 = bitcast float %6 to i32
+         %10 = zext i32 %9 to i64
+         %11 = xor i64 -1, 4294967295 ; 0xFFFFFFFF00000000
+         %12 = or i64 %10, %11
+         ret i64 %12
+      }
+  FEQ_W:
+    func: |
+      define i64 @FEQ_W(i64 %0, i64 %1, i10 %rm) {
+         %4 = trunc i64 %0 to i32
+         %5 = trunc i64 %1 to i32
+         %6 = bitcast i32 %4 to float
+         %7 = bitcast i32 %5 to float
+         %8 = fcmp oeq float %6, %7
+         %9 = zext i1 %8 to i64
+         ret i64 %9
+      }
+  FLT_W:
+    func: |
+      define i64 @FLT_W(i64 %0, i64 %1, i10 %rm) {
+         %4 = trunc i64 %0 to i32
+         %5 = trunc i64 %1 to i32
+         %6 = bitcast i32 %4 to float
+         %7 = bitcast i32 %5 to float
+         %8 = fcmp olt float %6, %7
+         %9 = zext i1 %8 to i64
+         ret i64 %9
+      }
+  FLE_W:
+    func: |
+      define i64 @FLE_W(i64 %0, i64 %1, i10 %rm) {
+         %4 = trunc i64 %0 to i32
+         %5 = trunc i64 %1 to i32
+         %6 = bitcast i32 %4 to float
+         %7 = bitcast i32 %5 to float
+         %8 = fcmp ole float %6, %7
+         %9 = zext i1 %8 to i64
+         ret i64 %9
+      }
+  FSGNJ_W:
+    func: |
+      define i64 @FSGNJ_W(i64 %0, i64 %1, i10 %rm) {
+         %4 = trunc i64 %0 to i32
+         %5 = trunc i64 %1 to i32
+         %6 = bitcast i32 %4 to float
+         %7 = bitcast i32 %5 to float
+         %8 = call float @llvm.copysign.fp32(float %6, float %7)
+         %9 = bitcast float %8 to i32
+         %10 = zext i32 %9 to i64
+         %11 = xor i64 -1, 4294967295 ; 0xFFFFFFFF00000000
+         %12 = or i64 %10, %11
+         ret i64 %12
+      }
+  FSGNJN_W:
+    func: |
+      define i64 @FSGNJN_W(i64 %0, i64 %1, i10 %rm) {
+         %4 = trunc i64 %0 to i32
+         %5 = trunc i64 %1 to i32
+         %6 = bitcast i32 %4 to float
+         %7 = bitcast i32 %5 to float
+         %8 = fneg float %7
+         %9 = call float @llvm.copysign.fp32(float %6, float %8)
+         %10 = bitcast float %9 to i32
+         %11 = zext i32 %10 to i64
+         %12 = xor i64 -1, 4294967295 ; 0xFFFFFFFF00000000
+         %13 = or i64 %11, %12
+         ret i64 %13
+      }
+  FSGNJX_W:
+    func: |
+      define i64 @FSGNJX_W(i64 %0, i64 %1, i10 %rm) {
+         %4 = trunc i64 %0 to i32
+         %5 = trunc i64 %1 to i32
+         %6 = bitcast i32 %4 to float
+         %7 = bitcast i32 %5 to float
+         %8 = fmul float %6, %7 ; XOR-ed sign
+         %9 = call float @llvm.copysign.fp32(float %6, float %8)
+         %10 = bitcast float %9 to i32
+         %11 = zext i32 %10 to i64
+         %12 = xor i64 -1, 4294967295 ; 0xFFFFFFFF00000000
+         %13 = or i64 %11, %12
+         ret i64 %13
+      }
+  FCLASS_W:
+    func: |
+      define i64 @FCLASS_W(i64 %0, i10 %rm) {
+        %3 = trunc i64 %0 to i32
+        %4 = bitcast i32 %3 to float
+        %is_snan = call i1 @llvm.is.fpclass(float %4, i32 1)
+        %is_qnan = call i1 @llvm.is.fpclass(float %4, i32 2)
+        %is_neginf = call i1 @llvm.is.fpclass(float %4, i32 4)
+        %is_negnorm = call i1 @llvm.is.fpclass(float %4, i32 8)
+        %is_negsub = call i1 @llvm.is.fpclass(float %4, i32 16)
+        %is_negzero = call i1 @llvm.is.fpclass(float %4, i32 32)
+        %is_poszero = call i1 @llvm.is.fpclass(float %4, i32 64)
+        %is_possub = call i1 @llvm.is.fpclass(float %4, i32 128)
+        %is_posnorm = call i1 @llvm.is.fpclass(float %4, i32 256)
+        %is_posinf = call i1 @llvm.is.fpclass(float %4, i32 512)
+        ; shifting
+        %is_neginf_shifted = zext i1 %is_neginf to i64 ; 0th
+        %is_negnorm_zext = zext i1 %is_negnorm to i64
+        %is_negnorm_shifted = shl i64 %is_negnorm_zext, 1
+        %is_negsub_zext = zext i1 %is_negsub to i64
+        %is_negsub_shifted = shl i64 %is_negsub_zext, 2
+        %is_negzero_zext = zext i1 %is_negzero to i64
+        %is_negzero_shifted = shl i64 %is_negzero_zext, 3
+        %is_poszero_zext = zext i1 %is_poszero to i64
+        %is_poszero_shifted = shl i64 %is_poszero_zext, 4
+        %is_possub_zext = zext i1 %is_possub to i64
+        %is_possub_shifted = shl i64 %is_possub_zext, 5
+        %is_posnorm_zext = zext i1 %is_posnorm to i64
+        %is_posnorm_shifted = shl i64 %is_posnorm_zext, 6
+        %is_posinf_zext = zext i1 %is_posinf to i64
+        %is_posinf_shifted = shl i64 %is_posinf_zext, 7
+        %is_snan_zext = zext i1 %is_snan to i64
+        %is_snan_shifted = shl i64 %is_snan_zext, 8
+        %is_qnan_zext = zext i1 %is_qnan to i64
+        %is_qnan_shifted = shl i64 %is_qnan_zext, 9
+        %5 = or i64 %is_neginf_shifted, %is_negnorm_shifted
+        %6 = or i64 %5, %is_negsub_shifted
+        %7 = or i64 %6, %is_negzero_shifted
+        %8 = or i64 %7, %is_poszero_shifted
+        %9 = or i64 %8, %is_possub_shifted
+        %10 = or i64 %9, %is_posnorm_shifted
+        %11 = or i64 %10, %is_posinf_shifted
+        %12 = or i64 %11, %is_snan_shifted
+        %13 = or i64 %12, %is_qnan_shifted
+        ret i64 %13
+      }
+  FCVT_S_W:
+    func: |
+      define i64 @FCVT_S_W(i64 %0, i10 %rm) {
+         %3 = trunc i64 %0 to i32
+         %4 = sitofp i32 %3 to float
+         %5 = bitcast float %4 to i32
+         %6 = zext i32 %5 to i64
+         %7 = xor i64 -1, 4294967295 ; 0xFFFFFFFF00000000
+         %8 = or i64 %6, %7
+         ret i64 %8
+      }
+  FCVT_S_WU:
+    func: |
+      define i64 @FCVT_S_WU(i64 %0, i10 %rm) {
+         %3 = trunc i64 %0 to i32
+         %4 = uitofp i32 %3 to float
+         %5 = bitcast float %4 to i32
+         %6 = zext i32 %5 to i64
+         %7 = xor i64 -1, 4294967295 ; 0xFFFFFFFF00000000
+         %8 = or i64 %6, %7
+         ret i64 %8
+      }
+  FCVT_W_S:
+    func: |
+      define i64 @FCVT_W_S(i64 %0, i10 %rm) {
+         %3 = trunc i64 %0 to i32
+         %4 = bitcast i32 %3 to float
+         %5 = fptosi float %4 to i32
+         %6 = zext i32 %5 to i64
+         %7 = xor i64 -1, 4294967295 ; 0xFFFFFFFF00000000
+         %8 = or i64 %6, %7
+         ret i64 %8
+      }
+  FCVT_WU_S:
+    func: |
+      define i64 @FCVT_WU_S(i64 %0, i10 %rm) {
+         %3 = trunc i64 %0 to i32
+         %4 = bitcast i32 %3 to float
+         %5 = fptoui float %4 to i32
+         %6 = zext i32 %5 to i64
+         %7 = xor i64 -1, 4294967295 ; 0xFFFFFFFF00000000
+         %8 = or i64 %6, %7
+         ret i64 %8
+      }
+  # FIXME: this is not entirely correct as FMV and other convertions to 32-bit X register do not modify upper 32 bits
+  FMV_X_W:
+    func: |
+      define i64 @FMV_X_W(i64 %0, i10 %rm) {
+         ret i64 %0
+      }
+  FMV_W_X:
+    func: |
+      define i64 @FMV_W_X(i64 %0, i10 %rm) {
+         ret i64 %0
+      }
+  FMADD_W:
+    func: |
+      define i64 @FMADD_W(i64 %0, i64 %1, i64 %2, i10 %rm) {
+         %4 = trunc i64 %0 to i32
+         %5 = trunc i64 %1 to i32
+         %6 = trunc i64 %2 to i32
+         %7 = bitcast i32 %4 to float
+         %8 = bitcast i32 %5 to float
+         %9 = bitcast i32 %6 to float
+         %10 = fmul float %7, %8
+         %11 = fadd float %10, %9
+         %12 = bitcast float %11 to i32
+         %13 = zext i32 %12 to i64
+         %14 = xor i64 -1, 4294967295 ; 0xFFFFFFFF00000000
+         %15 = or i64 %13, %14
+         ret i64 %15
+      }
+  FMSUB_W:
+    func: |
+      define i64 @FMSUB_W(i64 %0, i64 %1, i64 %2, i10 %rm) {
+         %4 = trunc i64 %0 to i32
+         %5 = trunc i64 %1 to i32
+         %6 = trunc i64 %2 to i32
+         %7 = bitcast i32 %4 to float
+         %8 = bitcast i32 %5 to float
+         %9 = bitcast i32 %6 to float
+         %10 = fmul float %7, %8
+         %11 = fsub float %10, %9
+         %12 = bitcast float %11 to i32
+         %13 = zext i32 %12 to i64
+         %14 = xor i64 -1, 4294967295 ; 0xFFFFFFFF00000000
+         %15 = or i64 %13, %14
+         ret i64 %15
+      }
+  FNMADD_W:
+    func: |
+      define i64 @FNMADD_W(i64 %0, i64 %1, i64 %2, i10 %rm) {
+         %4 = trunc i64 %0 to i32
+         %5 = trunc i64 %1 to i32
+         %6 = trunc i64 %2 to i32
+         %7 = bitcast i32 %4 to float
+         %8 = bitcast i32 %5 to float
+         %9 = bitcast i32 %6 to float
+         %10 = fmul float %7, %8
+         %11 = fneg float %10
+         %12 = fadd float %11, %9
+         %13 = bitcast float %12 to i32
+         %14 = zext i32 %13 to i64
+         %15 = xor i64 -1, 4294967295 ; 0xFFFFFFFF00000000
+         %16 = or i64 %14, %15
+         ret i64 %16
+      }
+  FNMSUB_W:
+    func: |
+      define i64 @FNMSUB_W(i64 %0, i64 %1, i64 %2, i10 %rm) {
+         %4 = trunc i64 %0 to i32
+         %5 = trunc i64 %1 to i32
+         %6 = trunc i64 %2 to i32
+         %7 = bitcast i32 %4 to float
+         %8 = bitcast i32 %5 to float
+         %9 = bitcast i32 %6 to float
+         %10 = fmul float %7, %8
+         %11 = fneg float %10
+         %12 = fsub float %11, %9
+         %13 = bitcast float %12 to i32
+         %14 = zext i32 %13 to i64
+         %15 = xor i64 -1, 4294967295 ; 0xFFFFFFFF00000000
+         %16 = or i64 %14, %15
+         ret i64 %16
+      }
+  # D extension
   FADD_D:
     func: |
       define i64 @FADD_D(i64 %0, i64 %1, i10 %rm) {
@@ -41,6 +387,133 @@ instructions:
          %7 = bitcast double %6 to i64
          ret i64 %7
       }
+  FSQRT_D:
+    func: |
+      define i64 @FSQRT_D(i64 %0, i10 %rm) {
+         %3 = bitcast i64 %0 to double
+         %4 = call double @llvm.sqrt.f64(double %3)
+         %5 = bitcast double %4 to i64
+         ret i64 %5
+      }
+  FMIN_D:
+    func: |
+      define i64 @FMIN_D(i64 %0, i64 %1, i10 %rm) {
+         %4 = bitcast i64 %0 to double
+         %5 = bitcast i64 %1 to double
+         %6 = call double @llvm.minnum.f64(double %4, double %5)
+         %7 = bitcast double %6 to i64
+         ret i64 %7
+      }
+  FMAX_D:
+    func: |
+      define i64 @FMAX_D(i64 %0, i64 %1, i10 %rm) {
+         %4 = bitcast i64 %0 to double
+         %5 = bitcast i64 %1 to double
+         %6 = call double @llvm.maxnum.f64(double %4, double %5)
+         %7 = bitcast double %6 to i64
+         ret i64 %7
+      }
+  FEQ_D:
+    func: |
+      define i64 @FEQ_D(i64 %0, i64 %1, i10 %rm) {
+         %4 = bitcast i64 %0 to double
+         %5 = bitcast i64 %1 to double
+         %6 = fcmp oeq double %4, %5
+         %7 = zext i1 %6 to i64
+         ret i64 %7
+      }
+  FLT_D:
+    func: |
+      define i64 @FLT_D(i64 %0, i64 %1, i10 %rm) {
+         %4 = bitcast i64 %0 to double
+         %5 = bitcast i64 %1 to double
+         %6 = fcmp olt double %4, %5
+         %7 = zext i1 %6 to i64
+         ret i64 %7
+      }
+  FLE_D:
+    func: |
+      define i64 @FLE_D(i64 %0, i64 %1, i10 %rm) {
+         %4 = bitcast i64 %0 to double
+         %5 = bitcast i64 %1 to double
+         %6 = fcmp ole double %4, %5
+         %7 = zext i1 %6 to i64
+         ret i64 %7
+      }
+  FSGNJ_D:
+    func: |
+      define i64 @FSGNJ_D(i64 %0, i64 %1, i10 %rm) {
+         %4 = bitcast i64 %0 to double
+         %5 = bitcast i64 %1 to double
+         %6 = call double @llvm.copysign.fp64(double %4, double %5)
+         %7 = bitcast double %6 to i64
+         ret i64 %7
+      }
+  FSGNJN_D:
+    func: |
+      define i64 @FSGNJN_D(i64 %0, i64 %1, i10 %rm) {
+         %4 = bitcast i64 %0 to double
+         %5 = bitcast i64 %1 to double
+         %6 = fneg double %5
+         %7 = call double @llvm.copysign.fp64(double %4, double %6)
+         %8 = bitcast double %7 to i64
+         ret i64 %8
+      }
+  FSGNJX_D:
+    func: |
+      define i64 @FSGNJX_D(i64 %0, i64 %1, i10 %rm) {
+         %4 = bitcast i64 %0 to double
+         %5 = bitcast i64 %1 to double
+         %6 = fmul double %4, %5 ; XOR-ed sign
+         %7 = call double @llvm.copysign.fp64(double %4, double %6)
+         %8 = bitcast double %7 to i64
+         ret i64 %8
+      }
+  FCLASS_D:
+    func: |
+      define i64 @FCLASS_D(i64 %0, i10 %rm) {
+        %3 = bitcast i64 %0 to double
+        %is_snan = call i1 @llvm.is.fpclass(double %3, i32 1)
+        %is_qnan = call i1 @llvm.is.fpclass(double %3, i32 2)
+        %is_neginf = call i1 @llvm.is.fpclass(double %3, i32 4)
+        %is_negnorm = call i1 @llvm.is.fpclass(double %3, i32 8)
+        %is_negsub = call i1 @llvm.is.fpclass(double %3, i32 16)
+        %is_negzero = call i1 @llvm.is.fpclass(double %3, i32 32)
+        %is_poszero = call i1 @llvm.is.fpclass(double %3, i32 64)
+        %is_possub = call i1 @llvm.is.fpclass(double %3, i32 128)
+        %is_posnorm = call i1 @llvm.is.fpclass(double %3, i32 256)
+        %is_posinf = call i1 @llvm.is.fpclass(double %3, i32 512)
+        ; shifting
+        %is_neginf_shifted = zext i1 %is_neginf to i64 ; 0th
+        %is_negnorm_zext = zext i1 %is_negnorm to i64
+        %is_negnorm_shifted = shl i64 %is_negnorm_zext, 1
+        %is_negsub_zext = zext i1 %is_negsub to i64
+        %is_negsub_shifted = shl i64 %is_negsub_zext, 2
+        %is_negzero_zext = zext i1 %is_negzero to i64
+        %is_negzero_shifted = shl i64 %is_negzero_zext, 3
+        %is_poszero_zext = zext i1 %is_poszero to i64
+        %is_poszero_shifted = shl i64 %is_poszero_zext, 4
+        %is_possub_zext = zext i1 %is_possub to i64
+        %is_possub_shifted = shl i64 %is_possub_zext, 5
+        %is_posnorm_zext = zext i1 %is_posnorm to i64
+        %is_posnorm_shifted = shl i64 %is_posnorm_zext, 6
+        %is_posinf_zext = zext i1 %is_posinf to i64
+        %is_posinf_shifted = shl i64 %is_posinf_zext, 7
+        %is_snan_zext = zext i1 %is_snan to i64
+        %is_snan_shifted = shl i64 %is_snan_zext, 8
+        %is_qnan_zext = zext i1 %is_qnan to i64
+        %is_qnan_shifted = shl i64 %is_qnan_zext, 9
+        %4 = or i64 %is_neginf_shifted, %is_negnorm_shifted
+        %5 = or i64 %4, %is_negsub_shifted
+        %6 = or i64 %5, %is_negzero_shifted
+        %7 = or i64 %6, %is_poszero_shifted
+        %8 = or i64 %7, %is_possub_shifted
+        %9 = or i64 %8, %is_posnorm_shifted
+        %10 = or i64 %9, %is_posinf_shifted
+        %11 = or i64 %10, %is_snan_shifted
+        %12 = or i64 %10, %is_qnan_shifted
+        ret i64 %12
+      }
   FCVT_D_LU:
     func: |
       define i64 @FCVT_D_LU(i64 %0, i10 %rm) {
@@ -54,7 +527,9 @@ instructions:
          %3 = bitcast i64 %0 to double
          %4 = fptoui double %3 to i32
          %5 = zext i32 %4 to i64
-         ret i64 %5
+         %6 = xor i64 -1, 4294967295 ; 0xFFFFFFFF00000000
+         %7 = or i64 %5, %6
+         ret i64 %7
       }
   FCVT_D_WU:
     func: |
@@ -72,14 +547,15 @@ instructions:
          %5 = bitcast double %4 to i64
          ret i64 %5
       }
-    # ggg
   FCVT_W_D:
     func: |
       define i64 @FCVT_W_D(i64 %0, i10 %rm) {
          %3 = bitcast i64 %0 to double
          %4 = fptosi double %3 to i32
-         %5 = sext i32 %4 to i64
-         ret i64 %5
+         %5 = zext i32 %4 to i64
+         %6 = xor i64 -1, 4294967295 ; 0xFFFFFFFF00000000
+         %7 = or i64 %5, %6
+         ret i64 %7
       }
   FCVT_L_D:
     func: |
@@ -95,6 +571,26 @@ instructions:
          %4 = bitcast double %3 to i64
          ret i64 %4
       }
+  FCVT_S_D:
+    func: |
+      define i64 @FCVT_S_D(i64 %0, i10 %rm) {
+         %3 = bitcast i64 %0 to double
+         %4 = fptrunc double %3 to float
+         %5 = bitcast float %4 to i32
+         %6 = zext i32 %5 to i64
+         %7 = xor i64 -1, 4294967295 ; 0xFFFFFFFF00000000
+         %8 = or i64 %6, %7
+         ret i64 %8
+      }
+  FCVT_D_S:
+    func: |
+      define i64 @FCVT_D_S(i64 %0, i10 %rm) {
+         %3 = trunc i64 %0 to i32
+         %4 = bitcast i32 %3 to float
+         %5 = fpext float %4 to double
+         %6 = bitcast double %5 to i64
+         ret i64 %6
+      }
   FMADD_D:
     func: |
       define i64 @FMADD_D(i64 %0, i64 %1, i64 %2, i10 %rm) {
@@ -106,6 +602,52 @@ instructions:
          %9 = bitcast double %8 to i64
          ret i64 %9
       }
+  FMSUB_D:
+    func: |
+      define i64 @FMSUB_D(i64 %0, i64 %1, i64 %2, i10 %rm) {
+         %4 = bitcast i64 %0 to double
+         %5 = bitcast i64 %1 to double
+         %6 = bitcast i64 %2 to double
+         %7 = fmul double %4, %5
+         %8 = fsub double %6, %7
+         %9 = bitcast double %8 to i64
+         ret i64 %9
+      }
+  FNMADD_D:
+    func: |
+      define i64 @FNMADD_D(i64 %0, i64 %1, i64 %2, i10 %rm) {
+         %4 = bitcast i64 %0 to double
+         %5 = bitcast i64 %1 to double
+         %6 = bitcast i64 %2 to double
+         %7 = fmul double %4, %5
+         %8 = fneg double %7
+         %9 = fadd double %8, %6
+         %10 = bitcast double %9 to i64
+         ret i64 %10
+      }
+  FNMSUB_D:
+    func: |
+      define i64 @FNMSUB_D(i64 %0, i64 %1, i64 %2, i10 %rm) {
+         %4 = bitcast i64 %0 to double
+         %5 = bitcast i64 %1 to double
+         %6 = bitcast i64 %2 to double
+         %7 = fmul double %4, %5
+         %8 = fneg double %7
+         %9 = fsub double %8, %6
+         %10 = bitcast double %9 to i64
+         ret i64 %10
+      }
+  FMV_X_D:
+    func: |
+      define i64 @FMV_X_D(i64 %0, i10 %rm) {
+         ret i64 %0
+      }
+  FMV_D_X:
+    func: |
+      define i64 @FMV_W_D(i64 %0, i10 %rm) {
+         ret i64 %0
+      }
+  # basic ISA
   SLT:
     func: |
       define i\xlen\ @SLT(i\xlen\ noundef %0, i\xlen\ noundef %1) {

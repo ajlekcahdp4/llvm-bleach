@@ -3,13 +3,12 @@
 // RUN: riscv64-unknown-linux-gnu-clang %s -O2 -c -o %t.out -march=rv64imfd
 // RUN: %bin/llvm-bleach %t.out --instructions %t.yaml -o %t.ll \
 // RUN:   --state-struct-file=%t.state.h
-// RUN: sed 's|STATE|%t.state.h|g' %S/inputs/doubles-mixed-main.c > %t.main.c
+// RUN: sed 's|STATE|%t.state.h|g' %S/inputs/riscv-mixed-fp.c > %t.main.c
 // RUN: clang %t.main.c %t.ll -o %t.native.out -g -fsanitize=address,undefined
 // RUN: %t.native.out
 
-double complex_mixed(double a, double b, double c, double d) {
-  double part1 = (a + b) * (unsigned)(c - d);
-  double part2 = (a * d) + (int)(b * c);
-  double part3 = (a / c) * (long long)(b / d);
-  return part1 + part2 - part3;
-}
+double calc2(double prod, double sum, int x) { return prod + sum - (double)x; }
+
+double calc1(double a, double b, int x) { return calc2(a * b, (a + b), x); }
+
+double top_small(double a, double b, int x) { return calc1(a, b, x); }
