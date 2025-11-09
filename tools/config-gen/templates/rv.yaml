@@ -14,6 +14,15 @@ instructions:
          %7 = bitcast double %6 to i64
          ret i64 %7
       }
+  FSUB_D:
+    func: |
+      define i64 @FSUB_D(i64 %0, i64 %1, i10 %rm) {
+         %4 = bitcast i64 %0 to double
+         %5 = bitcast i64 %1 to double
+         %6 = fsub double %4, %5
+         %7 = bitcast double %6 to i64
+         ret i64 %7
+      }
   FMUL_D:
     func: |
       define i64 @FMUL_D(i64 %0, i64 %1, i10 %rm) {
@@ -23,9 +32,65 @@ instructions:
          %7 = bitcast double %6 to i64
          ret i64 %7
       }
+  FDIV_D:
+    func: |
+      define i64 @FDIV_D(i64 %0, i64 %1, i10 %rm) {
+         %4 = bitcast i64 %0 to double
+         %5 = bitcast i64 %1 to double
+         %6 = fdiv double %4, %5
+         %7 = bitcast double %6 to i64
+         ret i64 %7
+      }
   FCVT_D_LU:
     func: |
       define i64 @FCVT_D_LU(i64 %0, i10 %rm) {
+         %3 = uitofp i64 %0 to double
+         %4 = bitcast double %3 to i64
+         ret i64 %4
+      }
+  FCVT_WU_D:
+    func: |
+      define i64 @FCVT_WU_D(i64 %0, i10 %rm) {
+         %3 = bitcast i64 %0 to double
+         %4 = fptoui double %3 to i32
+         %5 = zext i32 %4 to i64
+         ret i64 %5
+      }
+  FCVT_D_WU:
+    func: |
+      define i64 @FCVT_D_WU(i64 %0, i10 %rm) {
+         %3 = trunc i64 %0 to i32
+         %4 = uitofp i32 %3 to double
+         %5 = bitcast double %4 to i64
+         ret i64 %5
+      }
+  FCVT_D_W:
+    func: |
+      define i64 @FCVT_D_W(i64 %0, i10 %rm) {
+         %3 = trunc i64 %0 to i32
+         %4 = sitofp i32 %3 to double
+         %5 = bitcast double %4 to i64
+         ret i64 %5
+      }
+    # ggg
+  FCVT_W_D:
+    func: |
+      define i64 @FCVT_W_D(i64 %0, i10 %rm) {
+         %3 = bitcast i64 %0 to double
+         %4 = fptosi double %3 to i32
+         %5 = sext i32 %4 to i64
+         ret i64 %5
+      }
+  FCVT_L_D:
+    func: |
+      define i64 @FCVT_L_D(i64 %0, i10 %rm) {
+         %3 = bitcast i64 %0 to double
+         %4 = fptosi double %3 to i64
+         ret i64 %4
+      }
+  FCVT_D_L:
+    func: |
+      define i64 @FCVT_D_L(i64 %0, i10 %rm) {
          %3 = sitofp i64 %0 to double
          %4 = bitcast double %3 to i64
          ret i64 %4
