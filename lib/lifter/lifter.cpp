@@ -4,6 +4,7 @@
 
 #include "symtab-ir.h"
 
+#include <algorithm>
 #include <iterator>
 #include <llvm/CodeGen/MachineFunction.h>
 #include <llvm/CodeGen/MachineModuleInfo.h>
@@ -173,7 +174,8 @@ void materialize_registers(MachineFunction &mf, Function &func, reg2vals &rmap,
                                         ArrayRef<Value *>{const_zero, arr_idx},
                                         rclass.get_name());
     auto sorted_regs = std::set<unsigned>();
-    ranges::copy(rclass, std::inserter(sorted_regs, sorted_regs.end()));
+    ranges::transform(rclass, std::inserter(sorted_regs, sorted_regs.end()),
+                      [](auto &&entry) { return entry.first; });
     for (auto &&[reg_idx, reg] : sorted_regs | views::enumerate) {
       auto *array_reg_idx = ConstantInt::get(ctx, APInt(32, reg_idx));
       auto *reg_src_addr = builder.CreateInBoundsGEP(
@@ -186,6 +188,10 @@ void materialize_registers(MachineFunction &mf, Function &func, reg2vals &rmap,
           Type::getIntNTy(ctx, rclass.get_register_size()), reg_src_addr);
       builder.CreateStore(reg_val, reg_dst_addr);
       rmap.try_emplace(reg, reg_dst_addr);
+      auto &&subregs = rclass.at(reg);
+      ranges::for_each(subregs, [&](std::integral auto r) {
+        rmap.try_emplace(r, reg_dst_addr);
+      });
     }
   }
 }
@@ -430,8 +436,9 @@ void assign_register_classes(const TargetSubtargetInfo &stinfo,
   assert(rinfo);
   for (auto &&[idx, reg_class] : enumerate(stats)) {
     auto found = find_if(rinfo->regclasses(), [&reg_class](auto &rclass) {
-      return all_of(reg_class,
-                    [&rclass](auto reg) { return is_contained(*rclass, reg); });
+      return all_of(reg_class, [&rclass](auto &&reg) {
+        return is_contained(*rclass, reg.first);
+      });
     });
     if (found == rinfo->regclass_end()) {
       throw std::runtime_error(
@@ -453,17 +460,48 @@ register_stats collect_register_stats(const instr_impl &instr, Module &m,
     throw std::runtime_error(
         "register-classes were not specified in input YAML");
   register_stats stats(rclasses.begin(), rclasses.end());
+  const MCRegisterInfo *rinfo = nullptr;
+  auto *stinfo = mmi.getTarget().getSubtargetImpl(*m.begin());
   for (auto &f : m) {
     auto &mf = mmi.getOrCreateMachineFunction(f);
     collect_register_stats_for(mf, mmi.getTarget(), stats);
+    rinfo = stinfo->getRegisterInfo();
   }
   assert(!m.empty());
-  auto *stinfo = mmi.getTarget().getSubtargetImpl(*m.begin());
   assert(stinfo);
   assign_register_classes(*stinfo, stats);
   stats.erase(std::remove_if(stats.begin(), stats.end(),
                              [](auto &rclass) { return rclass.empty(); }),
               stats.end());
+  for (auto &&[subregclass, aliasto] : instr.get_subregs()) {
+    auto found = ranges::find_if(stats, [&subregclass](auto &rclass) {
+      return rclass.get_name() == subregclass;
+    });
+    if (found != stats.end()) {
+      auto found_aliasto = ranges::find_if(stats, [&aliasto](auto &rclass) {
+        return rclass.get_name() == aliasto;
+      });
+      if (found_aliasto != stats.end()) {
+        for (auto &&[entry, subreg] : views::zip(*found_aliasto, *found)) {
+          auto &&[_, subregs] = entry;
+          subregs.push_back(subreg.first);
+        }
+        stats.erase(found);
+      }
+    }
+  }
+
+  for (auto &&regclass : stats) {
+    std::cerr << "\nREGCLASS: " << regclass.get_name() << '\n';
+    for (auto &&r : regclass) {
+      std::cerr << rinfo->getName(r.first) << ": [ ";
+      for (auto subreg : r.second)
+        std::cerr << rinfo->getName(subreg) << " ";
+      std::cerr << "]\n";
+    }
+    std::cerr << '\n';
+  }
+
   return stats;
 }
 

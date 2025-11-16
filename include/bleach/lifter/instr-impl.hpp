@@ -52,6 +52,7 @@ class instr_impl final : private std::vector<instruction> {
   std::string stack_pointer;
   std::vector<constant_reg> const_regs;
   std::vector<regclass> regclasses;
+  std::unordered_map<std::string, std::string> subregisters;
 
 public:
   instr_impl() = default;
@@ -64,13 +65,16 @@ public:
   using vector::emplace_back;
   using vector::push_back;
 
-  StringRef get_stack_pointer() const { return stack_pointer; }
+  StringRef get_stack_pointer() const & { return stack_pointer; }
 
-  auto &get_const_regs() { return const_regs; }
-  auto &get_const_regs() const { return const_regs; }
+  auto &get_const_regs() & { return const_regs; }
+  auto &get_const_regs() const & { return const_regs; }
 
-  auto &get_regclasses() const { return regclasses; }
-  auto &get_regclasses() { return regclasses; }
+  auto &get_regclasses() const & { return regclasses; }
+  auto &get_regclasses() & { return regclasses; }
+
+  auto &get_subregs() const & { return subregisters; }
+  auto &get_subregs() & { return subregisters; }
 
   void set_stack_pointer(std::string sp) { stack_pointer = std::move(sp); }
 

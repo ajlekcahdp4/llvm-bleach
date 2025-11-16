@@ -4,11 +4,14 @@ constant-registers:
 register-classes:
   GPR: "X[0-9][0-9]?"
   FPR: "F[0-9][0-9]?_D"
+  FPR_W: "F[0-9][0-9]?_F"
+subregisters:
+  FPR_W: "FPR"
 instructions:
   # F extension
-  FADD_W:
+  FADD_S:
     func: |
-      define i64 @FADD_W(i64 %0, i64 %1, i10 %rm) {
+      define i64 @FADD_S(i64 %0, i64 %1, i10 %rm) {
          %4 = trunc i64 %0 to i32
          %5 = trunc i64 %1 to i32
          %6 = bitcast i32 %4 to float
@@ -20,9 +23,9 @@ instructions:
          %12 = or i64 %10, %11
          ret i64 %12
       }
-  FSUB_W:
+  FSUB_S:
     func: |
-      define i64 @FSUB_W(i64 %0, i64 %1, i10 %rm) {
+      define i64 @FSUB_S(i64 %0, i64 %1, i10 %rm) {
          %4 = trunc i64 %0 to i32
          %5 = trunc i64 %1 to i32
          %6 = bitcast i32 %4 to float
@@ -34,9 +37,9 @@ instructions:
          %12 = or i64 %10, %11
          ret i64 %12
       }
-  FMUL_W:
+  FMUL_S:
     func: |
-      define i64 @FMUL_W(i64 %0, i64 %1, i10 %rm) {
+      define i64 @FMUL_S(i64 %0, i64 %1, i10 %rm) {
          %4 = trunc i64 %0 to i32
          %5 = trunc i64 %1 to i32
          %6 = bitcast i32 %4 to float
@@ -48,9 +51,9 @@ instructions:
          %12 = or i64 %10, %11
          ret i64 %12
       }
-  FDIV_W:
+  FDIV_S:
     func: |
-      define i64 @FDIV_W(i64 %0, i64 %1, i10 %rm) {
+      define i64 @FDIV_S(i64 %0, i64 %1, i10 %rm) {
          %4 = trunc i64 %0 to i32
          %5 = trunc i64 %1 to i32
          %6 = bitcast i32 %4 to float
@@ -62,9 +65,9 @@ instructions:
          %12 = or i64 %10, %11
          ret i64 %12
       }
-  FSQRT_W:
+  FSQRT_S:
     func: |
-      define i64 @FSQRT_W(i64 %0, i10 %rm) {
+      define i64 @FSQRT_S(i64 %0, i10 %rm) {
          %3 = trunc i64 %0 to i32
          %4 = bitcast i32 %3 to float
          %5 = call float @llvm.sqrt.f32(float %4)
@@ -74,9 +77,9 @@ instructions:
          %9 = or i64 %7, %8
          ret i64 %9
       }
-  FMIN_W:
+  FMIN_S:
     func: |
-      define i64 @FMIN_W(i64 %0, i64 %1, i10 %rm) {
+      define i64 @FMIN_S(i64 %0, i64 %1, i10 %rm) {
          %4 = trunc i64 %0 to i32
          %5 = trunc i64 %1 to i32
          %6 = bitcast i32 %4 to float
@@ -88,9 +91,9 @@ instructions:
          %12 = or i64 %10, %11
          ret i64 %12
       }
-  FMAX_W:
+  FMAX_S:
     func: |
-      define i64 @FMAX_W(i64 %0, i64 %1, i10 %rm) {
+      define i64 @FMAX_S(i64 %0, i64 %1, i10 %rm) {
          %4 = trunc i64 %0 to i32
          %5 = trunc i64 %1 to i32
          %6 = bitcast i32 %4 to float
@@ -102,9 +105,9 @@ instructions:
          %12 = or i64 %10, %11
          ret i64 %12
       }
-  FEQ_W:
+  FEQ_S:
     func: |
-      define i64 @FEQ_W(i64 %0, i64 %1, i10 %rm) {
+      define i64 @FEQ_S(i64 %0, i64 %1, i10 %rm) {
          %4 = trunc i64 %0 to i32
          %5 = trunc i64 %1 to i32
          %6 = bitcast i32 %4 to float
@@ -113,9 +116,9 @@ instructions:
          %9 = zext i1 %8 to i64
          ret i64 %9
       }
-  FLT_W:
+  FLT_S:
     func: |
-      define i64 @FLT_W(i64 %0, i64 %1, i10 %rm) {
+      define i64 @FLT_S(i64 %0, i64 %1, i10 %rm) {
          %4 = trunc i64 %0 to i32
          %5 = trunc i64 %1 to i32
          %6 = bitcast i32 %4 to float
@@ -124,9 +127,9 @@ instructions:
          %9 = zext i1 %8 to i64
          ret i64 %9
       }
-  FLE_W:
+  FLE_S:
     func: |
-      define i64 @FLE_W(i64 %0, i64 %1, i10 %rm) {
+      define i64 @FLE_S(i64 %0, i64 %1, i10 %rm) {
          %4 = trunc i64 %0 to i32
          %5 = trunc i64 %1 to i32
          %6 = bitcast i32 %4 to float
@@ -135,9 +138,9 @@ instructions:
          %9 = zext i1 %8 to i64
          ret i64 %9
       }
-  FSGNJ_W:
+  FSGNJ_S:
     func: |
-      define i64 @FSGNJ_W(i64 %0, i64 %1, i10 %rm) {
+      define i64 @FSGNJ_S(i64 %0, i64 %1, i10 %rm) {
          %4 = trunc i64 %0 to i32
          %5 = trunc i64 %1 to i32
          %6 = bitcast i32 %4 to float
@@ -149,9 +152,9 @@ instructions:
          %12 = or i64 %10, %11
          ret i64 %12
       }
-  FSGNJN_W:
+  FSGNJN_S:
     func: |
-      define i64 @FSGNJN_W(i64 %0, i64 %1, i10 %rm) {
+      define i64 @FSGNJN_S(i64 %0, i64 %1, i10 %rm) {
          %4 = trunc i64 %0 to i32
          %5 = trunc i64 %1 to i32
          %6 = bitcast i32 %4 to float
@@ -164,9 +167,9 @@ instructions:
          %13 = or i64 %11, %12
          ret i64 %13
       }
-  FSGNJX_W:
+  FSGNJX_S:
     func: |
-      define i64 @FSGNJX_W(i64 %0, i64 %1, i10 %rm) {
+      define i64 @FSGNJX_S(i64 %0, i64 %1, i10 %rm) {
          %4 = trunc i64 %0 to i32
          %5 = trunc i64 %1 to i32
          %6 = bitcast i32 %4 to float
@@ -179,9 +182,9 @@ instructions:
          %13 = or i64 %11, %12
          ret i64 %13
       }
-  FCLASS_W:
+  FCLASS_S:
     func: |
-      define i64 @FCLASS_W(i64 %0, i10 %rm) {
+      define i64 @FCLASS_S(i64 %0, i10 %rm) {
         %3 = trunc i64 %0 to i32
         %4 = bitcast i32 %3 to float
         %is_snan = call i1 @llvm.is.fpclass(float %4, i32 1)

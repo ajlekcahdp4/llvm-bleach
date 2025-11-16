@@ -7,6 +7,7 @@
 #include <llvm/Support/SourceMgr.h>
 #include <llvm/Support/raw_ostream.h>
 
+#include <stdexcept>
 #include <yaml-cpp/emitter.h>
 #include <yaml-cpp/emittermanip.h>
 #include <yaml-cpp/yaml.h>
@@ -134,6 +135,12 @@ instr_impl load_from_yaml(std::string yaml, llvm::LLVMContext &ctx) {
   for (auto &&node : instrs_conf["register-classes"])
     instrs.get_regclasses().push_back(
         {node.first.as<std::string>(), node.second.as<std::string>()});
+  for (auto &&node : instrs_conf["subregisters"]) {
+    auto [it, inserted] = instrs.get_subregs().try_emplace(
+        node.first.as<std::string>(), node.second.as<std::string>());
+    if (!inserted)
+      throw std::invalid_argument("duplicated subregister class encountered");
+  }
   for (auto &&node : instrs_conf["instructions"]) {
     auto norm = node.as<normalized_instruction>();
     instrs.push_back(denormalize_instruction(norm, ctx));

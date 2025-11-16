@@ -9,7 +9,9 @@
 #include <llvm/Support/Regex.h>
 #include <llvm/Target/TargetMachine.h>
 
+#include <iostream>
 #include <map>
+#include <set>
 #include <unordered_set>
 
 namespace llvm {
@@ -56,24 +58,25 @@ public:
   }
 };
 
-class register_class final : private std::unordered_set<unsigned> {
+class register_class final : private std::map<unsigned, std::vector<unsigned>> {
   std::string name;
   llvm::Regex regex;
   const TargetRegisterClass *rclass = nullptr;
   unsigned reg_bitsize = 0;
 
 public:
-  using unordered_set::begin;
-  using unordered_set::contains;
-  using unordered_set::empty;
-  using unordered_set::end;
-  using unordered_set::insert;
-  using unordered_set::size;
+  using map::at;
+  using map::begin;
+  using map::contains;
+  using map::empty;
+  using map::end;
+  using map::insert;
+  using map::size;
 
   register_class(std::string &&rcname, llvm::Regex &&rx)
       : name(std::move(rcname)), regex(std::move(rx)) {}
 
-  void add_reg(unsigned reg) { insert(reg); }
+  void add_reg(unsigned reg) { try_emplace(reg); }
 
   auto &get_regex() const & { return regex; }
 
@@ -104,8 +107,14 @@ public:
   }
 
   auto &get_register_class_for(unsigned reg) const {
-    auto found =
-        find_if(*this, [reg](auto &rclass) { return rclass.contains(reg); });
+    auto found = ranges::find_if(*this, [reg](auto &rclass) {
+      if (rclass.contains(reg))
+        return true;
+      auto subreg = ranges::find_if(rclass, [reg](auto &entry) {
+        return is_contained(entry.second, reg);
+      });
+      return subreg != rclass.end();
+    });
     if (found == end()) {
       throw std::invalid_argument("Unknown register encountered");
     }

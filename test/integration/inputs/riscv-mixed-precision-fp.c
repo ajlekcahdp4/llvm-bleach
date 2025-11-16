@@ -20,12 +20,12 @@ double bitcast_to_double(int64_t v) {
 
 // This should be in sync with test/integration/riscv-mixed-fp.c
 // TODO: automate this
-double ref_calc2(double prod, double sum, int x) {
+double ref_calc2(float prod, double sum, int x) {
   return prod + sum - (double)x;
 }
 
-double ref_calc1(double a, double b, int x) {
-  return ref_calc2(a * b, (a + b), x);
+double ref_calc1(float a, float b, int x) {
+  return ref_calc2(a * b, (a + b), x + a / b);
 }
 
 double reference(double a, double b, int x) { return ref_calc1(a, b, x); }
@@ -39,10 +39,10 @@ int are_equal(double a, double b) {
 }
 
 int main() {
-  printf("Hello from main\n");
-  // random values
-  double arg_1 = 34.33;
-  double arg_2 = 0.0003344;
+  // random values that cause difference between computation in floats and
+  // doubles
+  double arg_1 = 4113444444434.33;
+  double arg_2 = 0.0000003344;
   int arg_3 = 5;
   regs.FPR[10] = bitcast_to_int(arg_1);
   regs.FPR[11] = bitcast_to_int(arg_2);
