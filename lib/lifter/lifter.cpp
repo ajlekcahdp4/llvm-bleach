@@ -460,12 +460,10 @@ register_stats collect_register_stats(const instr_impl &instr, Module &m,
     throw std::runtime_error(
         "register-classes were not specified in input YAML");
   register_stats stats(rclasses.begin(), rclasses.end());
-  const MCRegisterInfo *rinfo = nullptr;
   auto *stinfo = mmi.getTarget().getSubtargetImpl(*m.begin());
   for (auto &f : m) {
     auto &mf = mmi.getOrCreateMachineFunction(f);
     collect_register_stats_for(mf, mmi.getTarget(), stats);
-    rinfo = stinfo->getRegisterInfo();
   }
   assert(!m.empty());
   assert(stinfo);
@@ -1180,24 +1178,8 @@ Module &bleach_module(Module &m, MachineModuleInfo &mmi,
 
   create_bleach_symtab_add_function_decl(m);
   create_bleach_symtab_lookup_function_decl(m);
-  // rename "main" function
-  auto *main_func = m.getFunction("main");
-  if (main_func)
-    main_func->setName(std::format("{}main", lifted_prefix));
-  // create state struct and generate header
-  auto &state = create_state_type(m.getContext(), reg_stats, stack_size);
-  if (!state_struct_file.empty()) {
-    if (state_struct_file == "-") {
-      print_state_header(std::cout, translated, state, reg_stats);
-    } else {
-      std::fstream fs(std::string(state_struct_file), std::fstream::out);
-      if (!fs.is_open())
-        throw std::runtime_error(
-            std::format("Could not open file \"{}\"", state_struct_file));
-      print_state_header(fs, translated, state, reg_stats);
-    }
-  }
 
+  auto &state = create_state_type(m.getContext(), reg_stats, stack_size);
   for (auto &&[oldf, func_info] : funcs)
     generate_function(*oldf, func_info, instrs, mmi, state, reg_stats,
                       assume_functions_nop);
@@ -1218,6 +1200,21 @@ Module &bleach_module(Module &m, MachineModuleInfo &mmi,
       throw std::runtime_error("Failed to parse LLVM IR" + err_str);
     }
     Linker::linkModules(m, std::move(extra));
+  }
+  // rename functions
+  for (auto *func : translated)
+    func->setName(std::format("{}{}", lifted_prefix, func->getName().data()));
+  // create state struct and generate header
+  if (!state_struct_file.empty()) {
+    if (state_struct_file == "-") {
+      print_state_header(std::cout, translated, state, reg_stats);
+    } else {
+      std::fstream fs(std::string(state_struct_file), std::fstream::out);
+      if (!fs.is_open())
+        throw std::runtime_error(
+            std::format("Could not open file \"{}\"", state_struct_file));
+      print_state_header(fs, translated, state, reg_stats);
+    }
   }
   for (auto *f : target_functions)
     f->eraseFromParent();

@@ -1,4 +1,6 @@
+#include "riscv-mixed-precision-fp.h"
 #include <STATE>
+
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -18,18 +20,6 @@ double bitcast_to_double(int64_t v) {
   return res;
 }
 
-// This should be in sync with test/integration/riscv-mixed-fp.c
-// TODO: automate this
-double ref_calc2(float prod, double sum, int x) {
-  return prod + sum - (double)x;
-}
-
-double ref_calc1(float a, float b, int x) {
-  return ref_calc2(a * b, (a + b), x + a / b);
-}
-
-double reference(double a, double b, int x) { return ref_calc1(a, b, x); }
-
 int are_equal(double a, double b) {
   if (isnan(a) && isnan(b))
     return 1;
@@ -47,8 +37,8 @@ int main() {
   regs.FPR[10] = bitcast_to_int(arg_1);
   regs.FPR[11] = bitcast_to_int(arg_2);
   regs.GPR[10] = arg_3;
-  top_small(&regs);
-  double res1 = reference(arg_1, arg_2, arg_3);
+  bleached_top_small(&regs);
+  double res1 = top_small(arg_1, arg_2, arg_3);
   double res2 = bitcast_to_double(regs.FPR[10]);
   printf("result: %lf\n", res2);
   printf("reference: %lf\n", res1);

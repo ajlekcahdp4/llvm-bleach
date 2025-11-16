@@ -26,7 +26,7 @@ static double lifted_arith_seq_sum(double first, double step, uint64_t count) {
   regs.FPR[11] = dtosi(step);
   regs.FPR[12] = dtosi(count);
   regs.GPR[10] = 1;
-  arith_seq_sum(&regs);
+  bleached_arith_seq_sum(&regs);
   return uitod(regs.FPR[10]) / 2;
 }
 

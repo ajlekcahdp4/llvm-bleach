@@ -1,7 +1,8 @@
 # RUN: %bin/llvm-bleach %S/inputs/no-fallthrough-branches.mir \
-# RUN:   --instructions=%S/inputs/logical.yaml | FileCheck %s
+# RUN:   --instructions=%S/inputs/logical.yaml --lifted-prefix=bleached_ \
+# RUN:   | FileCheck %s
 
-# CHECK: define void @SnippyFunction(ptr %0) {
+# CHECK: define void @bleached_SnippyFunction(ptr %0) {
 # CHECK-NEXT:   %GPR = getelementptr %register_state, ptr %0, i32 0, i32 0
 # CHECK-32:     {{%[0-9]+}} = load i64, ptr {{%[0-9]+}}, align 8
 # CHECK:   br label %[[BLOCK1:[0-9]+]]

@@ -24,7 +24,7 @@ static struct register_state regs = {};
 static long long lifted_foo(long long n) {
   // According to RISC-V calling convention X10 is the first argument
   regs.GPR[10] = n;
-  foo(&regs);
+  bleached_foo(&regs);
   return regs.GPR[10];
 }
 

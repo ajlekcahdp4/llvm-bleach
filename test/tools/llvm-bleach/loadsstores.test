@@ -1,8 +1,8 @@
 # RUN: %bin/llvm-bleach %S/inputs/loadsstores.mir \
 # RUN:   --instructions=%S/inputs/logical.yaml --noinline-instr \
-# RUN:   --stack-size 8000 | FileCheck %s
+# RUN:   --stack-size 8000 --lifted-prefix=bleached_ | FileCheck %s
 
-# CHECK: define void @SnippyFunction(ptr %0) {
+# CHECK: define void @bleached_SnippyFunction(ptr %0) {
 # CHECK: %[[SP:[0-9]+]] = call i64 @ADDI(i64 %{{[0-9]+}}, i64 6)
 # CHECK: %[[IDX:[0-9]+]] = add i64 %[[SP]], -5
 # CHECK: %[[STACK:[0-9]+]] = getelementptr %register_state, ptr %0, i32 0, i32 1

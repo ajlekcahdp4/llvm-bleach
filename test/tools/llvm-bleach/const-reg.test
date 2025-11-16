@@ -1,9 +1,10 @@
 # RUN: %bin/llvm-bleach %S/inputs/const-reg.mir \
-# RUN:   --instructions=%S/inputs/logical.yaml -noinline-instr | FileCheck %s
+# RUN:   --instructions=%S/inputs/logical.yaml -noinline-instr \
+# RUN:   --lifted-prefix=bleached_ | FileCheck %s
 
 # CHECK: %register_state = type { [32 x i64], [1000 x i64] }
 
-# CHECK: define void @foo(ptr %0) {
+# CHECK: define void @bleached_foo(ptr %0) {
 # CHECK: {{%[0-9]+}} = call i64 @ADDW(i64 {{%[0-9]+}}, i64 {{%[0-9]+}})
 # CHECK:   {{%[0-9]+}} = call i64 @SUBW(i64 {{%[0-9]+}}, i64 {{%[0-9]+}})
 # CHECK: [[X0ADDR:%[0-9]+]] = getelementptr inbounds [32 x i64], ptr %GPR1, i32 0, i32 0
