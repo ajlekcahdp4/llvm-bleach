@@ -490,18 +490,6 @@ register_stats collect_register_stats(const instr_impl &instr, Module &m,
       }
     }
   }
-
-  for (auto &&regclass : stats) {
-    std::cerr << "\nREGCLASS: " << regclass.get_name() << '\n';
-    for (auto &&r : regclass) {
-      std::cerr << rinfo->getName(r.first) << ": [ ";
-      for (auto subreg : r.second)
-        std::cerr << rinfo->getName(subreg) << " ";
-      std::cerr << "]\n";
-    }
-    std::cerr << '\n';
-  }
-
   return stats;
 }
 
