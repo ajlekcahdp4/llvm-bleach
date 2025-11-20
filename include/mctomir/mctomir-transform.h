@@ -116,6 +116,8 @@ private:
                              uint64_t size);
   MachineBasicBlock *get_or_create_mbb_for_address(uint64_t address,
                                                    MachineFunction &mfunc);
+  void fill_operands(MachineInstrBuilder &builder, const MCInst &inst,
+                     const MCInstrDesc &desc, bool is_branch);
   void add_operand_to_mib(MachineInstrBuilder &mib, const MCOperand &mc_op,
                           unsigned op_idx, const MCInstrDesc &desc);
   MachineInstr *create_machine_instr(const translated_inst &tinst,

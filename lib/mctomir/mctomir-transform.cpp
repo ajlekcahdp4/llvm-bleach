@@ -3,13 +3,18 @@
 #include <cstdint>
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/StringExtras.h>
+#include <llvm/CodeGen/GlobalISel/GISelValueTracking.h>
+#include <llvm/CodeGen/GlobalISel/InstructionSelector.h>
 #include <llvm/CodeGen/MIRParser/MIRParser.h>
 #include <llvm/CodeGen/MIRPrinter.h>
 #include <llvm/CodeGen/MachineInstrBuilder.h>
+#include <llvm/CodeGen/TargetOpcodes.h>
 #include <llvm/IR/LegacyPassManager.h>
+#include <llvm/MC/MCInstrAnalysis.h>
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Object/ELFObjectFile.h>
 #include <llvm/Object/ObjectFile.h>
+#include <llvm/Support/CodeGenCoverage.h>
 #include <llvm/Support/Error.h>
 #include <llvm/Support/ErrorHandling.h>
 #include <llvm/Target/TargetMachine.h>
@@ -266,6 +271,31 @@ Error translator_t::translate_instructions() {
   return Error::success();
 }
 
+static bool is_tail_call(const MCInst &instr, const MachineBasicBlock *current,
+                         const MachineBasicBlock *target,
+                         const MCInstrAnalysis &mi_analysis) {
+  return mi_analysis.isUnconditionalBranch(instr) &&
+         target->getParent() != current->getParent();
+}
+static bool is_call(const MCInst &instr, const MachineBasicBlock *current,
+                    const MachineBasicBlock *target,
+                    const MCInstrAnalysis &mi_analysis) {
+  return mi_analysis.isCall(instr) ||
+         is_tail_call(instr, current, target, mi_analysis);
+}
+
+void translator_t::fill_operands(MachineInstrBuilder &builder,
+                                 const MCInst &inst, const MCInstrDesc &desc,
+                                 bool is_branch) {
+  for (unsigned i = 0; i < inst.getNumOperands(); ++i) {
+    if (is_branch && (i == inst.getNumOperands() - 1) &&
+        inst.getOperand(i).isImm())
+      break;
+    const MCOperand &mc_op = inst.getOperand(i);
+    add_operand_to_mib(builder, mc_op, i, desc);
+  }
+}
+
 MachineInstr *translator_t::create_machine_instr(const translated_inst &tinst,
                                                  MachineBasicBlock *mbb) {
   if (!tii || !mbb)
@@ -276,36 +306,40 @@ MachineInstr *translator_t::create_machine_instr(const translated_inst &tinst,
   const MCInstrDesc &desc = tii->get(opcode);
   uint64_t target;
   bool is_branch = res.mi_analysis->evaluateBranch(inst, 0, 4, target);
-  MachineInstrBuilder mib = BuildMI(*mbb, mbb->end(), DebugLoc(), desc);
-
-  for (unsigned i = 0; i < inst.getNumOperands(); ++i) {
-    if (is_branch && (i == inst.getNumOperands() - 1) &&
-        inst.getOperand(i).isImm())
-      break;
-    const MCOperand &mc_op = inst.getOperand(i);
-    add_operand_to_mib(mib, mc_op, i, desc);
-  }
 
   if (is_branch) {
-    // TODO(Ilyagavilin): deduce operands in other way
-    if (inst.getNumOperands() > 0 &&
-        inst.getOperand(inst.getNumOperands() - 1).isImm()) {
-      auto target_it = address_to_mbb.find(target + tinst.address);
-      if (target_it != address_to_mbb.end()) {
-        if (res.mi_analysis->isCall(inst))
-          mib.addGlobalAddress(&target_it->second->getParent()->getFunction(),
-                               0);
-        else
-          mib.addMBB(target_it->second);
-      } else {
-        std::string instr;
-        raw_string_ostream ss(instr);
-        mib->print(ss);
-        std::cerr << "Warning: destination not found for instruction:\n\t"
-                  << instr << '\n';
+    assert(inst.getNumOperands() > 0 &&
+           inst.getOperand(inst.getNumOperands() - 1).isImm());
+    auto target_it = address_to_mbb.find(target + tinst.address);
+    if (target_it != address_to_mbb.end()) {
+      if (mctomir::is_call(inst, mbb, target_it->second, *res.mi_analysis)) {
+        bool is_tail = mctomir::is_tail_call(inst, mbb, target_it->second,
+                                             *res.mi_analysis);
+
+        auto mib = is_tail ? BuildMI(*mbb, mbb->end(), DebugLoc(),
+                                     tii->get(TargetOpcode::G_BR))
+                           : BuildMI(*mbb, mbb->end(), DebugLoc(), desc);
+        if (!is_tail)
+          fill_operands(mib, inst, desc, is_branch);
+        mib.addGlobalAddress(&target_it->second->getParent()->getFunction(), 0);
+
+        return mib.getInstr();
       }
+      MachineInstrBuilder mib = BuildMI(*mbb, mbb->end(), DebugLoc(), desc);
+      fill_operands(mib, inst, desc, is_branch);
+      mib.addMBB(target_it->second);
+      mbb->addSuccessor(target_it->second);
+      return mib.getInstr();
+    } else {
+      std::string instr;
+      raw_string_ostream ss(instr);
+      std::cerr << "Warning: destination not found for instruction:\n\t"
+                << instr << '\n';
     }
   }
+  MachineInstrBuilder mib = BuildMI(*mbb, mbb->end(), DebugLoc(), desc);
+
+  fill_operands(mib, inst, desc, is_branch);
 
   return mib.getInstr();
 }
@@ -356,12 +390,14 @@ Error translator_t::link_machine_basic_blocks() {
         if (res.mi_analysis->evaluateBranch(last_inst, last_t_inst->address, 0,
                                             target)) {
           auto target_it = address_to_mbb.find(target);
-          if (target_it != address_to_mbb.end()) {
-            mbb->addSuccessor(target_it->second);
+          if (target_it != address_to_mbb.end() &&
+              !mctomir::is_call(last_inst, mbb, target_it->second,
+                                *res.mi_analysis)) {
+            // mbb->addSuccessor(target_it->second);
           } else {
             MachineBasicBlock *target_mbb =
                 get_or_create_mbb_for_address(target, *finfo.mfunc);
-            mbb->addSuccessor(target_mbb);
+            // mbb->addSuccessor(target_mbb);
           }
         }
         if (!res.mi_analysis->isUnconditionalBranch(last_inst) &&
