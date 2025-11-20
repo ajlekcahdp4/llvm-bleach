@@ -102,13 +102,16 @@ void create_basic_blocks_for_mfunc(MachineFunction &src, MachineFunction &dst,
   std::unordered_map<MachineBasicBlock *, MachineBasicBlock *> block_map;
   // One cannot simply loop over mfunc as we insert new blocks into it
   for (auto &mbb : src) {
+    assert(all_of(mbb.successors(),
+                  [&](auto *succ) { return succ->getParent() == &src; }));
     auto [new_mblock, new_block] = clone_basic_block(mbb, dst);
     m2b.insert({new_mblock, new_block});
-    block_map.insert({&mbb, new_mblock});
+    block_map.try_emplace(&mbb, new_mblock);
   }
   for (auto &mbb : dst) {
-    for (auto *succ : mbb.successors())
+    for (auto *succ : mbb.successors()) {
       replace_uses_of_block_with(mbb, *succ, *block_map.at(succ));
+    }
   }
   for (auto &block : dst.getFunction()) {
     for (auto &inst : block)
@@ -124,18 +127,6 @@ void create_basic_blocks_for_mfunc(MachineFunction &src, MachineFunction &dst,
       return succ->getParent() == mbb.getParent();
     });
   }));
-
-  for (auto &mbb : dst) {
-    for (auto &minst : mbb) {
-      if (minst.isBranch()) {
-        auto dst_mbb = llvm::find_if(minst.operands(),
-                                     [](auto &op) { return op.isMBB(); });
-        assert(dst_mbb != minst.operands_end());
-        assert(!block_map.count(dst_mbb->getMBB()));
-        assert(dst_mbb->getMBB()->getParent() == &dst);
-      }
-    }
-  }
 }
 
 void fill_module_with_instrs(Module &m, const instr_impl &instrs) {
@@ -284,8 +275,9 @@ void load_registers(BasicBlock &block, BasicBlock::iterator pos, reg2vals &rmap,
   for (auto &&[idx, rclass] : reg_stats | views::enumerate) {
     auto *array_type = state.getElementType(idx);
     auto *arr_idx = ConstantInt::get(ctx, APInt(32, idx));
-    auto *array_ptr = builder.CreateGEP(
-        &state, state_arg, ArrayRef<Value *>{arr_idx}, rclass.get_name());
+    auto *array_ptr = builder.CreateGEP(&state, state_arg,
+                                        ArrayRef<Value *>{const_zero, arr_idx},
+                                        rclass.get_name());
     for (auto &&[reg_idx, val] : rmap | views::filter([&rclass](auto r) {
                                    return rclass.contains(r.first);
                                  }) | views::enumerate) {
@@ -642,8 +634,13 @@ auto generate_branch(const MachineInstr &minst, BasicBlock &bb,
   auto name = get_instruction_name(minst, *iinfo);
   auto *m = bb.getParent()->getParent();
   auto *func = m->getFunction(name);
-  if (!func)
-    throw std::runtime_error("Could not find \"" + name + "\" in module");
+  if (!func) {
+    std::string instr;
+    raw_string_ostream ss(instr);
+    minst.print(ss);
+    throw std::runtime_error("Could not find \"" + name +
+                             "\" in module: " + instr);
+  }
   auto op_to_val = [&](auto &mop) {
     return operand_to_value(mop, bb, target_machine, rmap, reg_stats, insts);
   };
@@ -788,8 +785,8 @@ static auto generate_load_store_from_stack(
   auto *offset = [&] -> Value * {
     if (offset_it == uses.end())
       return ConstantInt::get(ctx, APInt(64, 0));
-    return ConstantInt::get(ctx,
-                            APInt(64, -offset_it->getImm() / reg_bytesize));
+    auto off = -offset_it->getImm() / reg_bytesize;
+    return ConstantInt::get(ctx, APInt(64, off));
   }();
   auto *sp =
       get_stack_pointer_value(instrs, rmap, builder, target_machine, reg_stats);
@@ -806,15 +803,21 @@ static auto generate_load_store_from_stack(
   auto *iinfo = target_machine.getMCInstrInfo();
   auto name = get_instruction_name(minst, *iinfo);
   auto *m = bb.getParent()->getParent();
-  auto *func = m->getFunction(name);
-  if (!func)
-    throw std::runtime_error("Could not find \"" + name + "\" in module");
+
   auto *inserted = [&] -> Value * {
     // Loading value from stack
     if (minst.mayLoad()) {
       if (minst.mayStore())
         throw std::runtime_error("Unsupported stack manipulation. Instruction "
                                  "can both load and store");
+      auto *func = m->getFunction(name);
+      if (!func) {
+        std::string instr;
+        raw_string_ostream ss(instr);
+        minst.print(ss);
+        throw std::runtime_error("Could not find \"" + name +
+                                 "\" in module: " + instr);
+      }
       auto *ret_type = func->getFunctionType()->getReturnType();
       return builder.CreateLoad(ret_type, addr);
     }
@@ -829,8 +832,9 @@ static auto generate_load_store_from_stack(
     return builder.CreateStore(value, addr);
   }();
   // save result to register
-  if (!minst.defs().empty())
+  if (!minst.defs().empty()) {
     builder.CreateStore(inserted, rmap.at(minst.defs().begin()->getReg()));
+  }
   return inserted;
 }
 
@@ -929,18 +933,16 @@ static bool is_return(const MachineInstr &minst, const instr_impl &instrs,
 static bool is_call(const MachineInstr &minst, const TargetMachine &tmachine) {
   if (minst.isCall())
     return true;
-  if (minst.isPseudo())
-    return false;
   // TODO: create mia only once
   MCInst inst;
   inst.setOpcode(minst.getOpcode());
   std::unique_ptr<MCInstrAnalysis> mia(
       tmachine.getTarget().createMCInstrAnalysis(tmachine.getMCInstrInfo()));
   assert(mia);
-  return mia->isCall(inst) && std::find_if(minst.operands_begin(),
-                                           minst.operands_end(), [](auto &o) {
-                                             return o.isGlobal();
-                                           }) != minst.operands_end();
+  return (mia->isCall(inst) || minst.isUnconditionalBranch()) &&
+         std::find_if(minst.operands_begin(), minst.operands_end(),
+                      [](auto &o) { return o.isGlobal(); }) !=
+             minst.operands_end();
 }
 static bool is_indirect_branch(const MachineInstr &minst,
                                const instr_impl &instrs,
@@ -955,7 +957,9 @@ static bool is_indirect_branch(const MachineInstr &minst,
 
 static bool is_branch(const MachineInstr &minst,
                       const TargetMachine &tmachine) {
-  if (minst.isBranch())
+  if (minst.isBranch() &&
+      std::find_if(minst.operands_begin(), minst.operands_end(),
+                   [](auto &o) { return o.isMBB(); }) != minst.operands_end())
     return true;
   // TODO: create mia only once
   MCInst inst;
@@ -1017,18 +1021,21 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
   if (is_call(minst, target_machine))
     return generate_call(minst, builder, bb, rmap, target_machine, state,
                          reg_stats, functions_nop);
-  if (minst.mayLoadOrStore()) {
-    // Instructions that are not considered stack manipulation are generated
-    // just like any other instruction
-    if (is_stack_manipulation(minst, sptrack))
-      return generate_load_store_from_stack(minst, builder, bb, rmap, instrs,
-                                            target_machine, state, reg_stats);
+  if (is_stack_manipulation(minst, sptrack)) {
+    return generate_load_store_from_stack(minst, builder, bb, rmap, instrs,
+                                          target_machine, state, reg_stats);
   }
+
   // TODO: track stack pointerS
   auto *m = bb.getParent()->getParent();
   auto *func = m->getFunction(name);
-  if (!func)
-    throw std::runtime_error("Could not find \"" + name + "\" in module");
+  if (!func) {
+    std::string instr;
+    raw_string_ostream ss(instr);
+    minst.print(ss);
+    throw std::runtime_error("Could not find \"" + name +
+                             "\" in module: " + instr);
+  }
   auto uses = minst.uses();
   bool uses_sp = ranges::find_if(uses, [&](auto &u) {
                    return u.isReg() && sptrack.is_stack_pointer(u.getReg());
@@ -1037,8 +1044,7 @@ auto generate_instruction(const MachineInstr &minst, BasicBlock &bb,
       !minst.defs().empty() && minst.defs().begin()->isReg() && uses_sp;
   if (is_stack_pointer_manipulation) {
     auto dst = minst.defs().begin()->getReg();
-    if (sptrack.is_stack_pointer(dst))
-      sptrack.add(dst);
+    sptrack.add(dst);
     return generate_stack_pointer_modification(
         minst, builder, bb, target_machine, rmap, instrs, reg_stats);
   }
@@ -1091,8 +1097,12 @@ void fill_ir_for_bb(MachineBasicBlock &mbb, reg2vals &rmap,
   auto last = std::prev(mbb.end());
   if (!is_branch(*last, target_machine) &&
       !is_return(*last, instrs, target_machine)) {
-    auto succ = std::next(mbb.getIterator());
-    builder.CreateBr(m2b[std::addressof(*succ)]);
+    if (is_call(*last, target_machine)) {
+      builder.CreateRetVoid();
+    } else {
+      auto succ = std::next(mbb.getIterator());
+      builder.CreateBr(m2b[std::addressof(*succ)]);
+    }
   }
 }
 

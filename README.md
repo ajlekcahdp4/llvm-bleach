@@ -50,3 +50,18 @@ llvm-bleach currently comes with documentation for all of 3 distributed tools:
 - [mctomir](./docs/mctomir.md) - machine code to MIR lifter
 - [bleach-config-gen](./docs/bleach-config-gen.md) - helper tool to generate
   architecture configs for llvm-bleach from available templates.
+
+### Platform Support
+
+#### RISC-V
+
+Currently llvm-bleach supports rv64/rv32 basic instruction sets for I configurations.
+Supported extensions include:
+
+- M - Integer multiplication and division
+- F - Single-precision floating-point operations
+- D - Double-precision floating-point operations
+
+> [!NOTE]
+> mctomir tool for lifting machine code to LLVM MIR potentially supports all
+> architectures supported by LLVM but is not yet propperly tested
