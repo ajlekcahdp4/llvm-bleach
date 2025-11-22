@@ -303,8 +303,7 @@ instructions:
          %7 = bitcast i32 %4 to float
          %8 = bitcast i32 %5 to float
          %9 = bitcast i32 %6 to float
-         %10 = fmul float %7, %8
-         %11 = fadd float %10, %9
+         %11 = call float @llvm.fmuladd.f32(float %7, float %8, float %9)
          %12 = bitcast float %11 to i32
          %13 = zext i32 %12 to i64
          %14 = shl i64 4294967295, 32 ; 0xFFFFFFFF00000000
@@ -320,8 +319,8 @@ instructions:
          %7 = bitcast i32 %4 to float
          %8 = bitcast i32 %5 to float
          %9 = bitcast i32 %6 to float
-         %10 = fmul float %7, %8
-         %11 = fsub float %10, %9
+         %10 = fneg float %9
+         %11 = call float @llvm.fmuladd.f32(float %7, float %8, float %10)
          %12 = bitcast float %11 to i32
          %13 = zext i32 %12 to i64
          %14 = shl i64 4294967295, 32 ; 0xFFFFFFFF00000000
@@ -337,9 +336,9 @@ instructions:
          %7 = bitcast i32 %4 to float
          %8 = bitcast i32 %5 to float
          %9 = bitcast i32 %6 to float
-         %10 = fmul float %7, %8
-         %11 = fneg float %10
-         %12 = fsub float %11, %9
+         %10 = fneg float %7
+         %11 = fneg float %9
+         %12 = call float @llvm.fmuladd.f32(float %10, float %8, float %11)
          %13 = bitcast float %12 to i32
          %14 = zext i32 %13 to i64
          %15 = shl i64 4294967295, 32 ; 0xFFFFFFFF00000000
@@ -355,9 +354,8 @@ instructions:
          %7 = bitcast i32 %4 to float
          %8 = bitcast i32 %5 to float
          %9 = bitcast i32 %6 to float
-         %10 = fmul float %7, %8
-         %11 = fneg float %10
-         %12 = fadd float %11, %9
+         %10 = fneg float %7
+         %12 = call float @llvm.fmuladd.f32(float %10, float %8, float %9)
          %13 = bitcast float %12 to i32
          %14 = zext i32 %13 to i64
          %15 = shl i64 4294967295, 32 ; 0xFFFFFFFF00000000
@@ -629,8 +627,7 @@ instructions:
          %4 = bitcast i64 %0 to double
          %5 = bitcast i64 %1 to double
          %6 = bitcast i64 %2 to double
-         %7 = fmul double %4, %5
-         %8 = fadd double %6, %7
+         %8 = call double @llvm.fmuladd.f64(double %4, double %5, double %6)
          %9 = bitcast double %8 to i64
          ret i64 %9
       }
@@ -640,8 +637,8 @@ instructions:
          %4 = bitcast i64 %0 to double
          %5 = bitcast i64 %1 to double
          %6 = bitcast i64 %2 to double
-         %7 = fmul double %4, %5
-         %8 = fsub double %7, %6
+         %7 = fneg double %6
+         %8 = call double @llvm.fmuladd.f64(double %4, double %5, double %7)
          %9 = bitcast double %8 to i64
          ret i64 %9
       }
@@ -651,9 +648,9 @@ instructions:
          %4 = bitcast i64 %0 to double
          %5 = bitcast i64 %1 to double
          %6 = bitcast i64 %2 to double
-         %7 = fmul double %4, %5
-         %8 = fneg double %7
-         %9 = fsub double %8, %6
+         %7 = fneg double %4
+         %8 = fneg double %6
+         %9 = call double @llvm.fmuladd.f64(double %7, double %5, double %8)
          %10 = bitcast double %9 to i64
          ret i64 %10
       }
@@ -663,9 +660,8 @@ instructions:
          %4 = bitcast i64 %0 to double
          %5 = bitcast i64 %1 to double
          %6 = bitcast i64 %2 to double
-         %7 = fmul double %4, %5
-         %8 = fneg double %7
-         %9 = fadd double %8, %6
+         %7 = fneg double %4
+         %9 = call double @llvm.fmuladd.f64(double %7, double %5, double %6)
          %10 = bitcast double %9 to i64
          ret i64 %10
       }
