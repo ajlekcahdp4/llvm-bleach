@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 // generated header
-#include <state.h>
+#include <STATE>
 
 static struct register_state regs = {};
 
