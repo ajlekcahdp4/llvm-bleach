@@ -6,7 +6,7 @@
 // RUN:   --state-struct-file=%t.state.h
 // RUN: sed 's|STATE|%t.state.h|g' %S/inputs/riscv-mixed-arithmetic-fpu.c > \
 // RUN:   %t.main.c
-// RUN: clang %t.main.c %t.ll -o %t.native.out -g \
+// RUN: clang %t.main.c %t.ll -o %t.native.out -g -fsanitize=address,undefined\
 // RUN:   -I %S/inputs
 // RUN: %t.native.out
 

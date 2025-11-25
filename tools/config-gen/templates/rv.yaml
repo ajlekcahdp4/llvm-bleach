@@ -272,6 +272,23 @@ instructions:
          %8 = or i64 %6, %7
          ret i64 %8
       }
+  FCVT_L_S:
+    func: |
+      define i64 @FCVT_L_S(i64 %0, i10 %rm) {
+         %3 = trunc i64 %0 to i32
+         %4 = bitcast i32 %3 to float
+         %5 = fptosi float %4 to i64
+         ret i64 %5
+      }
+  FCVT_LU_S:
+    func: |
+      define i64 @FCVT_LU_S(i64 %0, i10 %rm) {
+         %3 = trunc i64 %0 to i32
+         %4 = bitcast i32 %3 to float
+         %5 = fptoui float %4 to i64
+         ret i64 %5
+      }
+
   FCVT_WU_S:
     func: |
       define i64 @FCVT_WU_S(i64 %0, i10 %rm) {
