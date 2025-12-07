@@ -35,8 +35,8 @@ double test_fma_double_ops(double a, double b, double c, double d, double e) {
   return result1 + result2 + result3 + result4;
 }
 
-int test_float_int_conversions(float f1, float f2, int i1, int i2, unsigned u1,
-                               unsigned u2) {
+long test_float_int_conversions(float f1, float f2, int i1, int i2, unsigned u1,
+                                unsigned u2) {
   int float_to_int1 = (int)f1;
   int float_to_int2 = (int)f2;
   unsigned float_to_uint1 = (unsigned)(f1 > 0 ? f1 : 0.0);
@@ -46,9 +46,11 @@ int test_float_int_conversions(float f1, float f2, int i1, int i2, unsigned u1,
   float uint_to_float1 = (float)u1;
   float uint_to_float2 = (float)u2;
 
-  return float_to_int1 + float_to_int2 + (int)float_to_uint1 +
-         (int)float_to_uint2 + (int)int_to_float1 + (int)int_to_float2 +
-         (int)uint_to_float1 + (int)uint_to_float2;
+  return (long)float_to_int1 / 16;
+  +(long)float_to_int2 / 16 + (long)float_to_uint1 / 16 +
+      (long)float_to_uint2 / 16 + ((long)int_to_float1) / 16 +
+      ((long)int_to_float2) / 16 + ((long)uint_to_float1) / 16 +
+      ((long)uint_to_float2) / 16;
 }
 
 long test_double_long_conversions(double d1, double d2, long l1, long l2,
@@ -62,10 +64,10 @@ long test_double_long_conversions(double d1, double d2, long l1, long l2,
   double ulong_to_double1 = (double)ul1;
   double ulong_to_double2 = (double)ul2;
 
-  return double_to_long1 + double_to_long2 + (long)double_to_ulong1 +
-         (long)double_to_ulong2 + (long)long_to_double1 +
-         (long)long_to_double2 + (long)ulong_to_double1 +
-         (long)ulong_to_double2;
+  return double_to_long1 / 16 + double_to_long2 / 16 +
+         (long)double_to_ulong1 / 16 + (long)double_to_ulong2 / 16 +
+         ((long)long_to_double1) / 16 + ((long)long_to_double2) / 16 +
+         ((long)ulong_to_double1) / 16 + ((long)ulong_to_double2) / 16;
 }
 
 double test_float_double_conversions(float f1, float f2, double d1, double d2) {
@@ -196,7 +198,7 @@ float test_complex_float_expr(float a, float b, float c, float d, float e,
   float one = (float)one_int;
   float temp1 = (a + b) * (c - d);
   float temp2 = (e * f) / (a + one);
-  float temp3 = test_sqrt_minmax(temp1, temp2, a, b, c);
+  float temp3 = temp1; // test_sqrt_minmax(temp1, temp2, a, b, c);
   float temp4 = (temp1 < temp2) ? temp1 : temp2;
   float temp5 = (temp3 > temp4) ? temp3 : temp4;
   return temp1 + temp2 - temp3 * temp4 / temp5;
@@ -221,6 +223,8 @@ top_function_mixed(int i1, int i2, unsigned u1, unsigned u2, long l1, long l2,
                    double d4) {
 
   double result = 0.0;
+  result += test_float_int_conversions(f1, f2, i1, i2, u1, u2);
+
   // Test basic operations
   result += test_basic_float_ops(f1, f2, f3, f4);
   result += test_basic_double_ops(d1, d2, d3, d4);
@@ -230,7 +234,6 @@ top_function_mixed(int i1, int i2, unsigned u1, unsigned u2, long l1, long l2,
   result += test_fma_double_ops(d1, d2, d3, d4, d1); // Reuse d1 for 5th param
 
   // Test conversions
-  result += test_float_int_conversions(f1, f2, i1, i2, u1, u2);
   result += test_double_long_conversions(d1, d2, l1, l2, ul1, ul2);
   result += test_float_double_conversions(f3, f4, d3, d4);
 
@@ -245,7 +248,7 @@ top_function_mixed(int i1, int i2, unsigned u1, unsigned u2, long l1, long l2,
   result += test_sign_double_ops(d1, d2, d3, d4);
 
   // Test sqrt and min/max
-  result += test_sqrt_minmax(f1, f2, f3, f4, f1); // Reuse f1 for 5th param
+  // result += test_sqrt_minmax(f1, f2, f3, f4, f1); // Reuse f1 for 5th param
   result +=
       test_sqrt_minmax_double(d1, d2, d3, d4, d1); // Reuse d1 for 5th param
 

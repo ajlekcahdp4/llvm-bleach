@@ -8,7 +8,7 @@
 #include <string.h>
 #include <time.h>
 
-void print(int64_t x) { printf("PRINT CALLED WITH: %lx", x); }
+void print(int64_t x) { fprintf(stderr, "PRINT CALLED WITH: %lx\n", x); }
 
 int64_t bitcast_double_to_int(double v) {
   int64_t res;
@@ -106,11 +106,69 @@ int main() {
   arguments arg_array[] = {
       {42, -123, 100, 200, 1000000, -500000, 3000000, 4000000, 3.1415f,
        2.71828f, 1.41421f, -0.57721f, 123.456, -789.012, 0.001, 1000000.0},
+      {1477171087, 356426808, 945117276, 1889947178, 3824015087501868208,
+       1055929314494252795, 1615751137563298991, 4410931268227206996, 31.460815,
+       0.000072, -12.088020, 84.793961, -1.601563, -1.185233, -1.315781,
+       -1.089028},
+      {1477171087, 356426808, 945117276, 1889947178, 3824015087501868208,
+       1055929314494252795, 1615751137563298991, 4410931268227206996, 31.460815,
+       0.000072, -12.088020, 84.793961, -1.601563, -1.185233, -1.315781,
+       -1.089028},
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
+      get_random_arguments(),
       get_random_arguments(),
   };
   int failed = 0;
   for (unsigned i = 0; i < sizeof(arg_array) / sizeof(arguments); ++i) {
     const arguments *args = &arg_array[i];
+    memset(&regs, 0, sizeof(regs));
+    // for (int i = 0; i< 32; ++i)
+    //   printf("GPR[%d] = %lx\n", i, regs.GPR[i]);
+    // for (int i = 0; i< 32; ++i)
+    //   printf("FPR[%d] = %lx\n", i, regs.FPR[i]);
+    // for (int i = 0; i < 1000; ++i)
+    //   printf("%lx ", regs.stack[i]);
     regs.GPR[10] = args->i1;                        // a0
     regs.GPR[11] = args->i2;                        // a1
     regs.GPR[12] = args->u1;                        // a2
@@ -127,6 +185,16 @@ int main() {
     regs.FPR[15] = bitcast_double_to_int(args->d2); // fa5 (double)
     regs.FPR[16] = bitcast_double_to_int(args->d3); // fa6 (double)
     regs.FPR[17] = bitcast_double_to_int(args->d4); // fa7 (double)
+    printf("ARGUMENTS ARE:\n %d, %d, %u, %u, %ld, %ld, %lu, %lu, %f, %f, %f, "
+           "%f, %lf, %lf, %lf, %lf\n",
+           args->i1, args->i2, args->u1, args->u2, args->l1, args->l2,
+           args->ul1, args->ul2, args->f1, args->f2, args->f3, args->f4,
+           args->d1, args->d2, args->d3, args->d4);
+    for (int i = 0; i < 32; ++i)
+      printf("GPR[%d] = %lx\n", i, regs.GPR[i]);
+    for (int i = 0; i < 32; ++i)
+      printf("FPR[%d] = %lx\n", i, regs.FPR[i]);
+
     double res1 = test_all_operations(args->i1, args->i2, args->u1, args->u2,
                                       args->l1, args->l2, args->ul1, args->ul2,
                                       args->f1, args->f2, args->f3, args->f4,
@@ -137,7 +205,32 @@ int main() {
     printf("result: %lf\n", res2);
     printf("reference: %lf\n", res1);
     printf("diff: %lf\n", res1 - res2);
-    failed |= !are_equal(res1, res2);
+    int res = !are_equal(res1, res2);
+    failed |= res;
+    printf("ARGUMENTS WERE:\n %d, %d, %u, %u, %ld, %ld, %lu, %lu, %f, %f, %f, "
+           "%f, %lf, %lf, %lf, %lf\n",
+           args->i1, args->i2, args->u1, args->u2, args->l1, args->l2,
+           args->ul1, args->ul2, args->f1, args->f2, args->f3, args->f4,
+           args->d1, args->d2, args->d3, args->d4);
+    for (int i = 0; i < 32; ++i)
+      printf("GPR[%d] = %lx\n", i, regs.GPR[i]);
+    for (int i = 0; i < 32; ++i)
+      printf("FPR[%d] = %lx\n", i, regs.FPR[i]);
+
+    if (res) {
+      printf("ARGUMENTS WERE:\n %d, %d, %u, %u, %ld, %ld, %lu, %lu, %f, %f, "
+             "%f, %f, %lf, %lf, %lf, %lf\n",
+             args->i1, args->i2, args->u1, args->u2, args->l1, args->l2,
+             args->ul1, args->ul2, args->f1, args->f2, args->f3, args->f4,
+             args->d1, args->d2, args->d3, args->d4);
+      for (int i = 0; i < 32; ++i)
+        printf("GPR[%d] = %lx\n", i, regs.GPR[i]);
+      for (int i = 0; i < 32; ++i)
+        printf("FPR[%d] = %lx\n", i, regs.FPR[i]);
+
+      break;
+    }
+    printf("-----------\n");
   }
   return failed;
 }
